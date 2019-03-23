@@ -64,17 +64,38 @@ static T internString(const T &str)
 
 static SignalHistoryModel *s_historyModel = nullptr;
 
-static void signal_begin_callback(QObject *caller, int method_index, void **argv)
+static void invokeHistoryModel(const char *signature, QObject *caller, int method_index)
 {
-    Q_UNUSED(argv);
     if (s_historyModel) {
         const int signalIndex = method_index + 1; // offset 1, so unknown signals end up at 0
         static const QMetaMethod m = s_historyModel->metaObject()->method(
-            s_historyModel->metaObject()->indexOfMethod("onSignalEmitted(QObject*,int)"));
+            s_historyModel->metaObject()->indexOfMethod(signature));
         Q_ASSERT(m.isValid());
         m.invoke(s_historyModel, Qt::AutoConnection, Q_ARG(QObject*, caller),
                  Q_ARG(int, signalIndex));
     }
+}
+
+static void signal_begin_callback(QObject *caller, int method_index, void **argv)
+{
+    Q_UNUSED(argv);
+    invokeHistoryModel("onSignalBegin(QObject*,int)", caller, method_index);
+}
+
+static void signal_end_callback(QObject *caller, int method_index)
+{
+    invokeHistoryModel("onSignalEnd(QObject*,int)", caller, method_index);
+}
+
+static void slot_begin_callback(QObject *caller, int method_index, void **argv)
+{
+    Q_UNUSED(argv);
+    invokeHistoryModel("onSlotBegin(QObject*,int)", caller, method_index);
+}
+
+static void slot_end_callback(QObject *caller, int method_index)
+{
+    invokeHistoryModel("onSlotEnd(QObject*,int)", caller, method_index);
 }
 
 SignalHistoryModel::SignalHistoryModel(Probe *probe, QObject *parent)
@@ -85,6 +106,9 @@ SignalHistoryModel::SignalHistoryModel(Probe *probe, QObject *parent)
 
     SignalSpyCallbackSet spy;
     spy.signalBeginCallback = signal_begin_callback;
+    spy.signalEndCallback = signal_end_callback;
+    spy.slotBeginCallback = slot_begin_callback;
+    spy.slotEndCallback = slot_end_callback;
     probe->registerSignalSpyCallbackSet(spy);
 
     s_historyModel = this;
@@ -215,7 +239,7 @@ void SignalHistoryModel::onObjectRemoved(QObject *object)
     emit dataChanged(index(itemIndex, EventColumn), index(itemIndex, EventColumn));
 }
 
-void SignalHistoryModel::onSignalEmitted(QObject *sender, int signalIndex)
+void SignalHistoryModel::onSignalBegin(QObject *sender, int signalIndex)
 {
     Q_ASSERT(thread() == QThread::currentThread());
     const qint64 timestamp = RelativeClock::sinceAppStart()->mSecs();
@@ -239,6 +263,21 @@ void SignalHistoryModel::onSignalEmitted(QObject *sender, int signalIndex)
 
     data->events.push_back((timestamp << 16) | signalIndex);
     emit dataChanged(index(itemIndex, EventColumn), index(itemIndex, EventColumn));
+}
+
+void SignalHistoryModel::onSignalEnd(QObject *sender, int signalIndex)
+{
+    
+}
+
+void SignalHistoryModel::onSlotBegin(QObject *sender, int signalIndex)
+{
+    
+}
+
+void SignalHistoryModel::onSlotEnd(QObject *sender, int signalIndex)
+{
+    
 }
 
 SignalHistoryModel::Item::Item(QObject *obj)

@@ -160,7 +160,7 @@ void ObjectInspector::exportSignalBindingGraph()
             if (OutboundConnectionsModel::outboundConnectionsForObject(object).isEmpty() &&
                     InboundConnectionsModel::inboundConnectionsForObject(object).isEmpty())
                 continue; // Filter out unconnected objects
-            dotFile.write(QStringLiteral("n%1 [label=\"%2\"]\n").arg(objectIndices.value(object)).arg(Util::shortDisplayString(object)).toUtf8());
+            dotFile.write(QStringLiteral("n%1 [label=\"%2\\n%3\"]\n").arg(objectIndices.value(object)).arg(Util::shortDisplayString(object)).arg().toUtf8());
         }
         dotFile.write("}\n");
     }

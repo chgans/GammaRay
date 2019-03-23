@@ -52,6 +52,7 @@ private slots:
     void modelIndexSelected(const QModelIndex &index);
     void objectSelectionChanged(const QItemSelection &selection);
     void objectSelected(QObject *object);
+    void exportSignalBindingGraph();
 
 private:
     void registerPCExtensions();

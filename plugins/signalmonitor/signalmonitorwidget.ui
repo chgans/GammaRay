@@ -110,6 +110,14 @@
     </layout>
    </item>
   </layout>
+  <action name="actionExportBindingGraph">
+   <property name="text">
+    <string>&amp;Export binding graph...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export binding as a graphviz dot file</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

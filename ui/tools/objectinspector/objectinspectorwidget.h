@@ -74,6 +74,7 @@ private slots:
     void objectSelectionChanged(const QItemSelection &selection);
     void objectContextMenuRequested(const QPoint &pos);
     void propertyWidgetTabsChanged();
+    void exportBindingGraph();
 
 private:
     QScopedPointer<Ui::ObjectInspectorWidget> ui;

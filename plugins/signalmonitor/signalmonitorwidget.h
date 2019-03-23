@@ -57,6 +57,7 @@ private slots:
     void eventDelegateIsActiveChanged(bool active);
     void contextMenu(QPoint pos);
     void selectionChanged(const QItemSelection &selection);
+    void exportBindingGraph();
 
 private:
     static const QString ITEM_TYPE_NAME_OBJECT;

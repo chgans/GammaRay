@@ -87,6 +87,9 @@ SignalMonitorWidget::SignalMonitorWidget(QWidget *parent)
 
     m_stateManager.setDefaultSizes(ui->objectTreeView->header(),
                                    UISizeVector() << 200 << 200 << -1);
+
+    connect(ui->actionExportBindingGraph, &QAction::triggered, this, &SignalMonitorWidget::exportBindingGraph);
+    addAction(ui->actionExportBindingGraph);
 }
 
 SignalMonitorWidget::~SignalMonitorWidget() = default;
@@ -151,4 +154,22 @@ void SignalMonitorWidget::selectionChanged(const QItemSelection& selection)
         return;
     const auto idx = selection.at(0).topLeft();
     ui->objectTreeView->scrollTo(idx);
+}
+
+#include <QDebug>
+#include <QFile>
+void SignalMonitorWidget::exportBindingGraph()
+{
+    QAbstractItemModel * const signalHistory
+        = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.SignalHistoryModel"));
+
+    auto * const inboundConnections = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.ObjectInspector.connections.inboundConnections"));
+    auto * const outboundConnections = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.ObjectInspector.connections.outboundConnections"));
+    QFile file("/tmp/toto");
+    file.open(QFile::WriteOnly);
+    QDebug(&file) << inboundConnections << outboundConnections;
+    auto selectedIndexes = ui->objectTreeView->selectionModel()->selectedIndexes();
+    for (const auto &index: selectedIndexes) {
+
+    }
 }

@@ -79,6 +79,9 @@ ObjectInspectorWidget::ObjectInspectorWidget(QWidget *parent)
     m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "60%" << "40%");
 
     connect(ui->objectPropertyWidget, &PropertyWidget::tabsUpdated, this, &ObjectInspectorWidget::propertyWidgetTabsChanged);
+
+    connect(ui->actionExportBindingGraph, &QAction::triggered, this, &ObjectInspectorWidget::exportBindingGraph);
+    addAction(ui->actionExportBindingGraph);
 }
 
 ObjectInspectorWidget::~ObjectInspectorWidget() = default;
@@ -113,4 +116,47 @@ void ObjectInspectorWidget::propertyWidgetTabsChanged()
 {
     m_stateManager.saveState();
     m_stateManager.reset();
+}
+
+#include <QDebug>
+#include <QFile>
+void ObjectInspectorWidget::exportBindingGraph()
+{
+    QFile file("/tmp/toto");
+    file.open(QFile::WriteOnly);
+    auto debug = QDebug(&file);
+
+    auto * const objectTree = ui->objectTreeView->model();
+    auto * const inboundConnections = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.ObjectInspector.connections.inboundConnections"));
+    auto * const outboundConnections = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.ObjectInspector.connections.outboundConnections"));
+    debug << inboundConnections;
+    debug << outboundConnections;
+#if 0
+    QList<QModelIndex> objectIndexes;
+    QVector<QModelIndex> parentIndexes;
+    QModelIndex parent;
+    do {
+        if (objectTree->rowCount(parent) > 0) {
+            parentIndexes.push_back(parent);
+            parent = objectTree->index(0, 0, parent);
+            continue;
+        }
+        auto const siblingIndex = objectTree->sibling(0, 0, parent);
+        if (siblingIndex.isValid()) {
+
+        }
+
+        for (int i=0; i<childCount; i++) {
+
+        }
+
+        if () {
+            parentIndex
+        }
+    } while (true);
+    auto selectedIndexes = ui->objectTreeView->selectionModel()->selectedIndexes();
+    for (const auto &index: selectedIndexes) {
+
+    }
+#endif
 }

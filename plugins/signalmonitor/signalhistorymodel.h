@@ -45,6 +45,7 @@ class SignalHistoryModel : public QAbstractTableModel
     Q_OBJECT
 
 private:
+    struct Item;
     struct Item
     {
         Item(QObject *obj);
@@ -57,7 +58,6 @@ private:
         QVector<qint64> events;
         const qint64 startTime; // FIXME: make them all methods
         qint64 endTime() const;
-
         qint64 timestamp(int i) const { return SignalHistoryModel::timestamp(events.at(i)); }
         int signalIndex(int i) const { return SignalHistoryModel::signalIndex(events.at(i)); }
     };
@@ -73,7 +73,9 @@ public:
         EventsRole = ObjectModel::UserRole + 1,
         StartTimeRole,
         EndTimeRole,
-        SignalMapRole
+        SignalMapRole,
+        EventCountRole,
+        EventDurationRole
     };
 
     explicit SignalHistoryModel(Probe *probe, QObject *parent = nullptr);
@@ -95,7 +97,10 @@ private:
 private slots:
     void onObjectAdded(QObject *object);
     void onObjectRemoved(QObject *object);
-    void onSignalEmitted(QObject *sender, int signalIndex);
+    void onSignalBegin(QObject *sender, int signalIndex);
+    void onSignalEnd(QObject *sender, int signalIndex);
+    void onSlotBegin(QObject *sender, int signalIndex);
+    void onSlotEnd(QObject *sender, int signalIndex);
 
 private:
     QVector<Item *> m_tracedObjects;
