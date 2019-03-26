@@ -270,12 +270,12 @@ void SignalHistoryModel::onSignalEnd(QObject *sender, int signalIndex)
     
 }
 
-void SignalHistoryModel::onSlotBegin(QObject *sender, int signalIndex)
+void SignalHistoryModel::onSlotBegin(QObject *receiver, int slotIndex)
 {
     
 }
 
-void SignalHistoryModel::onSlotEnd(QObject *sender, int signalIndex)
+void SignalHistoryModel::onSlotEnd(QObject *receiver, int slotIndex)
 {
     
 }

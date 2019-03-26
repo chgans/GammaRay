@@ -155,16 +155,18 @@ void ObjectInspector::exportSignalBindingGraph()
 
     for (auto thread: objectsByThread.keys()) {
         dotFile.write(QStringLiteral("subgraph cluster_%1 {\n").arg(objectIndices.value(thread)).toUtf8());
-        dotFile.write(QStringLiteral("label = \"%1\"\n").arg(Util::shortDisplayString(thread)).toUtf8());
+        dotFile.write(QStringLiteral("label = \"Thread %1\"\n").arg(Util::shortDisplayString(thread)).toUtf8());
         for (auto object: objectsByThread.value(thread)) {
             if (OutboundConnectionsModel::outboundConnectionsForObject(object).isEmpty() &&
                     InboundConnectionsModel::inboundConnectionsForObject(object).isEmpty())
                 continue; // Filter out unconnected objects
-            dotFile.write(QStringLiteral("n%1 [label=\"%2\"]\n").arg(objectIndices.value(object)).arg(Util::shortDisplayString(object)).toUtf8());
+            dotFile.write(QStringLiteral("n%1 [label=\"%3\\n%2\"]\n").arg(objectIndices.value(object)).arg(Util::shortDisplayString(object)).arg(object->metaObject()->className()).toUtf8());
         }
         dotFile.write("}\n");
     }
+    QMap<QPair<QObject*, QObject*>, int> weighing;
     for (auto object: objectIndices.keys()) {
+#if 0
         for (const auto &connection: OutboundConnectionsModel::outboundConnectionsForObject(object)) {
             const int src = objectIndices.value(object);
             const int dst = objectIndices.value(connection.endpoint);
@@ -176,6 +178,20 @@ void ObjectInspector::exportSignalBindingGraph()
 //            }
             dotFile.write(QStringLiteral("n%1 -> n%2\n").arg(src).arg(dst).toUtf8());
         }
+#else
+        for (const auto &connection: OutboundConnectionsModel::outboundConnectionsForObject(object)) {
+            const auto key = qMakePair(object, connection.endpoint);
+            if (!weighing.contains(key))
+                weighing.insert(key, 0);
+            weighing[key]++;
+        }
+#endif
+    }
+    for (const auto &pair: weighing.keys()) {
+        const int src = objectIndices.value(pair.first);
+        const int dst = objectIndices.value(pair.second);
+        const int weight = weighing.value(pair);
+        dotFile.write(QStringLiteral("n%1 -> n%2 [label=\"%3\",weight=%3]\n").arg(src).arg(dst).arg(weight).toUtf8());
     }
     dotFile.write("}\n");
 }

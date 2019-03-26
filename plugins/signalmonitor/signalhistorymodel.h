@@ -52,6 +52,7 @@ private:
 
         QObject *object; // never dereference, might be invalid!
         QHash<int, QByteArray> signalNames;
+        QHash<int, QByteArray> slotNames;
         QString objectName;
         QByteArray objectType;
         int decorationId;
@@ -99,8 +100,8 @@ private slots:
     void onObjectRemoved(QObject *object);
     void onSignalBegin(QObject *sender, int signalIndex);
     void onSignalEnd(QObject *sender, int signalIndex);
-    void onSlotBegin(QObject *sender, int signalIndex);
-    void onSlotEnd(QObject *sender, int signalIndex);
+    void onSlotBegin(QObject *receiver, int slotIndex);
+    void onSlotEnd(QObject *receiver, int slotIndex);
 
 private:
     QVector<Item *> m_tracedObjects;
