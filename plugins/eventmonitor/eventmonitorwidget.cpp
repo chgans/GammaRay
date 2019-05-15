@@ -35,6 +35,8 @@
 
 #include <ui/clientpropertymodel.h>
 #include <ui/contextmenuextension.h>
+#include <ui/graphs/graphicsscene.h>
+#include <ui/graphs/graphicsview.h>
 #include <ui/propertyeditor/propertyeditordelegate.h>
 #include <ui/searchlinecontroller.h>
 
@@ -55,11 +57,13 @@ EventMonitorWidget::EventMonitorWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::EventMonitorWidget)
     , m_interface(nullptr)
+    , m_graphicsScene(new Graphs::GraphicsScene(this))
 {
     ObjectBroker::registerClientObjectFactoryCallback<EventMonitorInterface *>(createEventMonitorClient);
     m_interface = ObjectBroker::object<EventMonitorInterface *>();
 
     ui->setupUi(this);
+    ui->graphicsView->setScene(m_graphicsScene);
 
     QAbstractItemModel * const eventModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.EventModel"));
     new SearchLineController(ui->eventSearchLine, eventModel);
@@ -86,7 +90,11 @@ EventMonitorWidget::EventMonitorWidget(QWidget *parent)
     connect(ui->recordNoneButton, &QAbstractButton::pressed, m_interface, &EventMonitorInterface::recordNone);
     connect(ui->showAllButton, &QAbstractButton::pressed, m_interface, &EventMonitorInterface::showAll);
     connect(ui->showNoneButton, &QAbstractButton::pressed, m_interface, &EventMonitorInterface::showNone);
-}
+
+    connect(eventModel, &QAbstractItemModel::rowsInserted, this,
+            &EventMonitorWidget::handleRowAdded);
+    connect(eventModel, &QAbstractItemModel::rowsRemoved, this,
+            &EventMonitorWidget::handleRowRemoved);}
 
 EventMonitorWidget::~EventMonitorWidget()
 {
@@ -96,6 +104,16 @@ EventMonitorWidget::~EventMonitorWidget()
 void EventMonitorWidget::pauseAndResume(bool pause)
 {
     m_interface->setIsPaused(pause);
+}
+
+void EventMonitorWidget::handleRowAdded(const QModelIndex &parent, int first,
+                                        int last) {
+    m_graphicsScene->addNode();
+}
+
+void EventMonitorWidget::handleRowRemoved(const QModelIndex &parent, int first, int last)
+{
+
 }
 
 void EventMonitorWidget::eventTreeContextMenu(QPoint pos)

@@ -31,6 +31,10 @@ set(gammaray_ui_srcs
   trailingcolorlabel.cpp
   helpcontroller.cpp
 
+  graphs/graphicsview.cpp
+  graphs/graphicsscene.cpp
+  graphs/graphicsitem.cpp
+
   paintanalyzerwidget.cpp
   paintanalyzerreplayview.cpp
   paintbufferclientmodel.cpp

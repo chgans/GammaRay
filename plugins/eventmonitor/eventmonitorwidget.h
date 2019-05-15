@@ -39,6 +39,9 @@ namespace GammaRay {
 namespace Ui {
 class EventMonitorWidget;
 }
+namespace Graphs {
+class GraphicsScene;
+}
 
 class EventMonitorWidget : public QWidget
 {
@@ -49,6 +52,8 @@ public:
 
 private slots:
     void pauseAndResume(bool pause);
+    void handleRowAdded(const QModelIndex &parent, int first, int last);
+    void handleRowRemoved(const QModelIndex &parent, int first, int last);
 
 private:
     void eventTreeContextMenu(QPoint pos);
@@ -56,6 +61,7 @@ private:
 
     Ui::EventMonitorWidget *ui;
     EventMonitorInterface *m_interface;
+    Graphs::GraphicsScene *m_graphicsScene;
 };
 
 class EventMonitorUiFactory : public QObject, public StandardToolUiFactory<EventMonitorWidget>
