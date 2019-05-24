@@ -31,10 +31,13 @@
 #include <QDebug>
 #include <QLabel>
 
+#include <vtkAssignCoordinatesLayoutStrategy.h>
+#include <vtkAttributeClustering2DLayoutStrategy.h>
 #include <vtkCircularLayoutStrategy.h>
 #include <vtkClustering2DLayoutStrategy.h>
 #include <vtkCommunity2DLayoutStrategy.h>
 #include <vtkConeLayoutStrategy.h>
+#include <vtkConstrained2DLayoutStrategy.h>
 #include <vtkCosmicTreeLayoutStrategy.h>
 #include <vtkFast2DLayoutStrategy.h>
 #include <vtkForceDirectedLayoutStrategy.h>
@@ -42,8 +45,10 @@
 #include <vtkRandomLayoutStrategy.h>
 #include <vtkRenderWindow.h>
 #include <vtkSimple2DLayoutStrategy.h>
+#include <vtkSimple3DCirclesStrategy.h>
 #include <vtkSpanTreeLayoutStrategy.h>
 #include <vtkTreeLayoutStrategy.h>
+#include <vtkTreeOrbitLayoutStrategy.h>
 
 using namespace GammaRay;
 
@@ -70,11 +75,23 @@ VtkPanel::VtkPanel(VtkWidget *vtkWidget, QWidget *parent)
     m_layoutBox->addItem(tr("Circular"),
                          QVariant::fromValue(LayoutStrategy::Circular));
     m_layoutBox->addItem(tr("Tree"), QVariant::fromValue(LayoutStrategy::Tree));
-    m_layoutBox->addItem(tr("Cosmic Tree"),
-                         QVariant::fromValue(LayoutStrategy::CosmicTree));
+    //    m_layoutBox->addItem(tr("Cosmic Tree"),
+    //                         QVariant::fromValue(LayoutStrategy::CosmicTree));
     m_layoutBox->addItem(tr("Cone"), QVariant::fromValue(LayoutStrategy::Cone));
     m_layoutBox->addItem(tr("Random"),
                          QVariant::fromValue(LayoutStrategy::Random));
+    m_layoutBox->addItem(
+        tr("Assign Coordinates"),
+        QVariant::fromValue(LayoutStrategy::AssignCoordinates));
+    m_layoutBox->addItem(
+        tr("Attribute Clustering 2D"),
+        QVariant::fromValue(LayoutStrategy::AttributeClustering2D));
+    m_layoutBox->addItem(tr("Constrained 2D"),
+                         QVariant::fromValue(LayoutStrategy::Constrained2D));
+    m_layoutBox->addItem(tr("Simple 3D Circles"),
+                         QVariant::fromValue(LayoutStrategy::Simple3DCircles));
+    //    m_layoutBox->addItem(tr("Tree Orbit"),
+    //                         QVariant::fromValue(LayoutStrategy::TreeOrbit));
 
     connect(m_layoutBox, SIGNAL(currentIndexChanged(int)),
             SLOT(layoutChanged(int)));
@@ -115,8 +132,8 @@ layoutStrategy(VtkPanel::LayoutStrategy strategy) {
         return vtkSimple2DLayoutStrategy::New();
     case VtkPanel::LayoutStrategy::SpanTree:
         return vtkSpanTreeLayoutStrategy::New();
-    case VtkPanel::LayoutStrategy::CosmicTree:
-        return vtkCosmicTreeLayoutStrategy::New();
+        //    case VtkPanel::LayoutStrategy::CosmicTree:
+        //        return vtkCosmicTreeLayoutStrategy::New();
     case VtkPanel::LayoutStrategy::Community2D:
         return vtkCommunity2DLayoutStrategy::New();
     case VtkPanel::LayoutStrategy::Clustering2D:
@@ -129,6 +146,16 @@ layoutStrategy(VtkPanel::LayoutStrategy strategy) {
         strategy->SetThreeDimensionalLayout(true);
         return strategy;
     }
+    case VtkPanel::LayoutStrategy::AssignCoordinates:
+        return vtkAssignCoordinatesLayoutStrategy::New();
+    case VtkPanel::LayoutStrategy::AttributeClustering2D:
+        return vtkAttributeClustering2DLayoutStrategy::New();
+    case VtkPanel::LayoutStrategy::Constrained2D:
+        return vtkConstrained2DLayoutStrategy::New();
+    case VtkPanel::LayoutStrategy::Simple3DCircles:
+        return vtkSimple3DCirclesStrategy::New();
+        //    case VtkPanel::LayoutStrategy::TreeOrbit:
+        //        return vtkTreeOrbitLayoutStrategy::New();
     }
     return {};
 }

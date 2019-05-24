@@ -42,18 +42,24 @@ class VtkPanel : public QToolBar
 
 public:
     enum class LayoutStrategy {
+        AssignCoordinates,
+        AttributeClustering2D,
         Circular,
         Clustering2D,
         Community2D,
         Cone,
-        CosmicTree,
+        Constrained2D,
+        // CosmicTree, // Layout only works on vtkTree unless VTK_USE_BOOST is
+        // on
         Fast2D,
         ForceDirected2D,
         ForceDirected3D,
         Random,
         Simple2D,
+        Simple3DCircles,
         SpanTree,
-        Tree
+        Tree,
+        // TreeOrbit // Layout only works on vtkTree unless VTK_USE_BOOST is on
     };
     Q_ENUM(LayoutStrategy)
     explicit VtkPanel(VtkWidget *vtkWidget, QWidget *parent = nullptr);
