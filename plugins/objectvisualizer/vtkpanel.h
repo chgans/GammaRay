@@ -41,6 +41,21 @@ class VtkPanel : public QToolBar
     Q_OBJECT
 
 public:
+    enum class LayoutStrategy {
+        Circular,
+        Clustering2D,
+        Community2D,
+        Cone,
+        CosmicTree,
+        Fast2D,
+        ForceDirected2D,
+        ForceDirected3D,
+        Random,
+        Simple2D,
+        SpanTree,
+        Tree
+    };
+    Q_ENUM(LayoutStrategy)
     explicit VtkPanel(VtkWidget *vtkWidget, QWidget *parent = nullptr);
     virtual ~VtkPanel();
 
@@ -53,7 +68,7 @@ private:
 
     QComboBox *m_layoutBox;
     QComboBox *m_stereoBox;
-    QString m_currentLayout;
+    LayoutStrategy m_currentLayoutStrategy;
 };
 }
 

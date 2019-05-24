@@ -22,6 +22,8 @@ find_path(VTK_DIR VTKConfig.cmake
 )
 set(VTK_LIBS vtkGUISupportQt
   vtkViewsInfovis # vtkGraphLayoutView & friends
+  vtkInfovisLayout
+  vtkRenderingFreeType
 )
 find_package(VTK 7.1 COMPONENTS ${VTK_LIBS} CONFIG)
 set_package_properties(VTK PROPERTIES
