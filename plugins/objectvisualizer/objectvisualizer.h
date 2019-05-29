@@ -27,30 +27,85 @@
 #ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZER_H
 #define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZER_H
 
+#include "objectvisualizerinterface.h"
+
+#include "recordingproxymodel.h"
+
 #include <core/toolfactory.h>
 
+#include <common/objectmodel.h>
+#include <common/tools/metaobjectbrowser/qmetaobjectmodel.h>
+
+#include <QQueue>
+
+QT_BEGIN_NAMESPACE
+class QTimer;
+class QAbstractProxyModel;
+QT_END_NAMESPACE
+
 namespace GammaRay {
-class GraphViewer : public QObject
+
+class ConnectionTypeModel;
+class ConnectionModel;
+
+class ConnectivityAnalyser : public ObjectVisualizerInterface
 {
     Q_OBJECT
 
 public:
-    explicit GraphViewer(Probe *probe, QObject *parent = nullptr);
-    ~GraphViewer() override;
+    explicit ConnectivityAnalyser(Probe *probe, QObject *parent = nullptr);
+    ~ConnectivityAnalyser() override;
+
+    // ObjectVisualizerInterface interface
+public slots:
+    void clearHistory() override;
+    void recordAll() override;
+    void recordNone() override;
+    void showAll() override;
+    void showNone() override;
+
+private:
+    void registerConnectionTypeModel();
+    void registerConnectionModel();
+    void registerThreadModel();
+    void registerClassModel();
+    void registerObjectModel();
+    void initialise();
+
+    void scheduleAddObject(QObject *object);
+    void scheduleRemoveObject(QObject *object);
+
+    void addObject(QObject *object);
+    void removeObject(QObject *object);
+
+private slots:
+    void processPendingChanges();
+    void refine();
+
+private:
+    Probe *m_probe;
+    ConnectionModel *m_connectionModel;
+    ConnectionTypeModel *m_connectionTypeModel;
+    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadModel;
+    RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classModel;
+    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectModel;
+    QTimer *m_updateTimer;
+    QQueue<QObject *> m_objectAdded;
+    QQueue<QObject *> m_objectRemoved;
 };
 
-class GraphViewerFactory : public QObject, public StandardToolFactory<QObject, GraphViewer>
+class ConnectivityAnalyserFactory : public QObject,
+                                    public StandardToolFactory<QObject, ConnectivityAnalyser>
 {
     Q_OBJECT
     Q_INTERFACES(GammaRay::ToolFactory)
     Q_PLUGIN_METADATA(IID "com.kdab.GammaRay.ToolFactory" FILE "gammaray_objectvisualizer.json")
 
 public:
-    explicit GraphViewerFactory(QObject *parent = nullptr)
+    explicit ConnectivityAnalyserFactory(QObject *parent = nullptr)
         : QObject(parent)
-    {
-    }
+    {}
 };
-}
+} // namespace GammaRay
 
 #endif // GAMMARAY_GRAPHVIEWER_H

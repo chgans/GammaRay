@@ -1,9 +1,19 @@
 /*
-  objectvisualizerwidget.h
+  This file is part of GammaRay, the Qt application inspection and
+  manipulation tool.
 
-  This file is part of QGraphViz, a Qt wrapper around GraphViz libraries.
+  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company,
+  info@kdab.com
 
-  Copyright (C) 2019
+  Authors: Kevin Funk <kevin.funk@kdab.com>, Christian Gagneraud
+  <chgans@gmail.com>
+
+  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
+  accordance with GammaRay Commercial License Agreement provided with the
+  Software.
+
+  Contact info@kdab.com if any conditions of this licensing are not clear to
+  you.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,50 +43,31 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 namespace GammaRay {
-namespace Ui {
-    class ObjectVisualizerWidget;
-}
 class DeferredTreeView;
-class ObjectVisualizerInterface;
+class VtkContainer;
+class GvContainer;
 
-class ObjectVisualizerWidget : public QWidget
+class GraphViewerWidget : public QWidget
 {
     Q_OBJECT
-
 public:
-    explicit ObjectVisualizerWidget(QWidget *parent = nullptr);
-    ~ObjectVisualizerWidget();
+    explicit GraphViewerWidget(QWidget *parent = nullptr);
+    virtual ~GraphViewerWidget();
 
 private:
-    void setupClient();
-    void setupModels();
-    void setupUi();
-    void setupConnectionTypeView();
-    void setupConnectionView();
-    void setupThreadView();
-    void setupClassView();
-    void setupObjectView();
-    void setup2dView();
-    void setup3dView();
-
-    QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
-    ObjectVisualizerInterface *m_interface;
     UIStateManager m_stateManager;
-    QAbstractItemModel *m_connectionModel;
-    QAbstractItemModel *m_connectionTypeModel;
-    QAbstractItemModel *m_threadModel;
-    QAbstractItemModel *m_classModel;
-    QAbstractItemModel *m_objectModel;
+    QAbstractItemModel *m_model;
     DeferredTreeView *m_objectTreeView;
+    VtkContainer *m_vtkContainer;
+    GvContainer *m_gvContainer;
 };
 
-class ObjectVisualizerUiFactory : public QObject,
-                                  public StandardToolUiFactory<ObjectVisualizerWidget>
+class ObjectVisualizerUiFactory : public QObject, public StandardToolUiFactory<GraphViewerWidget>
 {
     Q_OBJECT
     Q_INTERFACES(GammaRay::ToolUiFactory)
     Q_PLUGIN_METADATA(IID "com.kdab.GammaRay.ToolUiFactory" FILE "gammaray_objectvisualizer.json")
 };
+}
 
-} // namespace GammaRay
-#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERWIDGET_H
+#endif // GAMMARAY_GRAPHVIEWER_H

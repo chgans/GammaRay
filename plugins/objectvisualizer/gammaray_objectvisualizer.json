@@ -2,6 +2,7 @@
     "id": "gammaray_objectvisualizer",
     "name": "Object Visualization",
     "name[de]": "Objektvisualisierung",
+    "name[fr]": "Visualisateur d'objets",
     "types": [
         "QObject"
     ]

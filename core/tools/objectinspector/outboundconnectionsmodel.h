@@ -29,12 +29,14 @@
 #ifndef GAMMARAY_OBJECTINSPECTOR_OUTBOUNDCONNECTIONSMODEL_H
 #define GAMMARAY_OBJECTINSPECTOR_OUTBOUNDCONNECTIONSMODEL_H
 
+#include "core/gammaray_core_export.h"
+
 #include "abstractconnectionsmodel.h"
 
 namespace GammaRay {
 /** Lists outgoing connections from a given QObject. */
-class OutboundConnectionsModel : public AbstractConnectionsModel
-{
+class GAMMARAY_CORE_EXPORT OutboundConnectionsModel
+    : public AbstractConnectionsModel {
     Q_OBJECT
 
 public:

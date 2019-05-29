@@ -27,100 +27,209 @@
 #include "vtkpanel.h"
 #include "vtkwidget.h"
 
+#include <QCheckBox>
 #include <QComboBox>
-#include <QDebug>
 #include <QLabel>
-
-#include <vtkGraphLayoutView.h>
-#include <vtkForceDirectedLayoutStrategy.h>
-#include <vtkRenderWindow.h>
-#include <vtkSpanTreeLayoutStrategy.h>
-#include <vtkSimple2DLayoutStrategy.h>
-#include <vtkTreeLayoutStrategy.h>
 
 using namespace GammaRay;
 
-VtkPanel::VtkPanel(VtkWidget *vtkWidget, QWidget *parent)
+namespace {} // namespace
+
+VtkPanel::VtkPanel(QWidget *parent)
     : QToolBar(parent)
-    , m_vtkWidget(vtkWidget)
-    , m_currentLayout("spanTree")
 {
-    addWidget(new QLabel(tr("Layout:")));
-    m_layoutBox = new QComboBox;
-#if 0
-    m_layoutBox->addItem(tr("Tree Layout"), "tree");
-#endif
+    addWidget(new QLabel(tr("Layout: ")));
 
-    m_layoutBox->addItem(tr("Span Tree Layout"), "spanTree");
-    m_layoutBox->addItem(tr("Force Directed Layout"), "forceDirected");
-    m_layoutBox->addItem(tr("Force Directed Layout (3D)"), "forceDirected3D");
-    m_layoutBox->addItem(tr("Simple 2D Layout"), "simple2D");
-    connect(m_layoutBox, SIGNAL(currentIndexChanged(int)), SLOT(layoutChanged(int)));
-    addWidget(m_layoutBox);
+    createLayoutStrategyComboBox();
+    connect(m_layoutStrategyComboBox, &QComboBox::currentTextChanged, this, [this]() {
+        layoutStrategyChanged(layoutStrategy());
+    });
+    m_layoutStrategyComboBox->setCurrentIndex(0);
+    addWidget(m_layoutStrategyComboBox);
 
-    addWidget(new QLabel(tr("Stereo:")));
-    m_stereoBox = new QComboBox;
-    m_stereoBox->addItem(tr("Off"), 0);
-    m_stereoBox->addItem(tr("Crystal Eyes"), VTK_STEREO_CRYSTAL_EYES);
-    m_stereoBox->addItem(tr("Red/Blue"), VTK_STEREO_RED_BLUE);
-    m_stereoBox->addItem(tr("Interlaced"), VTK_STEREO_INTERLACED);
-    m_stereoBox->addItem(tr("Left"), VTK_STEREO_LEFT);
-    m_stereoBox->addItem(tr("Right"), VTK_STEREO_RIGHT);
-    m_stereoBox->addItem(tr("Dresden"), VTK_STEREO_DRESDEN);
-    m_stereoBox->addItem(tr("Anaglyph"), VTK_STEREO_ANAGLYPH);
-    m_stereoBox->addItem(tr("Checkboard"), VTK_STEREO_CHECKERBOARD);
-    connect(m_stereoBox, SIGNAL(currentIndexChanged(int)), SLOT(stereoModeChanged(int)));
-    addWidget(m_stereoBox);
+    addWidget(new QLabel(tr(" Stereo: ")));
+    createStereoModeComboBox();
+    connect(m_stereoModeComboBox, &QComboBox::currentTextChanged, this, [this]() {
+        stereoModeChanged(stereoMode());
+    });
+    m_stereoModeComboBox->setCurrentIndex(0);
+    addWidget(m_stereoModeComboBox);
+
+    addWidget(new QLabel(tr(" Theme: ")));
+    createThemeComboBox();
+    connect(m_themeTypeComboBox, &QComboBox::currentTextChanged, this, [this]() {
+        themeChanged(themeType());
+    });
+    m_themeTypeComboBox->setCurrentIndex(0);
+    addWidget(m_themeTypeComboBox);
+
+    addWidget(new QLabel(tr(" Node: ")));
+    m_showNodeLabelCheckBox = new QCheckBox(this);
+    connect(m_showNodeLabelCheckBox, &QCheckBox::clicked, this, &VtkPanel::showNodeLabelChanged);
+    addWidget(m_showNodeLabelCheckBox);
+
+    addWidget(new QLabel(tr(" Edges: ")));
+    m_showEdgeLabelCheckBox = new QCheckBox(this);
+    connect(m_showEdgeLabelCheckBox, &QCheckBox::clicked, this, &VtkPanel::showEdgeLabelChanged);
+    addWidget(m_showEdgeLabelCheckBox);
+
+    addWidget(new QLabel(tr(" Arrows: ")));
+    m_showEdgeArrowCheckBox = new QCheckBox(this);
+    connect(m_showEdgeArrowCheckBox, &QCheckBox::clicked, this, &VtkPanel::showEdgeArrowChanged);
+    addWidget(m_showEdgeArrowCheckBox);
 }
 
-static vtkGraphLayoutStrategy *layoutStrategyForName(const QString &layoutName)
+VtkPanel::~VtkPanel() {}
+
+Vtk::LayoutStrategy VtkPanel::layoutStrategy() const
 {
-    if (layoutName == "tree") {
-        vtkTreeLayoutStrategy *strategy = vtkTreeLayoutStrategy::New();
-        strategy->SetRadial(true);
-        return strategy;
-    } else if (layoutName == "spanTree") {
-        return vtkSpanTreeLayoutStrategy::New();
-    } else if (layoutName == "forceDirected") {
-        return vtkForceDirectedLayoutStrategy::New();
-    } else if (layoutName == "forceDirected3D") {
-        vtkForceDirectedLayoutStrategy *strategy = vtkForceDirectedLayoutStrategy::New();
-        strategy->SetThreeDimensionalLayout(true);
-        return strategy;
-    } else if (layoutName == "simple2D") {
-        return vtkSimple2DLayoutStrategy::New();
-    } else {
-        return nullptr;
-    }
+    return m_layoutStrategyComboBox->currentData().value<Vtk::LayoutStrategy>();
 }
 
-void VtkPanel::layoutChanged(int index)
+Vtk::StereoMode VtkPanel::stereoMode() const
 {
-    const QString layoutName = m_layoutBox->itemData(index).toString();
-    if (m_currentLayout == layoutName)
+    return m_stereoModeComboBox->currentData().value<Vtk::StereoMode>();
+}
+
+Vtk::ThemeType VtkPanel::themeType() const
+{
+    return m_themeTypeComboBox->currentData().value<Vtk::ThemeType>();
+}
+
+bool VtkPanel::showNodeLabel() const
+{
+    return m_showNodeLabelCheckBox->isChecked();
+}
+
+bool VtkPanel::showEdgeLabel() const
+{
+    return m_showEdgeLabelCheckBox->isChecked();
+}
+
+bool VtkPanel::showEdgeArrow() const
+{
+    return m_showEdgeArrowCheckBox->isChecked();
+}
+
+void VtkPanel::setLayoutStrategy(Vtk::LayoutStrategy strategy)
+{
+    if (layoutStrategy() == strategy)
         return;
-
-    // update
-    vtkGraphLayoutStrategy *strategy = layoutStrategyForName(layoutName);
-    m_vtkWidget->layoutView()->SetLayoutStrategy(strategy);
-    m_vtkWidget->layoutView()->ResetCamera();
-    m_vtkWidget->layoutView()->Render();
-    m_vtkWidget->GetInteractor()->Start();
-    m_currentLayout = layoutName;
+    auto index = m_layoutStrategyComboBox->findData(QVariant::fromValue(strategy));
+    m_layoutStrategyComboBox->setCurrentIndex(index);
 }
 
-void VtkPanel::stereoModeChanged(int index)
+void VtkPanel::setStereoMode(Vtk::StereoMode mode)
 {
-    const int stereoMode = m_stereoBox->itemData(index).toInt();
-    if (stereoMode <= 0) {
-        m_vtkWidget->layoutView()->GetRenderWindow()->SetStereoRender(false);
-    } else {
-        m_vtkWidget->layoutView()->GetRenderWindow()->SetStereoRender(true);
-        m_vtkWidget->layoutView()->GetRenderWindow()->SetStereoType(stereoMode);
-    }
-    m_vtkWidget->layoutView()->GetRenderWindow()->StereoUpdate();
+    if (stereoMode() == mode)
+        return;
+    auto index = m_stereoModeComboBox->findData(QVariant::fromValue(mode));
+    m_stereoModeComboBox->setCurrentIndex(index);
 }
 
-VtkPanel::~VtkPanel()
+void VtkPanel::setTheme(Vtk::ThemeType type)
 {
+    if (themeType() == type)
+        return;
+    auto index = m_themeTypeComboBox->findData(QVariant::fromValue(type));
+    m_themeTypeComboBox->setCurrentIndex(index);
+}
+
+void GammaRay::VtkPanel::setShowNodeLabel(bool show)
+{
+    if (showNodeLabel() == show)
+        return;
+    m_showNodeLabelCheckBox->setChecked(show);
+}
+
+void VtkPanel::setShowEdgeLabel(bool show)
+{
+    if (showEdgeLabel() == show)
+        return;
+    m_showEdgeLabelCheckBox->setChecked(show);
+}
+
+void VtkPanel::setShowEdgeArrow(bool show)
+{
+    if (showEdgeArrow() == show)
+        return;
+    m_showEdgeArrowCheckBox->setChecked(show);
+}
+
+void VtkPanel::createLayoutStrategyComboBox()
+{
+    auto box = new QComboBox(this);
+    // clang-format off
+    box->addItem(tr("Span Tree"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::SpanTree));
+    box->addItem(tr("Force Directed 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::ForceDirected2D));
+    box->addItem(tr("Force Directed 3D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::ForceDirected3D));
+    box->addItem(tr("Simple 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Simple2D));
+    box->addItem(tr("Clustering 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Clustering2D));
+    box->addItem(tr("Community 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Community2D));
+    box->addItem(tr("Fast 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Fast2D));
+    box->addItem(tr("Circular"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Circular));
+    box->addItem(tr("Tree"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Tree));
+    box->addItem(tr("Cone"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Cone));
+    box->addItem(tr("Random"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Random));
+    box->addItem(tr("Assign Coordinates"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::AssignCoordinates));
+    box->addItem(tr("Attribute Clustering 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::AttributeClustering2D));
+    box->addItem(tr("Constrained 2D"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Constrained2D));
+    box->addItem(tr("Simple 3D Circles"),
+                 QVariant::fromValue(Vtk::LayoutStrategy::Simple3DCircles));
+    // clang-format on
+    m_layoutStrategyComboBox = box;
+}
+
+void VtkPanel::createStereoModeComboBox()
+{
+    auto box = new QComboBox(this);
+    // clang-format off
+    box->addItem(tr("Off"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Off));
+    box->addItem(tr("Crystal Eyes"),
+                 QVariant::fromValue<>(Vtk::StereoMode::CrystalEyes));
+    box->addItem(tr("Red/Blue"),
+                 QVariant::fromValue<>(Vtk::StereoMode::RedBlue));
+    box->addItem(tr("Interlaced"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Interlaced));
+    box->addItem(tr("Left"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Left));
+    box->addItem(tr("Right"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Right));
+    box->addItem(tr("Dresden"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Dresden));
+    box->addItem(tr("Anaglyph"),
+                 QVariant::fromValue<>(Vtk::StereoMode::Anaglypth));
+    box->addItem(tr("Checkboard"),
+                 QVariant::fromValue<>(Vtk::StereoMode::CheckerBoard));
+    // clang-format on
+    m_stereoModeComboBox = box;
+}
+
+void VtkPanel::createThemeComboBox()
+{
+    auto box = new QComboBox(this);
+    // clang-format off
+    box->addItem(tr("Ocean"),
+                 QVariant::fromValue<>(Vtk::ThemeType::Ocean));
+    box->addItem(tr("Mellow"),
+                 QVariant::fromValue<>(Vtk::ThemeType::Mellow));
+    box->addItem(tr("Neon"),
+                 QVariant::fromValue<>(Vtk::ThemeType::Neon));
+    // clang-format on
+    m_themeTypeComboBox = box;
 }

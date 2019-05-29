@@ -30,27 +30,63 @@
 #define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERMODEL_H
 
 #include <common/objectmodel.h>
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
+#include <core/tools/objectinspector/outboundconnectionsmodel.h>
+
+#include <QAbstractTableModel>
+#include <QByteArray>
+#include <QHash>
+#include <QMetaMethod>
 
 namespace GammaRay {
-/** Augment the regular object tree by some information needed for the visualization
- * on the client side.
- */
-class ObjectVisualizerModel : public KRecursiveFilterProxyModel
+
+class Probe;
+
+class ConnectionModel : public QAbstractTableModel
 {
     Q_OBJECT
+
+private:
+    struct Edge;
+
 public:
-    enum Role {
-        ObjectId = ObjectModel::UserRole,
-        ObjectDisplayName,
-        ClassName
+    enum { SenderColumn, ReceiverColumn, CountColumn, ColumnCount };
+    enum {
+        ObjectIdRole = ObjectModel::ObjectIdRole,
+        ThreadIdRole = ObjectModel::UserRole + 1
     };
 
-    explicit ObjectVisualizerModel(QObject *parent);
-    ~ObjectVisualizerModel() override;
+    explicit ConnectionModel(Probe *probe, QObject *parent = nullptr);
+    ~ConnectionModel() override;
 
-    QVariant data(const QModelIndex &proxyIndex, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
+
+public slots:
+    void clear();
+    void addOutboundConnection(QObject *sender, QObject *receiver);
+    void removeOutboundConnections(QObject *sender);
+
+private:
+    // TODO: add timestamp + emit/invoke?
+    struct Edge {
+        Edge(QObject *sender, QObject *receiver, int value)
+            : sender(sender)
+            , receiver(receiver)
+            , value(value)
+        {}
+        QObject *sender = nullptr;
+        QObject *receiver = nullptr;
+        int value = 0;
+    };
+    Probe *m_probe;
+    QVector<Edge *> m_edges;
+    // map[sender][receiver] = {sender, receiver, count}
+    QHash<QObject *, QHash<QObject *, Edge *>> m_senderMap;
 };
-}
+} // namespace GammaRay
 
 #endif // GAMMARAY_OBJECTVISUALIZERMODEL_H

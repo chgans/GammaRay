@@ -32,23 +32,26 @@
 
 #include <vtkSmartPointer.h>
 
-#include <QMap>
-#include <QSet>
+#include "vtkcommon.h"
 
 QT_BEGIN_NAMESPACE
-class QItemSelectionModel;
-class QModelIndex;
 class QAbstractItemModel;
-class QMouseEvent;
 class QTimer;
 QT_END_NAMESPACE
 
+class QVTKInteractor;
+class vtkGraphLayout;
 class vtkGraphLayoutStrategy;
-class vtkVariantArray;
 class vtkGraphLayoutView;
+class vtkIntArray;
+class vtkInteractorStyle;
 class vtkMutableDirectedGraph;
+class vtkStringArray;
+class vtkUnsignedLongLongArray;
 
 namespace GammaRay {
+
+// TODO: QVTKOpenGLNativeWidget (v8) and QVTKWidget2 (v7)
 class VtkWidget : public QVTKWidget
 {
     Q_OBJECT
@@ -57,61 +60,37 @@ public:
     explicit VtkWidget(QWidget *parent = nullptr);
     virtual ~VtkWidget();
 
-    vtkGraphLayoutView *layoutView() const
-    {
-        return m_view;
-    }
-
     void setModel(QAbstractItemModel *model);
-    void setSelectionModel(QItemSelectionModel *selectionModel);
 
-public Q_SLOTS:
-    void resetCamera();
-
-    qulonglong addObject(const QModelIndex &index);
-    bool removeObject(const QModelIndex &index);
-
-    void clear();
-    void repopulate();
-
-private Q_SLOTS:
-    bool removeObjectInternal(qulonglong objectId);
-    void doRepopulate();
-    void selectionChanged();
-
-    void renderViewImpl();
-    void renderView();
-
-    void objectRowsInserted(const QModelIndex &parent, int start, int end);
-    void objectRowsAboutToBeRemoved(const QModelIndex &parent, int start, int end);
-    void objectDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
-
-protected:
-    virtual void mousePressEvent(QMouseEvent *event);
-    virtual void mouseReleaseEvent(QMouseEvent *event);
-
-    bool filterAcceptsObject(const QModelIndex &index) const;
+public slots:
+    void setLayoutStrategy(GammaRay::Vtk::LayoutStrategy strategy);
+    void setStereoMode(GammaRay::Vtk::StereoMode mode);
+    void setThemeType(GammaRay::Vtk::ThemeType themeType);
+    void setShowNodeLabel(bool show);
+    void setShowEdgeLabel(bool show);
+    void setShowEdgeArrow(bool show);
 
 private:
-    void setupGraph();
-    void setupRenderer();
-
-    bool m_mousePressed;
-    QTimer *m_updateTimer;
-    QAbstractItemModel *m_model;
-    QItemSelectionModel *m_selectionModel;
-    QTimer *m_repopulateTimer;
-
-    // TODO: Instead of tracking all available objects, make Probe::m_validObjects public?
-    QMap<qulonglong, vtkIdType> m_objectIdMap;
-
-    int m_colorIndex;
-    QMap<QString, int> m_typeColorMap;
-
-    vtkSmartPointer<vtkVariantArray> m_vertexPropertyArr;
-    vtkGraphLayoutView *m_view;
     vtkSmartPointer<vtkMutableDirectedGraph> m_graph;
+    vtkSmartPointer<vtkGraphLayoutStrategy> m_layoutStrategy;
+    vtkSmartPointer<vtkGraphLayout> m_layout;
+    vtkSmartPointer<vtkGraphLayoutView> m_layoutView;
+    vtkSmartPointer<QVTKInteractor> m_interactor;
+    vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
+    vtkStringArray *m_objectLabelArray;
+    vtkUnsignedLongLongArray *m_objectIdArray;
+    vtkUnsignedLongLongArray *m_threadIdArray;
+    vtkIntArray *m_connWeightArray;
+    QAbstractItemModel *m_model = nullptr;
+    QTimer *m_renderTimer = nullptr;
+
+    // FIXME: That should be part of the pipeline creation
+    bool m_showEdgeArrow = false;
+
+    void buildGraph();
+    void updateGraph();
+    void renderGraph();
 };
-}
+} // namespace GammaRay
 
 #endif // GAMMARAY_VTKWIDGET_H

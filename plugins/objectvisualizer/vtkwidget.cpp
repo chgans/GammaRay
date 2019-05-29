@@ -28,444 +28,400 @@
 #include "vtkwidget.h"
 #include "objectvisualizermodel.h"
 
-#include "common/objectmodel.h"
-
-#include <compat/qasconst.h>
+#include "common/objectid.h"
 
 #include <QAbstractItemModel>
-#include <QDebug>
-#include <QItemSelectionModel>
+#include <QHash>
 #include <QTimer>
 
-#include <vtkRenderer.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkMutableDirectedGraph.h>
-#include <vtkSmartPointer.h>
-#include <vtkGraphLayout.h>
-#include <vtkGraphToPolyData.h>
-#include <vtkGlyphSource2D.h>
-#include <vtkGlyph3D.h>
-#include <vtkGraphLayoutView.h>
-#include <vtkMutableUndirectedGraph.h>
-#include <vtkStringArray.h>
+#include <vtkArrowSource.h>
 #include <vtkDataSetAttributes.h>
-#include <vtkVariantArray.h>
+#include <vtkGlyph3D.h>
+#include <vtkGlyphSource2D.h>
+#include <vtkGraphLayout.h>
+#include <vtkGraphLayoutView.h>
+#include <vtkGraphToGlyphs.h>
+#include <vtkGraphToPolyData.h>
 #include <vtkInteractorStyleTrackballCamera.h>
-#include <vtkVertexListIterator.h>
-#include <vtkIdTypeArray.h>
-#include <vtkLookupTable.h>
+#include <vtkMutableDirectedGraph.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkSmartPointer.h>
+#include <vtkStringArray.h>
+#include <vtkUnsignedLongLongArray.h>
+
+// TODO: move to common, along with theme and stereo
+#include <vtkAssignCoordinatesLayoutStrategy.h>
+#include <vtkAttributeClustering2DLayoutStrategy.h>
+#include <vtkCircularLayoutStrategy.h>
+#include <vtkClustering2DLayoutStrategy.h>
+#include <vtkCommunity2DLayoutStrategy.h>
+#include <vtkConeLayoutStrategy.h>
+#include <vtkConstrained2DLayoutStrategy.h>
+#include <vtkCosmicTreeLayoutStrategy.h>
+#include <vtkFast2DLayoutStrategy.h>
+#include <vtkForceDirectedLayoutStrategy.h>
+#include <vtkGraphLayoutView.h>
+#include <vtkRandomLayoutStrategy.h>
+#include <vtkRenderWindow.h>
+#include <vtkSimple2DLayoutStrategy.h>
+#include <vtkSimple3DCirclesStrategy.h>
+#include <vtkSpanTreeLayoutStrategy.h>
+#include <vtkTreeLayoutStrategy.h>
+#include <vtkTreeOrbitLayoutStrategy.h>
+
 #include <vtkViewTheme.h>
 
 #include <iostream>
+#include <limits>
 
 using namespace GammaRay;
 
-// #define WITH_DEBUG
+namespace {
+const char *s_ObjectIdArrayName = "ObjectId";
+const char *s_ThreadIdArrayName = "ThreadId";
+const char *s_ObjectLabelArrayName = "ObjectLabel";
+const char *s_connWeightArrayName = "ConnWeight";
 
-#ifdef WITH_DEBUG
-#define DEBUG(msg) std::cout << Q_FUNC_INFO << " " << msg << std::endl;
-#else
-#define DEBUG(msg) qt_noop();
-#endif
+inline quint64 objectId(QAbstractItemModel *model, int row, int col)
+{
+    constexpr int role = ConnectionModel::ObjectIdRole;
+    const QModelIndex index = model->index(row, col);
+    return index.data(role).value<ObjectId>().id();
+}
 
-#define VTK_CREATE(type, name) \
-    vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
+inline quint64 threadId(QAbstractItemModel *model, int row, int col)
+{
+    constexpr int role = ConnectionModel::ThreadIdRole;
+    const QModelIndex index = model->index(row, col);
+    return index.data(role).value<ObjectId>().id();
+}
+
+inline std::string objectLabel(QAbstractItemModel *model, int row, int col)
+{
+    constexpr int role = Qt::DisplayRole;
+    const QModelIndex index = model->index(row, col);
+    return index.data(role).toString().toStdString();
+}
+
+inline int weight(QAbstractItemModel *model, int row)
+{
+    constexpr int role = Qt::DisplayRole;
+    constexpr int col = ConnectionModel::CountColumn;
+    const QModelIndex index = model->index(row, col);
+    return index.data(role).toInt();
+}
+} // namespace
 
 VtkWidget::VtkWidget(QWidget *parent)
     : QVTKWidget(parent)
-    , m_mousePressed(false)
-    , m_updateTimer(new QTimer(this))
-    , m_model(nullptr)
-    , m_selectionModel(nullptr)
-    , m_repopulateTimer(new QTimer(this))
-    , m_colorIndex(0)
+    , m_renderTimer(new QTimer(this))
 {
-    setupRenderer();
-    setupGraph();
-    show();
+    m_layout = vtkSmartPointer<vtkGraphLayout>::New();
 
-    m_updateTimer->setInterval(0);
-    m_updateTimer->setSingleShot(true);
-    connect(m_updateTimer, SIGNAL(timeout()), SLOT(renderViewImpl()));
+    m_layoutView = vtkSmartPointer<vtkGraphLayoutView>::New();
 
-    m_repopulateTimer->setInterval(100);
-    m_repopulateTimer->setSingleShot(true);
-    connect(m_repopulateTimer, SIGNAL(timeout()), SLOT(doRepopulate()));
+    m_interactorStyle = vtkInteractorStyleTrackballCamera::New();
+    m_interactor = vtkSmartPointer<QVTKInteractor>::New();
+    m_interactor->SetRenderWindow(m_layoutView->GetRenderWindow());
+    m_interactor->SetInteractorStyle(m_interactorStyle);
+    m_interactor->Initialize();
+    SetRenderWindow(m_layoutView->GetRenderWindow());
+
+    m_layoutView->SetVertexColorArrayName("VertexDegree");
+    m_layoutView->SetColorVertices(true);
+    m_layoutView->SetVertexLabelArrayName(s_ObjectLabelArrayName);
+    m_layoutView->SetVertexLabelVisibility(true);
+    m_layoutView->SetGlyphType(vtkGraphToGlyphs::SPHERE);
+
+    m_layoutView->SetEdgeColorArrayName(s_connWeightArrayName);
+    m_layoutView->SetColorEdges(true);
+    m_layoutView->SetEdgeLabelArrayName(s_connWeightArrayName);
+    m_layoutView->SetEdgeLabelVisibility(true);
+
+    m_renderTimer->setInterval(250);
+    connect(m_renderTimer, &QTimer::timeout, this, [this]() { renderGraph(); });
 }
 
-VtkWidget::~VtkWidget()
-{
-    clear();
-
-    DEBUG("")
-}
+VtkWidget::~VtkWidget() {}
 
 void VtkWidget::setModel(QAbstractItemModel *model)
 {
+    if (m_model) {
+        m_model->disconnect(this);
+        m_renderTimer->stop();
+    }
+
     m_model = model;
 
-    connect(m_model, SIGNAL(rowsInserted(QModelIndex,int,int)),
-            SLOT(objectRowsInserted(QModelIndex,int,int)));
-
-    connect(m_model, SIGNAL(rowsAboutToBeRemoved(QModelIndex,int,int)),
-            SLOT(objectRowsAboutToBeRemoved(QModelIndex,int,int)));
-
-    connect(m_model, SIGNAL(dataChanged(QModelIndex,QModelIndex)),
-            SLOT(objectDataChanged(QModelIndex,QModelIndex)));
-
-    doRepopulate(); // no delay here, otherwise we race against the signals
-}
-
-void VtkWidget::setSelectionModel(QItemSelectionModel *selectionModel)
-{
-    m_selectionModel = selectionModel;
-    connect(selectionModel, SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
-            SLOT(selectionChanged()));
-}
-
-void VtkWidget::setupRenderer()
-{
-}
-
-void VtkWidget::resetCamera()
-{
-    m_view->ResetCamera();
-}
-
-void VtkWidget::mousePressEvent(QMouseEvent *event)
-{
-    m_mousePressed = true;
-
-    QVTKWidget::mousePressEvent(event);
-}
-
-void VtkWidget::mouseReleaseEvent(QMouseEvent *event)
-{
-    m_mousePressed = false;
-
-    QVTKWidget::mouseReleaseEvent(event);
-}
-
-void VtkWidget::setupGraph()
-{
-    DEBUG("start")
-
-    VTK_CREATE(vtkMutableDirectedGraph, graph);
-    m_graph = graph;
-
-    VTK_CREATE(vtkVariantArray, vertexPropertyArr);
-    vertexPropertyArr->SetNumberOfValues(3);
-    m_vertexPropertyArr = vertexPropertyArr;
-
-    VTK_CREATE(vtkStringArray, vertexProp0Array);
-    vertexProp0Array->SetName("labels");
-    m_graph->GetVertexData()->AddArray(vertexProp0Array);
-
-    // currently not used
-    VTK_CREATE(vtkIntArray, vertexProp1Array);
-    vertexProp1Array->SetName("weight");
-    m_graph->GetVertexData()->AddArray(vertexProp1Array);
-
-    // coloring
-    vtkSmartPointer<vtkIntArray> vertexColors = vtkSmartPointer<vtkIntArray>::New();
-    vertexColors->SetName("Color");
-    m_graph->GetVertexData()->AddArray(vertexColors);
-
-    vtkSmartPointer<vtkLookupTable> colorLookupTable = vtkSmartPointer<vtkLookupTable>::New();
-    colorLookupTable->Build();
-
-    vtkSmartPointer<vtkViewTheme> theme = vtkSmartPointer<vtkViewTheme>::New();
-    theme->SetPointLookupTable(colorLookupTable);
-
-    vtkGraphLayoutView *graphLayoutView = vtkGraphLayoutView::New();
-    graphLayoutView->AddRepresentationFromInput(graph);
-    graphLayoutView->SetVertexLabelVisibility(true);
-    graphLayoutView->SetVertexLabelArrayName("labels");
-    graphLayoutView->SetLayoutStrategyToSpanTree();
-    graphLayoutView->SetVertexColorArrayName("Color");
-    graphLayoutView->SetColorVertices(true);
-    graphLayoutView->ApplyViewTheme(theme);
-    m_view = graphLayoutView;
-
-    VTK_CREATE(vtkInteractorStyleTrackballCamera, style);
-
-    vtkSmartPointer<QVTKInteractor> renderWindowInteractor = vtkSmartPointer<QVTKInteractor>::New();
-    renderWindowInteractor->SetRenderWindow(graphLayoutView->GetRenderWindow());
-    renderWindowInteractor->SetInteractorStyle(style);
-    renderWindowInteractor->Initialize();
-    SetRenderWindow(graphLayoutView->GetRenderWindow());
-
-    // code for generating edge arrow heads, needs some love
-    // currently it modifies the layouting
-    // how to use:
-    // comment the AddRepresentationFromInput call to vtkGraphLayoutView and uncomment this
-#if 0
-    VTK_CREATE(vtkGraphLayout, layout);
-    layout->SetInput(graph);
-    layout->SetLayoutStrategy(strategy);
-
-    // Tell the view to use the vertex layout we provide
-    graphLayoutView->SetLayoutStrategyToPassThrough();
-    // The arrows will be positioned on a straight line between two
-    // vertices so tell the view not to draw arcs for parallel edges
-    graphLayoutView->SetEdgeLayoutStrategyToPassThrough();
-
-    // Add the graph to the view. This will render vertices and edges,
-    // but not edge arrows.
-    graphLayoutView->AddRepresentationFromInputConnection(layout->GetOutputPort());
-
-    // Manually create an actor containing the glyphed arrows.
-    VTK_CREATE(vtkGraphToPolyData, graphToPoly);
-    graphToPoly->SetInputConnection(layout->GetOutputPort());
-    graphToPoly->EdgeGlyphOutputOn();
-
-    // Set the position (0: edge start, 1: edge end) where
-    // the edge arrows should go.
-    graphToPoly->SetEdgeGlyphPosition(0.98);
-
-    // Make a simple edge arrow for glyphing.
-    VTK_CREATE(vtkGlyphSource2D, arrowSource);
-    arrowSource->SetGlyphTypeToEdgeArrow();
-    arrowSource->SetScale(0.001);
-    arrowSource->Update();
-
-    // Use Glyph3D to repeat the glyph on all edges.
-    VTK_CREATE(vtkGlyph3D, arrowGlyph);
-    arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
-    arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
-
-    // Add the edge arrow actor to the view.
-    VTK_CREATE(vtkPolyDataMapper, arrowMapper);
-    arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
-    VTK_CREATE(vtkActor, arrowActor);
-    arrowActor->SetMapper(arrowMapper);
-    graphLayoutView->GetRenderer()->AddActor(arrowActor);
-#endif
-
-    graphLayoutView->ResetCamera();
-    graphLayoutView->Render();
-    graphLayoutView->GetInteractor()->Start();
-
-    DEBUG("end")
-}
-
-qulonglong VtkWidget::addObject(const QModelIndex &index)
-{
-    // ignore new objects during scene interaction
-    // TODO: Add some code to add the objects later on => queue objects
-    if (m_mousePressed) {
-        DEBUG("Ignoring new object during scene interaction: "
-              << object
-              << " "
-              << object->metaObject()->className())
-        return 0;
+    if (m_model) {
+        m_renderTimer->start(); // FIXME
     }
+}
 
-    qulonglong objectId = index.data(ObjectVisualizerModel::ObjectId).toULongLong();
-    const QString className = index.data(ObjectVisualizerModel::ClassName).toString();
-#if 0 // FIXME this breaks the graph structure since this will cause orphan children!
-    if (className == "QVTKInteractorInternal")
-        return 0;
+void VtkWidget::buildGraph()
+{
+    m_graph = vtkMutableDirectedGraph::New();
+    m_objectIdArray = vtkUnsignedLongLongArray::New();
+    m_objectIdArray->SetName(s_ObjectIdArrayName);
+    m_graph->GetVertexData()->AddArray(m_objectIdArray);
+    m_graph->GetVertexData()->SetPedigreeIds(m_objectIdArray);
+    m_threadIdArray = vtkUnsignedLongLongArray::New();
+    m_threadIdArray->SetName(s_ThreadIdArrayName);
+    m_graph->GetVertexData()->AddArray(m_threadIdArray);
+    m_objectLabelArray = vtkStringArray::New();
+    m_objectLabelArray->SetName(s_ObjectLabelArrayName);
+    m_graph->GetVertexData()->AddArray(m_objectLabelArray);
+    m_connWeightArray = vtkIntArray::New();
+    m_connWeightArray->SetName(s_connWeightArrayName);
+    m_graph->GetEdgeData()->AddArray(m_connWeightArray);
 
-#endif
-
-    if (!objectId || m_objectIdMap.contains(objectId))
-        return 0;
-
-    if (!filterAcceptsObject(index))
-        return 0;
-
-    const QString label = index.data(ObjectVisualizerModel::ObjectDisplayName).toString();
-    const int weight = 1; // TODO: Make weight somewhat usable?
-    m_vertexPropertyArr->SetValue(0, vtkUnicodeString::from_utf16(label.utf16()));
-    m_vertexPropertyArr->SetValue(1, weight);
-    static int colorIndex = 0;
-    colorIndex = colorIndex % 10;
-
-    auto it = m_typeColorMap.constFind(className);
-    if (it != m_typeColorMap.constEnd()) {
-        m_vertexPropertyArr->SetValue(2, it.value());
-    } else {
-        m_vertexPropertyArr->SetValue(2, m_colorIndex);
-        m_typeColorMap.insert(className, m_colorIndex);
-        ++m_colorIndex;
-    }
-
-    const vtkIdType type = m_graph->AddVertex(m_vertexPropertyArr);
-    DEBUG("Add: " << type << " " << object->metaObject()->className())
-    m_objectIdMap[objectId] = type;
-
-    // recursively add our children
-    for (int i = 0; i < index.model()->rowCount(index); ++i)
-        addObject(index.child(i, 0));
-
-    // add edge to parent
-    if (index.parent().isValid()) {
-        const qulonglong parentId
-            = index.parent().data(ObjectVisualizerModel::ObjectId).toULongLong();
-        if (parentId) {
-            Q_ASSERT(m_objectIdMap.contains(parentId));
-            const vtkIdType parentType = m_objectIdMap.value(parentId);
-            m_graph->AddEdge(parentType, type);
+    // Collect unique and valid objects
+    QHash<quint64, std::pair<std::string, quint64>> objects;
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        {
+            auto oId = objectId(m_model, row, ConnectionModel::SenderColumn);
+            auto tId = threadId(m_model, row, ConnectionModel::SenderColumn);
+            auto label = objectLabel(m_model, row, ConnectionModel::SenderColumn);
+            if (oId && tId)
+                objects.insert(oId, {label, tId});
+        }
+        {
+            auto oId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
+            auto tId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
+            auto label = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
+            if (oId && tId)
+                objects.insert(oId, {label, tId});
         }
     }
 
-    renderView();
-    return objectId;
-}
-
-bool VtkWidget::removeObject(const QModelIndex &index)
-{
-    for (int i = 0; i < index.model()->rowCount(index); ++i)
-        removeObject(index.child(i, 0));
-
-    const qulonglong objectId = index.data(ObjectVisualizerModel::ObjectId).toULongLong();
-    return removeObjectInternal(objectId);
-}
-
-bool VtkWidget::removeObjectInternal(qulonglong objectId)
-{
-    if (!m_objectIdMap.contains(objectId))
-        return false;
-
-    // Remove id-for-object from VTK's graph data structure
-    const vtkIdType type = m_objectIdMap[objectId];
-    const int size = m_graph->GetNumberOfVertices();
-    m_graph->RemoveVertex(type);
-
-    // VTK re-orders the vertex IDs after removal!
-    // we have to copy this behavior to track the associated QObject instances
-    const vtkIdType lastId = m_objectIdMap.size() - 1;
-    DEBUG("Type: " << type << " Last: " << lastId)
-    if (type != lastId) {
-        qulonglong lastObjectId = m_objectIdMap.key(lastId);
-        Q_ASSERT(lastObjectId);
-        m_objectIdMap[lastObjectId] = type;
+    // Create object nodes
+    auto next = objects.constKeyValueBegin();
+    const auto none = objects.constKeyValueEnd();
+    while (next != none) {
+        m_graph->AddVertex();
+        m_objectIdArray->InsertNextValue((*next).first);
+        m_objectLabelArray->InsertNextValue((*next).second.first);
+        m_threadIdArray->InsertNextValue((*next).second.second);
+        ++next;
     }
 
-    // Remove object from our map
-    if (size > m_graph->GetNumberOfVertices())
-        Q_ASSERT(m_objectIdMap.remove(objectId) == 1);
-    else
-        DEBUG("Warning: Should not happen: Could not remove vertice with id: " << type)
-
-    renderView();
-    return true;
-}
-
-/// Schedules the re-rendering of the VTK view
-void VtkWidget::renderView()
-{
-    m_updateTimer->start();
-}
-
-void VtkWidget::clear()
-{
-    // TODO: there must be an easier/faster way to clean the graph data
-    // Just re-create the vtk graph data object?
-    for (const qulonglong &objectId : qAsConst(m_objectIdMap)) {
-        removeObjectInternal(objectId);
-    }
-    m_objectIdMap.clear();
-
-    renderView();
-}
-
-void VtkWidget::renderViewImpl()
-{
-    DEBUG("")
-
-    m_view->Render();
-    m_view->ResetCamera();
-}
-
-void VtkWidget::selectionChanged()
-{
-    repopulate();
-    resetCamera();
-}
-
-void VtkWidget::repopulate()
-{
-    if (!m_repopulateTimer->isActive())
-        m_repopulateTimer->start();
-}
-
-void VtkWidget::doRepopulate()
-{
-    DEBUG("")
-
-    clear();
-
-    for (int i = 0; i < m_model->rowCount(); ++i) {
-        const QModelIndex index = m_model->index(i, 0);
-        addObject(index);
+    // Create connection edges
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        auto senderId = objectId(m_model, row, ConnectionModel::SenderColumn);
+        auto receiverId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
+        auto edgeWeight = weight(m_model, row);
+        if (senderId && receiverId) {
+            m_graph->AddEdge(vtkVariant(senderId), vtkVariant(receiverId));
+            m_connWeightArray->InsertNextValue(edgeWeight);
+        }
     }
 }
 
-// TODO: Move to Util.h?
-static bool descendantOf(const QModelIndex &ascendant, const QModelIndex &index)
+void VtkWidget::updateGraph()
 {
-    const QModelIndex parent = index.parent();
-    if (!parent.isValid())
-        return false;
-    if (parent == ascendant)
-        return true;
-    return descendantOf(ascendant, parent);
+    // TODO: add/remove pending nodes/edges
 }
 
-static QModelIndex mapToSource(const QModelIndex &proxyIndex)
+void VtkWidget::renderGraph()
 {
-    if (proxyIndex.model()->inherits("GammaRay::ObjectVisualizerModel"))
-        return proxyIndex;
+    if (!m_model)
+        return;
+    buildGraph();
+    static int i = 0;
+    if (i++ == 10)
+        m_layoutView->ResetCamera();
 
-    const QAbstractProxyModel *proxyModel
-        = qobject_cast<const QAbstractProxyModel *>(proxyIndex.model());
-
-    if (proxyModel)
-        return mapToSource(proxyModel->mapToSource(proxyIndex));
-    else
-        return proxyIndex;
+    /*
+     * https://vtk.org/Wiki/VTK/Examples/Cxx/Graphs/VisualizeDirectedGraph
+     * https://lorensen.github.io/VTKExamples/site/Cxx/GeometricObjects/Arrow/
+     * 
+     * TODO: 
+     *  - Should be part of the "pipeline", eg. buildPipeline() which should handle the bits in the ctor.
+     *  - Still very buggy ... :(
+     */
+    if (m_showEdgeArrow) {
+        // Do layout manually before handing graph to the view.
+        // This allows us to know the positions of edge arrows.
+        m_layout->SetInputDataObject(m_graph);
+        m_layout->SetLayoutStrategy(m_layoutStrategy);
+        // Tell the view to use the vertex layout we provide
+        m_layoutView->SetLayoutStrategyToPassThrough();
+        // The arrows will be positioned on a straight line between two
+        // vertices so tell the view not to draw arcs for parallel edges
+        m_layoutView->SetEdgeLayoutStrategyToPassThrough();
+        // Add the graph to the view. This will render vertices and edges,
+        // but not edge arrows.
+        m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
+        // Manually create an actor containing the glyphed arrows.
+        vtkSmartPointer<vtkGraphToPolyData> graphToPoly = vtkSmartPointer<vtkGraphToPolyData>::New();
+        graphToPoly->SetInputConnection(m_layout->GetOutputPort());
+        graphToPoly->EdgeGlyphOutputOn();
+        // Set the position (0: edge start, 1: edge end) where
+        // the edge arrows should go.
+        // chgans: the arrow center is the node position, so 0.98 is not goos, and 0.5 is too close to labels...
+        graphToPoly->SetEdgeGlyphPosition(0.51);
+        // Create an arrow.
+        auto arrowSource = vtkSmartPointer<vtkArrowSource>::New();
+        //arrowSource->SetShaftRadius(1.0);
+        //arrowSource->SetTipLength(1.0);
+        arrowSource->Update();
+        // Use Glyph3D to repeat the glyph on all edges.
+        auto arrowGlyph = vtkSmartPointer<vtkGlyph3D>::New();
+        arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
+        arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
+        // Create a mapper and actor
+        auto arrowMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
+        auto arrowActor = vtkSmartPointer<vtkActor>::New();
+        arrowActor->SetMapper(arrowMapper);
+        // Visualise
+        m_layoutView->GetRenderer()->AddActor(arrowActor);
+        m_layoutView->SetRepresentationFromInput(m_layout->GetOutput());
+    } else {
+        m_layoutView->SetRepresentationFromInput(m_graph);
+    }
+    m_layoutView->Render();
 }
 
-bool VtkWidget::filterAcceptsObject(const QModelIndex &index) const
+void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
 {
-    if (!m_selectionModel)
-        return true;
-
-    const QModelIndexList rows = m_selectionModel->selectedRows();
-    for (const QModelIndex &row : rows) {
-        const QModelIndex sourceRow = mapToSource(row);
-        if (index == sourceRow)
-            return true;
-        return descendantOf(sourceRow, index);
+    switch (strategy) {
+    case Vtk::LayoutStrategy::Cone: {
+        auto *strategy = vtkConeLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Tree: {
+        auto strategy = vtkTreeLayoutStrategy::New();
+        strategy->SetRadial(true);
+        strategy->SetAngle(360);
+        strategy->SetLogSpacingValue(1);
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Fast2D: {
+        auto *strategy = vtkFast2DLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Random: {
+        auto *strategy = vtkRandomLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Circular: {
+        auto *strategy = vtkCircularLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Simple2D: {
+        auto *strategy = vtkSimple2DLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::SpanTree: {
+        auto *strategy = vtkSpanTreeLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Community2D: {
+        auto *strategy = vtkCommunity2DLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Clustering2D: {
+        auto *strategy = vtkClustering2DLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::ForceDirected2D: {
+        auto *strategy = vtkForceDirectedLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::ForceDirected3D: {
+        auto *strategy = vtkForceDirectedLayoutStrategy::New();
+        strategy->SetThreeDimensionalLayout(true);
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::AssignCoordinates: {
+        auto *strategy = vtkAssignCoordinatesLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::AttributeClustering2D: {
+        auto *strategy = vtkAttributeClustering2DLayoutStrategy::New();
+        strategy->SetVertexAttribute(s_ThreadIdArrayName);
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Constrained2D: {
+        auto *strategy = vtkConstrained2DLayoutStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
+    case Vtk::LayoutStrategy::Simple3DCircles: {
+        auto *strategy = vtkSimple3DCirclesStrategy::New();
+        m_layoutStrategy = strategy;
+        break;
+    }
     }
 
-    return true; // empty selection
+    renderGraph();
 }
 
-void VtkWidget::objectRowsInserted(const QModelIndex &parent, int start, int end)
+void VtkWidget::setStereoMode(Vtk::StereoMode mode)
 {
-    for (int i = start; i <= end; ++i) {
-        const QModelIndex index = m_model->index(i, 0, parent);
-        addObject(index);
-    }
+    GetRenderWindow()->SetStereoType(static_cast<int>(mode));
+    renderGraph();
 }
 
-void VtkWidget::objectRowsAboutToBeRemoved(const QModelIndex &parent, int start, int end)
+void VtkWidget::setThemeType(Vtk::ThemeType themeType)
 {
-    for (int i = start; i <= end; ++i) {
-        const QModelIndex index = m_model->index(i, 0, parent);
-        removeObject(index);
+    vtkViewTheme *viewTheme = nullptr;
+    switch (themeType) {
+    case Vtk::ThemeType::Neon:
+        viewTheme = vtkViewTheme::CreateNeonTheme();
+        break;
+    case Vtk::ThemeType::Ocean:
+        viewTheme = vtkViewTheme::CreateOceanTheme();
+        break;
+    case Vtk::ThemeType::Mellow:
+        viewTheme = vtkViewTheme::CreateMellowTheme();
+        break;
     }
+    Q_ASSERT(viewTheme != nullptr);
+    viewTheme->SetLineWidth(1.0);
+    viewTheme->SetPointSize(15);
+    viewTheme->SetCellOpacity(0.3);
+    m_layoutView->ApplyViewTheme(viewTheme);
+    viewTheme->Delete();
+    renderGraph();
 }
 
-void VtkWidget::objectDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
+void VtkWidget::setShowNodeLabel(bool show)
 {
-    for (int i = topLeft.row(); i <= bottomRight.row(); ++i) {
-        const QModelIndex index = m_model->index(i, 0, topLeft.parent());
-        addObject(index);
-    }
+    if (m_layoutView->GetVertexLabelVisibility() == show)
+        return;
+    m_layoutView->SetVertexLabelVisibility(show);
+    renderGraph();
+}
+
+void VtkWidget::setShowEdgeLabel(bool show)
+{
+    if (m_layoutView->GetEdgeLabelVisibility() == show)
+        return;
+    m_layoutView->SetEdgeLabelVisibility(show);
+    renderGraph();
+}
+
+void VtkWidget::setShowEdgeArrow(bool show)
+{
+    if (m_showEdgeArrow == show)
+        return;
+    m_showEdgeArrow = show;
+    renderGraph();
 }

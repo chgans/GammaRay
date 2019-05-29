@@ -1,9 +1,11 @@
 /*
+  objectvisualizerclient.h
+
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Kevin Funk <kevin.funk@kdab.com>
+  Copyright (C) 2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  Author: Christian Gagneraud <chgans@gmail.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
   accordance with GammaRay Commercial License Agreement provided with the Software.
@@ -24,32 +26,28 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_OBJECTVISUALIZER_VTKCONTAINER_H
-#define GAMMARAY_OBJECTVISUALIZER_VTKCONTAINER_H
+#ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCLIENT_H
+#define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCLIENT_H
 
-#include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QAbstractItemModel;
-QT_END_NAMESPACE
+#include "objectvisualizerinterface.h"
 
 namespace GammaRay {
-class VtkPanel;
-class VtkWidget;
 
-class VtkContainer : public QWidget {
+class ObjectVisualizerClient : public ObjectVisualizerInterface
+{
     Q_OBJECT
-
+    Q_INTERFACES(GammaRay::ObjectVisualizerInterface)
 public:
-    explicit VtkContainer(QWidget *parent = nullptr);
-    virtual ~VtkContainer();
+    explicit ObjectVisualizerClient(QObject *parent = nullptr);
+    ~ObjectVisualizerClient() override;
 
-    void setModel(QAbstractItemModel *model);
-
-private:
-    VtkWidget *m_vtkWidget;
-    VtkPanel *m_vtkPanel;
+public slots:
+    virtual void clearHistory() override;
+    virtual void recordAll() override;
+    virtual void recordNone() override;
+    virtual void showAll() override;
+    virtual void showNone() override;
 };
-}
+} // namespace GammaRay
 
-#endif // GAMMARAY_GRAPHWIDGET_H
+#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCLIENT_H

@@ -4,13 +4,15 @@
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2013-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Volker Krause <volker.krause@kdab.com>
+  Copyright (C) 2013-2019 Klarälvdalens Datakonsult AB, a KDAB Group company,
+  info@kdab.com Author: Volker Krause <volker.krause@kdab.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  accordance with GammaRay Commercial License Agreement provided with the
+  Software.
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
+  Contact info@kdab.com if any conditions of this licensing are not clear to
+  you.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,30 +30,157 @@
 
 #include "objectvisualizermodel.h"
 
+#include <core/probe.h>
+#include <core/tools/objectinspector/outboundconnectionsmodel.h>
 #include <core/util.h>
+
+#include <common/objectid.h>
+
+#include <QMutexLocker>
+#include <QThread>
+
+#include <algorithm>
 
 using namespace GammaRay;
 
-ObjectVisualizerModel::ObjectVisualizerModel(QObject *parent)
-    : KRecursiveFilterProxyModel(parent)
+ConnectionModel::ConnectionModel(Probe *probe, QObject *parent)
+    : QAbstractTableModel(parent)
+    , m_probe(probe)
+{}
+
+ConnectionModel::~ConnectionModel()
 {
+    qDeleteAll(m_edges);
 }
 
-ObjectVisualizerModel::~ObjectVisualizerModel() = default;
-
-QVariant ObjectVisualizerModel::data(const QModelIndex &proxyIndex, int role) const
+int ConnectionModel::rowCount(const QModelIndex &parent) const
 {
-    if (role == ObjectDisplayName) {
-        QObject *obj = data(proxyIndex, ObjectModel::ObjectRole).value<QObject *>();
-        return Util::displayString(obj);
-    } else if (role == ObjectId) {
-        QObject *obj = data(proxyIndex, ObjectModel::ObjectRole).value<QObject *>();
-        return static_cast<qulonglong>(reinterpret_cast<quintptr>(obj));
-    } else if (role == ClassName) {
-        QObject *obj = data(proxyIndex, ObjectModel::ObjectRole).value<QObject *>();
-        Q_ASSERT(obj);
-        return obj->metaObject()->className();
-    }
+    if (parent.isValid())
+        return 0;
+    QMutexLocker lock(m_probe->objectLock());
+    return m_edges.count();
+}
 
-    return KRecursiveFilterProxyModel::data(proxyIndex, role);
+int ConnectionModel::columnCount(const QModelIndex & /*parent*/) const
+{
+    return ColumnCount;
+}
+
+QVariant ConnectionModel::data(const QModelIndex &index, int role) const
+{
+    if (role == Qt::DisplayRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            if (m_probe->isValidObject(edge->sender))
+                return Util::shortDisplayString(edge->sender);
+            return Util::addressToString(edge->sender);
+        case ReceiverColumn:
+            if (m_probe->isValidObject(edge->receiver))
+                return Util::shortDisplayString(edge->receiver);
+            return Util::addressToString(edge->receiver);
+        case CountColumn:
+            return edge->value;
+        default:
+            return {};
+        }
+    }
+    if (role == ObjectIdRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            return QVariant::fromValue(ObjectId(edge->sender));
+        case ReceiverColumn:
+            return QVariant::fromValue(ObjectId(edge->receiver));
+        default:
+            return {};
+        }
+    }
+    if (role == ThreadIdRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            if (m_probe->isValidObject(edge->sender))
+                return QVariant::fromValue(ObjectId(edge->sender->thread()));
+            return QVariant::fromValue(ObjectId());
+        case ReceiverColumn:
+            if (m_probe->isValidObject(edge->receiver))
+                return QVariant::fromValue(ObjectId(edge->receiver->thread()));
+            return QVariant::fromValue(ObjectId());
+        default:
+            return {};
+        }
+    }
+    return {};
+}
+
+QVariant ConnectionModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role != Qt::DisplayRole)
+        return {};
+    if (orientation != Qt::Horizontal)
+        return {};
+    switch (section) {
+    case SenderColumn:
+        return "Sender";
+    case ReceiverColumn:
+        return "Receiver";
+    case CountColumn:
+        return "Connections";
+    default:
+        return {};
+    }
+}
+
+QMap<int, QVariant> ConnectionModel::itemData(const QModelIndex &index) const
+{
+    QMap<int, QVariant> d = QAbstractItemModel::itemData(index);
+    d.insert(ObjectIdRole, data(index, ObjectIdRole));
+    d.insert(ThreadIdRole, data(index, ThreadIdRole));
+    return d;
+}
+
+void ConnectionModel::clear()
+{
+    beginResetModel();
+    qDeleteAll(m_edges);
+    m_edges.clear();
+    m_senderMap.clear();
+    endResetModel();
+}
+
+void ConnectionModel::addOutboundConnection(QObject *sender, QObject *receiver)
+{
+    if (sender == receiver)
+        return;
+
+    const bool update = m_senderMap.contains(sender) && m_senderMap[sender].contains(receiver);
+    if (update) {
+        auto &edge = m_senderMap[sender][receiver];
+        edge->value++;
+        const int row = m_edges.indexOf(edge);
+        emit dataChanged(index(row, CountColumn), index(row, CountColumn));
+    } else {
+        const int row = m_edges.count();
+        beginInsertRows(QModelIndex(), row, row);
+        auto edge = new Edge(sender, receiver, 1);
+        m_edges.append(edge);
+        m_senderMap[sender][receiver] = edge;
+        endInsertRows();
+    }
+}
+
+void ConnectionModel::removeOutboundConnections(QObject *sender)
+{
+    for (auto edge : m_senderMap.value(sender).values()) {
+        const auto row = m_edges.indexOf(edge);
+        beginRemoveRows(QModelIndex(), row, row);
+        m_edges.removeAt(row);
+        delete edge;
+        endRemoveRows();
+    }
+    m_senderMap.remove(sender);
 }

@@ -27,10 +27,13 @@
 #ifndef GAMMARAY_OBJECTVISUALIZER_VTKPANEL_H
 #define GAMMARAY_OBJECTVISUALIZER_VTKPANEL_H
 
+#include "vtkcommon.h"
+
 #include <QToolBar>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
+class QCheckBox;
 QT_END_NAMESPACE
 
 namespace GammaRay {
@@ -41,20 +44,45 @@ class VtkPanel : public QToolBar
     Q_OBJECT
 
 public:
-    explicit VtkPanel(VtkWidget *vtkWidget, QWidget *parent = nullptr);
-    virtual ~VtkPanel();
+    explicit VtkPanel(QWidget *parent = nullptr);
+    ~VtkPanel() override;
+
+    Vtk::LayoutStrategy layoutStrategy() const;
+    Vtk::StereoMode stereoMode() const;
+    Vtk::ThemeType themeType() const;
+    bool showNodeLabel() const;
+    bool showEdgeLabel() const;
+    bool showEdgeArrow() const;
 
 public slots:
-    void layoutChanged(int);
-    void stereoModeChanged(int);
+    void setLayoutStrategy(GammaRay::Vtk::LayoutStrategy strategy);
+    void setStereoMode(GammaRay::Vtk::StereoMode mode);
+    void setTheme(GammaRay::Vtk::ThemeType type);
+    void setShowNodeLabel(bool show);
+    void setShowEdgeLabel(bool show);
+    void setShowEdgeArrow(bool show);
+
+signals:
+    void layoutStrategyChanged(Vtk::LayoutStrategy strategy);
+    void stereoModeChanged(Vtk::StereoMode mode);
+    void themeChanged(Vtk::ThemeType themeType);
+    void showNodeLabelChanged(bool show);
+    void showEdgeLabelChanged(bool show);
+    void showEdgeArrowChanged(bool show);
 
 private:
-    VtkWidget *m_vtkWidget;
+    QComboBox *m_layoutStrategyComboBox;
+    QComboBox *m_stereoModeComboBox;
+    QComboBox *m_themeTypeComboBox;
+    QCheckBox *m_showNodeLabelCheckBox;
+    QCheckBox *m_showEdgeLabelCheckBox;
+    QCheckBox *m_showEdgeArrowCheckBox;
 
-    QComboBox *m_layoutBox;
-    QComboBox *m_stereoBox;
-    QString m_currentLayout;
+    void createLayoutStrategyComboBox();
+    void createStereoModeComboBox();
+    void createThemeComboBox();
 };
-}
+
+} // namespace GammaRay
 
 #endif // GAMMARAY_VTKPANEL_H

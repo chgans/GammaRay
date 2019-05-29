@@ -1,9 +1,11 @@
 /*
+  objectvisualizercommon.cpp
+
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Kevin Funk <kevin.funk@kdab.com>
+  Copyright (C) 2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  Author: Christian Gagneraud <chgans@gmail.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
   accordance with GammaRay Commercial License Agreement provided with the Software.
@@ -24,32 +26,15 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_OBJECTVISUALIZER_VTKCONTAINER_H
-#define GAMMARAY_OBJECTVISUALIZER_VTKCONTAINER_H
-
-#include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QAbstractItemModel;
-QT_END_NAMESPACE
+#ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
 
 namespace GammaRay {
-class VtkPanel;
-class VtkWidget;
+extern const char *ObjectVisualizerConnectionModelId;
+extern const char *ObjectVisualizerConnectionTypeModelId;
+extern const char *ObjectVisualizerThreadModelId;
+extern const char *ObjectVisualizerClassModelId;
+extern const char *ObjectVisualizerObjectModelId;
+} // namespace GammaRay
 
-class VtkContainer : public QWidget {
-    Q_OBJECT
-
-public:
-    explicit VtkContainer(QWidget *parent = nullptr);
-    virtual ~VtkContainer();
-
-    void setModel(QAbstractItemModel *model);
-
-private:
-    VtkWidget *m_vtkWidget;
-    VtkPanel *m_vtkPanel;
-};
-}
-
-#endif // GAMMARAY_GRAPHWIDGET_H
+#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H

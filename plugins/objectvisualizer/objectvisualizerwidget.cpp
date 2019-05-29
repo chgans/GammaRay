@@ -1,14 +1,9 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  objectvisualizerwidget.cpp
 
-  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Kevin Funk <kevin.funk@kdab.com>
+  This file is part of QGraphViz, a Qt wrapper around GraphViz libraries.
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
-
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
+  Copyright (C) 2019
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,55 +20,173 @@
 */
 
 #include "objectvisualizerwidget.h"
-#include "vtkcontainer.h"
-#include "vtkpanel.h"
-#include "vtkwidget.h"
+#include "ui_objectvisualizerwidget.h"
 
-#include <ui/deferredtreeview.h>
-#include <ui/searchlinecontroller.h>
+#include "gvcontainer.h"
+#include "objectvisualizerclient.h"
+#include "objectvisualizercommon.h"
+#include "vtkcontainer.h"
+
 #include <common/objectbroker.h>
 #include <common/objectmodel.h>
+#include <ui/clientdecorationidentityproxymodel.h>
+#include <ui/deferredtreeview.h>
+#include <ui/searchlinecontroller.h>
 
-#include <QCoreApplication>
-#include <QDebug>
-#include <QHBoxLayout>
-#include <QLineEdit>
-#include <QSplitter>
+namespace {
+QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
+{
+    return new GammaRay::ObjectVisualizerClient(parent);
+}
+} // namespace
 
 using namespace GammaRay;
 
-GraphViewerWidget::GraphViewerWidget(QWidget *parent)
+ObjectVisualizerWidget::ObjectVisualizerWidget(QWidget *parent)
     : QWidget(parent)
+    , m_ui(new Ui::ObjectVisualizerWidget)
     , m_stateManager(this)
-    , mWidget(new GraphWidget(this))
 {
-    mModel = ObjectBroker::model("com.kdab.GammaRay.ObjectVisualizerModel");
-
-    QVBoxLayout *vbox = new QVBoxLayout;
-    auto objectSearchLine = new QLineEdit(this);
-    new SearchLineController(objectSearchLine, mModel);
-    vbox->addWidget(objectSearchLine);
-    DeferredTreeView *objectTreeView = new DeferredTreeView(this);
-    objectTreeView->header()->setObjectName("objectTreeViewHeader");
-    objectTreeView->setModel(mModel);
-    objectTreeView->setSortingEnabled(true);
-    vbox->addWidget(objectTreeView);
-
-    mObjectTreeView = objectTreeView;
-
-    QWidget *treeViewWidget = new QWidget(this);
-    treeViewWidget->setLayout(vbox);
-
-    QSplitter *splitter = new QSplitter(this);
-    splitter->addWidget(treeViewWidget);
-    splitter->addWidget(mWidget);
-    QHBoxLayout *hbox = new QHBoxLayout(this);
-    hbox->addWidget(splitter);
-
-    mWidget->vtkWidget()->setModel(mModel);
-    mWidget->vtkWidget()->setSelectionModel(mObjectTreeView->selectionModel());
+    setupClient();
+    setupModels();
+    setupUi();
 }
 
-GraphViewerWidget::~GraphViewerWidget()
+ObjectVisualizerWidget::~ObjectVisualizerWidget() = default;
+
+void ObjectVisualizerWidget::setupClient()
 {
+    ObjectBroker::registerClientObjectFactoryCallback<ObjectVisualizerInterface *>(
+        createObjectVisualizerClient);
+    m_interface = ObjectBroker::object<ObjectVisualizerInterface *>();
+}
+
+void ObjectVisualizerWidget::setupModels()
+{
+    m_connectionModel = ObjectBroker::model(ObjectVisualizerConnectionModelId);
+    assert(m_connectionModel != nullptr);
+    m_connectionTypeModel = ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
+    assert(m_connectionTypeModel != nullptr);
+    m_threadModel = ObjectBroker::model(ObjectVisualizerThreadModelId);
+    assert(m_threadModel != nullptr);
+    m_classModel = ObjectBroker::model(ObjectVisualizerClassModelId);
+    assert(m_classModel != nullptr);
+    m_objectModel = ObjectBroker::model(ObjectVisualizerObjectModelId);
+    assert(m_objectModel != nullptr);
+}
+
+void ObjectVisualizerWidget::setupUi()
+{
+    m_ui->setupUi(this);
+    setupConnectionView();
+    setupConnectionTypeView();
+    setupThreadView();
+    setupClassView();
+    setupObjectView();
+    setup2dView();
+    setup3dView();
+}
+
+void ObjectVisualizerWidget::setupConnectionView()
+{
+    auto view = m_ui->connectionTreeView;
+    view->header()->setObjectName("connectionTreeViewHeader");
+    new SearchLineController(m_ui->connectionSearchLine, m_connectionModel);
+    view->setModel(m_connectionModel);
+    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    view->setDeferredResizeMode(1, QHeaderView::ResizeToContents);
+    view->setDeferredResizeMode(2, QHeaderView::Stretch);
+    view->setSortingEnabled(true);
+    connect(m_ui->pauseButton,
+            &QToolButton::toggled,
+            m_interface,
+            &ObjectVisualizerInterface::setIsPaused);
+    connect(m_ui->clearButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::clearHistory);
+}
+
+void ObjectVisualizerWidget::setupConnectionTypeView()
+{
+    m_ui->typeTreeView->header()->setObjectName("connectionTypeViewHeader");
+    auto typeProxy = new ClientDecorationIdentityProxyModel(this);
+    typeProxy->setSourceModel(m_connectionTypeModel);
+    new SearchLineController(m_ui->typeSearchLine, typeProxy);
+    m_ui->typeTreeView->setModel(typeProxy);
+    m_ui->typeTreeView->setSortingEnabled(true);
+    connect(m_ui->recordAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::recordAll);
+    connect(m_ui->recordNoneButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::recordNone);
+    connect(m_ui->showAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::showAll);
+    connect(m_ui->showNoneButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::showNone);
+}
+
+void ObjectVisualizerWidget::setupThreadView()
+{
+    auto view = m_ui->threadTreeView;
+    view->header()->setObjectName("threadViewHeader");
+    new SearchLineController(m_ui->threadSearchLine, m_threadModel);
+    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    view->setModel(m_threadModel);
+    view->setSortingEnabled(true);
+#if 0 // TODO
+    connect(m_ui->recordAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::recordAll);
+    connect(m_ui->recordNoneButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::recordNone);
+    connect(m_ui->showAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::showAll);
+    connect(m_ui->showNoneButton,
+            &QToolButton::clicked,
+            m_interface,
+            &ObjectVisualizerInterface::showNone);
+#endif
+}
+
+void ObjectVisualizerWidget::setupClassView()
+{
+    auto view = m_ui->classTreeView;
+    view->header()->setObjectName("classViewHeader");
+    new SearchLineController(m_ui->threadSearchLine, m_classModel);
+    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    view->setModel(m_classModel);
+    view->setSortingEnabled(true);
+}
+
+void ObjectVisualizerWidget::setupObjectView()
+{
+    auto view = m_ui->objectTreeView;
+    view->header()->setObjectName("objectViewHeader");
+    new SearchLineController(m_ui->threadSearchLine, m_objectModel);
+    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    view->setModel(m_objectModel);
+    view->setSortingEnabled(true);
+}
+
+void ObjectVisualizerWidget::setup2dView()
+{
+    m_ui->gvTab->setModel(m_connectionModel);
+}
+
+void ObjectVisualizerWidget::setup3dView()
+{
+    m_ui->vtkTab->setModel(m_connectionModel);
 }

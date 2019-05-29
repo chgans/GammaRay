@@ -33,18 +33,41 @@
 
 using namespace GammaRay;
 
-GraphWidget::GraphWidget(QWidget *parent)
-    : QWidget(parent)
-{
+VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
     QVBoxLayout *vbox = new QVBoxLayout(this);
 
     m_vtkWidget = new VtkWidget(this);
-
-    m_vtkPanel = new VtkPanel(m_vtkWidget, this);
+    m_vtkPanel = new VtkPanel(this);
     vbox->addWidget(m_vtkPanel);
     vbox->addWidget(m_vtkWidget);
+
+    m_vtkPanel->setLayoutStrategy(Vtk::LayoutStrategy::SpanTree);
+    m_vtkPanel->setStereoMode(Vtk::StereoMode::Off);
+    m_vtkPanel->setTheme(Vtk::ThemeType::Neon);
+    m_vtkPanel->setShowNodeLabel(true);
+    m_vtkPanel->setShowEdgeLabel(false);
+    m_vtkPanel->setShowEdgeArrow(false);
+
+    m_vtkWidget->setLayoutStrategy(m_vtkPanel->layoutStrategy());
+    m_vtkWidget->setStereoMode(m_vtkPanel->stereoMode());
+    m_vtkWidget->setThemeType(m_vtkPanel->themeType());
+    m_vtkWidget->setShowNodeLabel(m_vtkPanel->showNodeLabel());
+    m_vtkWidget->setShowEdgeLabel(m_vtkPanel->showEdgeLabel());
+    m_vtkWidget->setShowEdgeArrow(m_vtkPanel->showEdgeArrow());
+    connect(m_vtkPanel,
+            &VtkPanel::layoutStrategyChanged,
+            m_vtkWidget,
+            &VtkWidget::setLayoutStrategy);
+    connect(m_vtkPanel, &VtkPanel::stereoModeChanged, m_vtkWidget, &VtkWidget::setStereoMode);
+    connect(m_vtkPanel, &VtkPanel::themeChanged, m_vtkWidget, &VtkWidget::setThemeType);
+    connect(m_vtkPanel, &VtkPanel::showNodeLabelChanged, m_vtkWidget, &VtkWidget::setShowNodeLabel);
+    connect(m_vtkPanel, &VtkPanel::showEdgeLabelChanged, m_vtkWidget, &VtkWidget::setShowEdgeLabel);
+    connect(m_vtkPanel, &VtkPanel::showEdgeArrowChanged, m_vtkWidget, &VtkWidget::setShowEdgeArrow);
 }
 
-GraphWidget::~GraphWidget()
+VtkContainer::~VtkContainer() {}
+
+void VtkContainer::setModel(QAbstractItemModel *model)
 {
+    m_vtkWidget->setModel(model);
 }
