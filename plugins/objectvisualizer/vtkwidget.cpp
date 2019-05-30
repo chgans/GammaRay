@@ -197,53 +197,6 @@ void VtkWidget::setupGraph()
     renderWindowInteractor->Initialize();
     SetRenderWindow(graphLayoutView->GetRenderWindow());
 
-    // code for generating edge arrow heads, needs some love
-    // currently it modifies the layouting
-    // how to use:
-    // comment the AddRepresentationFromInput call to vtkGraphLayoutView and uncomment this
-#if 0
-    VTK_CREATE(vtkGraphLayout, layout);
-    layout->SetInput(graph);
-    layout->SetLayoutStrategy(strategy);
-
-    // Tell the view to use the vertex layout we provide
-    graphLayoutView->SetLayoutStrategyToPassThrough();
-    // The arrows will be positioned on a straight line between two
-    // vertices so tell the view not to draw arcs for parallel edges
-    graphLayoutView->SetEdgeLayoutStrategyToPassThrough();
-
-    // Add the graph to the view. This will render vertices and edges,
-    // but not edge arrows.
-    graphLayoutView->AddRepresentationFromInputConnection(layout->GetOutputPort());
-
-    // Manually create an actor containing the glyphed arrows.
-    VTK_CREATE(vtkGraphToPolyData, graphToPoly);
-    graphToPoly->SetInputConnection(layout->GetOutputPort());
-    graphToPoly->EdgeGlyphOutputOn();
-
-    // Set the position (0: edge start, 1: edge end) where
-    // the edge arrows should go.
-    graphToPoly->SetEdgeGlyphPosition(0.98);
-
-    // Make a simple edge arrow for glyphing.
-    VTK_CREATE(vtkGlyphSource2D, arrowSource);
-    arrowSource->SetGlyphTypeToEdgeArrow();
-    arrowSource->SetScale(0.001);
-    arrowSource->Update();
-
-    // Use Glyph3D to repeat the glyph on all edges.
-    VTK_CREATE(vtkGlyph3D, arrowGlyph);
-    arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
-    arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
-
-    // Add the edge arrow actor to the view.
-    VTK_CREATE(vtkPolyDataMapper, arrowMapper);
-    arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
-    VTK_CREATE(vtkActor, arrowActor);
-    arrowActor->SetMapper(arrowMapper);
-    graphLayoutView->GetRenderer()->AddActor(arrowActor);
-#endif
-
     graphLayoutView->ResetCamera();
     graphLayoutView->Render();
     graphLayoutView->GetInteractor()->Start();

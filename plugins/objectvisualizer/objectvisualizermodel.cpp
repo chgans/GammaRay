@@ -39,8 +39,6 @@
 
 #include <algorithm>
 
-#include <iostream>
-
 using namespace GammaRay;
 
 namespace {
@@ -123,9 +121,6 @@ QVariant ObjectVisualizerModel::headerData(int section,
 
 void ObjectVisualizerModel::onObjectAdded(QObject *sender) {
     Q_ASSERT(thread() == QThread::currentThread());
-
-    std::cout << __FUNCTION__ << " " << sender << " "
-              << sender->objectName().toUtf8().constData() << std::endl;
     const auto connections =
         OutboundConnectionsModel::outboundConnectionsForObject(sender);
     if (connections.isEmpty())
@@ -158,7 +153,6 @@ void ObjectVisualizerModel::onObjectAdded(QObject *sender) {
 
 void ObjectVisualizerModel::onObjectRemoved(QObject *object) {
     {
-        std::cout << __FUNCTION__ << " " << object << std::endl;
         QObject *sender = object;
         if (!m_senderThreads.contains(sender))
             return;
