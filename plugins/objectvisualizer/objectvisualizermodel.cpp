@@ -150,6 +150,8 @@ void ObjectVisualizerModel::onObjectAdded(QObject *sender) {
             m_counterList.append(counter);
             receiverMap.insert(receiver, counter);
             endInsertRows();
+            // TODO: a null entry has to be added if the receiver is not any
+            // SenderTree
         }
     }
 }
