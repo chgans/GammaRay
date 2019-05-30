@@ -2,13 +2,18 @@
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Kevin Funk <kevin.funk@kdab.com>
+  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company,
+  info@kdab.com
+
+  Authors: Kevin Funk <kevin.funk@kdab.com>, Christian Gagneraud
+  <chgans@gmail.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  accordance with GammaRay Commercial License Agreement provided with the
+  Software.
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
+  Contact info@kdab.com if any conditions of this licensing are not clear to
+  you.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,7 +44,7 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 class DeferredTreeView;
-class GraphWidget;
+class ThreeDeeWidget;
 
 class GraphViewerWidget : public QWidget
 {
@@ -50,9 +55,9 @@ public:
 
 private:
     UIStateManager m_stateManager;
-    QAbstractItemModel *mModel;
-    DeferredTreeView *mObjectTreeView;
-    GraphWidget *mWidget;
+    QAbstractItemModel *m_model;
+    DeferredTreeView *m_objectTreeView;
+    ThreeDeeWidget *m_threeDeeWidget;
 };
 
 class ObjectVisualizerUiFactory : public QObject, public StandardToolUiFactory<GraphViewerWidget>

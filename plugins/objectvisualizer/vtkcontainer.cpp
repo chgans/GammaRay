@@ -33,7 +33,7 @@
 
 using namespace GammaRay;
 
-GraphWidget::GraphWidget(QWidget *parent)
+ThreeDeeWidget::ThreeDeeWidget(QWidget *parent)
     : QWidget(parent)
 {
     QVBoxLayout *vbox = new QVBoxLayout(this);
@@ -45,6 +45,6 @@ GraphWidget::GraphWidget(QWidget *parent)
     vbox->addWidget(m_vtkWidget);
 }
 
-GraphWidget::~GraphWidget()
+ThreeDeeWidget::~ThreeDeeWidget()
 {
 }

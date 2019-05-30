@@ -30,27 +30,57 @@
 #define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERMODEL_H
 
 #include <common/objectmodel.h>
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
+#include <core/tools/objectinspector/outboundconnectionsmodel.h>
+
+#include <QAbstractTableModel>
+#include <QByteArray>
+#include <QHash>
+#include <QMetaMethod>
 
 namespace GammaRay {
-/** Augment the regular object tree by some information needed for the visualization
- * on the client side.
- */
-class ObjectVisualizerModel : public KRecursiveFilterProxyModel
-{
-    Q_OBJECT
-public:
-    enum Role {
-        ObjectId = ObjectModel::UserRole,
-        ObjectDisplayName,
-        ClassName
-    };
 
-    explicit ObjectVisualizerModel(QObject *parent);
+class Probe;
+
+class ObjectVisualizerModel : public QAbstractTableModel {
+    Q_OBJECT
+
+private:
+    struct Item;
+
+public:
+    enum ColumnId { ThreadColumn, SenderColumn, ReceiverColumn, CountColumn };
+
+    explicit ObjectVisualizerModel(Probe *probe, QObject *parent = nullptr);
     ~ObjectVisualizerModel() override;
 
-    QVariant data(const QModelIndex &proxyIndex, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
+
+private slots:
+    void onObjectAdded(QObject *object);
+    void onObjectRemoved(QObject *object);
+
+private:
+    struct Counter {
+        QThread *thread;
+        QObject *sender;
+        QObject *receiver;
+        int value;
+    };
+    using Connection = AbstractConnectionsModel::Connection;
+    using ConnectionList = QVector<Connection>;
+    using ReceiverMap = QHash<QObject *, Counter *>;
+    using SenderTree = QHash<QObject *, ReceiverMap>;
+    using ThreadTree = QHash<QThread *, SenderTree>;
+    using CounterList = QList<Counter *>;
+    CounterList m_counterList;
+    ThreadTree m_threadTree;
+    QHash<QObject *, QThread *> m_senderThreads;
+    Probe *m_probe;
 };
-}
+} // namespace GammaRay
 
 #endif // GAMMARAY_OBJECTVISUALIZERMODEL_H

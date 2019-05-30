@@ -29,19 +29,23 @@
 
 #include <core/remote/serverproxymodel.h>
 
+#include <QIdentityProxyModel>
 #include <QtPlugin>
 
 using namespace GammaRay;
 
-GraphViewer::GraphViewer(Probe *probe, QObject *parent)
-    : QObject(parent)
-{
-    auto model = new ServerProxyModel<ObjectVisualizerModel>(this);
-    model->setSourceModel(probe->objectTreeModel());
-    model->addProxyRole(ObjectVisualizerModel::ObjectId);
-    model->addProxyRole(ObjectVisualizerModel::ObjectDisplayName);
-    model->addProxyRole(ObjectVisualizerModel::ClassName);
+GraphViewer::GraphViewer(Probe *probe, QObject *parent) : QObject(parent) {
+#if 1
+    auto model = new ObjectVisualizerModel(probe, this);
+    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    proxy->setSourceModel(model);
+    probe->registerModel("com.kdab.GammaRay.ObjectVisualizerModel", proxy);
+    probe->allQObjects();
+#else
+    auto model = new ObjectVisualizerModel(probe, this);
     probe->registerModel("com.kdab.GammaRay.ObjectVisualizerModel", model);
+    probe->allQObjects();
+#endif
 }
 
 GraphViewer::~GraphViewer() = default;

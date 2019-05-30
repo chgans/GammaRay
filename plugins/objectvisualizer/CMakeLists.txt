@@ -12,6 +12,7 @@ gammaray_add_plugin(gammaray_objectvisualizer_plugin
 target_link_libraries(gammaray_objectvisualizer_plugin
   gammaray_kitemmodels
   gammaray_core
+  gammaray_common_internal
 )
 
 ######## START VTK VISUALIZATION

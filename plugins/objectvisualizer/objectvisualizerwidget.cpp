@@ -2,13 +2,17 @@
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Kevin Funk <kevin.funk@kdab.com>
+  Copyright (C) 2010-2019 Klarälvdalens Datakonsult AB, a KDAB Group company,
+  info@kdab.com
+  Authors: Kevin Funk <kevin.funk@kdab.com>, Christian Gagneraud
+  <chgans@gmail.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  accordance with GammaRay Commercial License Agreement provided with the
+  Software.
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
+  Contact info@kdab.com if any conditions of this licensing are not clear to
+  you.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,49 +33,52 @@
 #include "vtkpanel.h"
 #include "vtkwidget.h"
 
-#include <ui/deferredtreeview.h>
-#include <ui/searchlinecontroller.h>
 #include <common/objectbroker.h>
 #include <common/objectmodel.h>
+#include <ui/clientdecorationidentityproxymodel.h>
+#include <ui/deferredtreeview.h>
+#include <ui/searchlinecontroller.h>
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QSplitter>
+#include <QTabWidget>
+#include <QTableView>
 
 using namespace GammaRay;
 
 GraphViewerWidget::GraphViewerWidget(QWidget *parent)
-    : QWidget(parent)
-    , m_stateManager(this)
-    , mWidget(new GraphWidget(this))
-{
-    mModel = ObjectBroker::model("com.kdab.GammaRay.ObjectVisualizerModel");
+    : QWidget(parent), m_stateManager(this),
+      m_threeDeeWidget(new ThreeDeeWidget(this)) {
 
-    QVBoxLayout *vbox = new QVBoxLayout;
-    auto objectSearchLine = new QLineEdit(this);
-    new SearchLineController(objectSearchLine, mModel);
-    vbox->addWidget(objectSearchLine);
+    m_model = ObjectBroker::model("com.kdab.GammaRay.ObjectVisualizerModel");
+
     DeferredTreeView *objectTreeView = new DeferredTreeView(this);
     objectTreeView->header()->setObjectName("objectTreeViewHeader");
-    objectTreeView->setModel(mModel);
+    auto proxyModel = new ClientDecorationIdentityProxyModel(this);
+    proxyModel->setSourceModel(m_model);
+    auto objectSearchLine = new QLineEdit(this);
+    new SearchLineController(objectSearchLine, proxyModel);
+    objectTreeView->setModel(proxyModel);
     objectTreeView->setSortingEnabled(true);
-    vbox->addWidget(objectTreeView);
 
-    mObjectTreeView = objectTreeView;
+    QWidget *leftWidget = new QWidget(this);
+    QVBoxLayout *leftLayout = new QVBoxLayout;
+    leftLayout->addWidget(objectSearchLine);
+    leftLayout->addWidget(objectTreeView);
+    leftWidget->setLayout(leftLayout);
 
-    QWidget *treeViewWidget = new QWidget(this);
-    treeViewWidget->setLayout(vbox);
+    auto tabWidget = new QTabWidget(this);
+    tabWidget->addTab(new QWidget(this), "2D");
+    tabWidget->addTab(m_threeDeeWidget, "3D");
 
     QSplitter *splitter = new QSplitter(this);
-    splitter->addWidget(treeViewWidget);
-    splitter->addWidget(mWidget);
-    QHBoxLayout *hbox = new QHBoxLayout(this);
-    hbox->addWidget(splitter);
-
-    mWidget->vtkWidget()->setModel(mModel);
-    mWidget->vtkWidget()->setSelectionModel(mObjectTreeView->selectionModel());
+    splitter->addWidget(leftWidget);
+    splitter->addWidget(tabWidget);
+    QHBoxLayout *mainLayout = new QHBoxLayout(this);
+    mainLayout->addWidget(splitter);
 }
 
 GraphViewerWidget::~GraphViewerWidget()

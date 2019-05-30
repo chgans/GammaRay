@@ -251,8 +251,10 @@ void VtkWidget::setupGraph()
     DEBUG("end")
 }
 
-qulonglong VtkWidget::addObject(const QModelIndex &index)
-{
+qulonglong VtkWidget::addObject(const QModelIndex &index) {
+#if 1
+    return 0;
+#else
     // ignore new objects during scene interaction
     // TODO: Add some code to add the objects later on => queue objects
     if (m_mousePressed) {
@@ -314,15 +316,19 @@ qulonglong VtkWidget::addObject(const QModelIndex &index)
 
     renderView();
     return objectId;
+#endif
 }
 
-bool VtkWidget::removeObject(const QModelIndex &index)
-{
+bool VtkWidget::removeObject(const QModelIndex &index) {
+#if 1
+    return true;
+#else
     for (int i = 0; i < index.model()->rowCount(index); ++i)
         removeObject(index.child(i, 0));
 
     const qulonglong objectId = index.data(ObjectVisualizerModel::ObjectId).toULongLong();
     return removeObjectInternal(objectId);
+#endif
 }
 
 bool VtkWidget::removeObjectInternal(qulonglong objectId)
@@ -416,8 +422,10 @@ static bool descendantOf(const QModelIndex &ascendant, const QModelIndex &index)
     return descendantOf(ascendant, parent);
 }
 
-static QModelIndex mapToSource(const QModelIndex &proxyIndex)
-{
+static QModelIndex mapToSource(const QModelIndex &proxyIndex) {
+#if 1
+    return proxyIndex;
+#else
     if (proxyIndex.model()->inherits("GammaRay::ObjectVisualizerModel"))
         return proxyIndex;
 
@@ -428,6 +436,7 @@ static QModelIndex mapToSource(const QModelIndex &proxyIndex)
         return mapToSource(proxyModel->mapToSource(proxyIndex));
     else
         return proxyIndex;
+#endif
 }
 
 bool VtkWidget::filterAcceptsObject(const QModelIndex &index) const
