@@ -33,9 +33,7 @@
 
 using namespace GammaRay;
 
-ThreeDeeWidget::ThreeDeeWidget(QWidget *parent)
-    : QWidget(parent)
-{
+VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
     QVBoxLayout *vbox = new QVBoxLayout(this);
 
     m_vtkWidget = new VtkWidget(this);
@@ -45,6 +43,4 @@ ThreeDeeWidget::ThreeDeeWidget(QWidget *parent)
     vbox->addWidget(m_vtkWidget);
 }
 
-ThreeDeeWidget::~ThreeDeeWidget()
-{
-}
+VtkContainer::~VtkContainer() {}

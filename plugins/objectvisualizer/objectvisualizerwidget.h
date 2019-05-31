@@ -44,7 +44,8 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 class DeferredTreeView;
-class ThreeDeeWidget;
+class VtkContainer;
+class GvContainer;
 
 class GraphViewerWidget : public QWidget
 {
@@ -57,7 +58,8 @@ private:
     UIStateManager m_stateManager;
     QAbstractItemModel *m_model;
     DeferredTreeView *m_objectTreeView;
-    ThreeDeeWidget *m_threeDeeWidget;
+    VtkContainer *m_vtkContainer;
+    GvContainer *m_gvContainer;
 };
 
 class ObjectVisualizerUiFactory : public QObject, public StandardToolUiFactory<GraphViewerWidget>

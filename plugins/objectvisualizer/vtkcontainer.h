@@ -33,12 +33,12 @@ namespace GammaRay {
 class VtkPanel;
 class VtkWidget;
 
-class ThreeDeeWidget : public QWidget {
+class VtkContainer : public QWidget {
     Q_OBJECT
 
 public:
-    explicit ThreeDeeWidget(QWidget *parent = nullptr);
-    virtual ~ThreeDeeWidget();
+    explicit VtkContainer(QWidget *parent = nullptr);
+    virtual ~VtkContainer();
 
     VtkWidget *vtkWidget() const
     {

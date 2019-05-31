@@ -45,10 +45,14 @@ class ObjectVisualizerModel : public QAbstractTableModel {
     Q_OBJECT
 
 private:
-    struct Item;
+    struct Edge;
 
 public:
-    enum ColumnId { ThreadColumn, SenderColumn, ReceiverColumn, CountColumn };
+    enum { SenderColumn, ReceiverColumn, CountColumn };
+    enum {
+        ObjectIdRole = ObjectModel::ObjectIdRole,
+        ThreadIdRole = ObjectModel::UserRole + 1
+    };
 
     explicit ObjectVisualizerModel(Probe *probe, QObject *parent = nullptr);
     ~ObjectVisualizerModel() override;
@@ -58,28 +62,22 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
 
 private slots:
     void onObjectAdded(QObject *object);
     void onObjectRemoved(QObject *object);
 
 private:
-    struct Counter {
-        QThread *thread;
-        QObject *sender;
-        QObject *receiver;
-        int value;
+    struct Edge {
+        QObject *sender = nullptr;
+        QObject *receiver = nullptr;
+        int value = 0;
     };
-    using Connection = AbstractConnectionsModel::Connection;
-    using ConnectionList = QVector<Connection>;
-    using ReceiverMap = QHash<QObject *, Counter *>;
-    using SenderTree = QHash<QObject *, ReceiverMap>;
-    using ThreadTree = QHash<QThread *, SenderTree>;
-    using CounterList = QList<Counter *>;
-    CounterList m_counterList;
-    ThreadTree m_threadTree;
-    QHash<QObject *, QThread *> m_senderThreads;
     Probe *m_probe;
+    QVector<Edge *> m_edges;
+    // map[sender][receiver] = {sender, receiver, count}
+    QHash<QObject *, QHash<QObject *, Edge *>> m_senderMap;
 };
 } // namespace GammaRay
 

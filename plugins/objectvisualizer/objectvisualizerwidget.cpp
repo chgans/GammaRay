@@ -29,6 +29,9 @@
 */
 
 #include "objectvisualizerwidget.h"
+#include "gvcontainer.h"
+#include "gvpanel.h"
+#include "gvwidget.h"
 #include "vtkcontainer.h"
 #include "vtkpanel.h"
 #include "vtkwidget.h"
@@ -51,11 +54,13 @@ using namespace GammaRay;
 
 GraphViewerWidget::GraphViewerWidget(QWidget *parent)
     : QWidget(parent), m_stateManager(this),
-      m_threeDeeWidget(new ThreeDeeWidget(this)) {
+      m_vtkContainer(new VtkContainer(this)),
+      m_gvContainer(new GvContainer(this)) {
 
     m_model = ObjectBroker::model("com.kdab.GammaRay.ObjectVisualizerModel");
 
-    DeferredTreeView *objectTreeView = new DeferredTreeView(this);
+    // DeferredTreeView *objectTreeView = new DeferredTreeView(this);
+    auto objectTreeView = new QTreeView(this);
     objectTreeView->header()->setObjectName("objectTreeViewHeader");
     auto proxyModel = new ClientDecorationIdentityProxyModel(this);
     proxyModel->setSourceModel(m_model);
@@ -64,21 +69,23 @@ GraphViewerWidget::GraphViewerWidget(QWidget *parent)
     objectTreeView->setModel(proxyModel);
     objectTreeView->setSortingEnabled(true);
 
-    QWidget *leftWidget = new QWidget(this);
+    QWidget *treeContainer = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout;
     leftLayout->addWidget(objectSearchLine);
     leftLayout->addWidget(objectTreeView);
-    leftWidget->setLayout(leftLayout);
+    treeContainer->setLayout(leftLayout);
 
     auto tabWidget = new QTabWidget(this);
-    tabWidget->addTab(new QWidget(this), "2D");
-    tabWidget->addTab(m_threeDeeWidget, "3D");
+    tabWidget->addTab(m_gvContainer, "2D");
+    tabWidget->addTab(m_vtkContainer, "3D");
 
     QSplitter *splitter = new QSplitter(this);
-    splitter->addWidget(leftWidget);
+    splitter->addWidget(treeContainer);
     splitter->addWidget(tabWidget);
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     mainLayout->addWidget(splitter);
+
+    m_gvContainer->setModel(m_model);
 }
 
 GraphViewerWidget::~GraphViewerWidget()

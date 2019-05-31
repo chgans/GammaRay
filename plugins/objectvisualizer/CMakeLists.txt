@@ -50,11 +50,18 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
 
   include(${VTK_USE_FILE})
 
-  set(gammaray_objectvisualizer_ui_plugin_srcs
-    objectvisualizerwidget.cpp
-    vtkcontainer.cpp
-    vtkpanel.cpp
-    vtkwidget.cpp
+  set(gammaray_objectvisualizer_ui_plugin_srcs      
+      objectvisualizerwidget.cpp
+
+      gvcontainer.cpp
+      gvgraphicsview.cpp
+      gvpanel.cpp
+      gvrenderer.cpp
+      gvwidget.cpp
+
+      vtkcontainer.cpp
+      vtkpanel.cpp
+      vtkwidget.cpp
   )
 
   gammaray_add_plugin(gammaray_objectvisualizer_ui_plugin
@@ -68,5 +75,8 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
     gammaray_ui
   )
 endif()
+
+target_link_libraries(gammaray_objectvisualizer_ui_plugin "-L/usr/local/lib -lgraphviz-qt -lcgraph -lcdt -lgvc")
+# target_include_directories(gammaray_objectvisualizer_ui_plugin "/usr/local/include")
 
 ######## END VTK VISUALIZATION

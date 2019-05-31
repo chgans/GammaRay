@@ -31,8 +31,11 @@
 #include "objectvisualizermodel.h"
 
 #include <core/probe.h>
+#include <core/tools/objectinspector/inboundconnectionsmodel.h>
 #include <core/tools/objectinspector/outboundconnectionsmodel.h>
 #include <core/util.h>
+
+#include <common/objectid.h>
 
 #include <QMutexLocker>
 #include <QThread>
@@ -57,14 +60,14 @@ ObjectVisualizerModel::ObjectVisualizerModel(Probe *probe, QObject *parent)
 
 ObjectVisualizerModel::~ObjectVisualizerModel() {
     s_model = nullptr;
-    qDeleteAll(m_counterList);
+    qDeleteAll(m_edges);
 }
 
 int ObjectVisualizerModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid())
         return 0;
     QMutexLocker lock(m_probe->objectLock());
-    return m_counterList.count();
+    return m_edges.count();
 }
 
 int ObjectVisualizerModel::columnCount(const QModelIndex & /*parent*/) const {
@@ -72,29 +75,53 @@ int ObjectVisualizerModel::columnCount(const QModelIndex & /*parent*/) const {
 }
 
 QVariant ObjectVisualizerModel::data(const QModelIndex &index, int role) const {
-    if (role != Qt::DisplayRole)
-        return {};
-
-    QMutexLocker lock(m_probe->objectLock());
-    auto counter = m_counterList.at(index.row());
-    switch (index.column()) {
-    case ThreadColumn:
-        if (m_probe->isValidObject(counter->thread))
-            return Util::shortDisplayString(counter->thread);
-        return Util::addressToString(counter->thread);
-    case SenderColumn:
-        if (m_probe->isValidObject(counter->sender))
-            return Util::shortDisplayString(counter->sender);
-        return Util::addressToString(counter->sender);
-    case ReceiverColumn:
-        if (m_probe->isValidObject(counter->receiver))
-            return Util::shortDisplayString(counter->receiver);
-        return Util::addressToString(counter->receiver);
-    case CountColumn:
-        return counter->value;
-    default:
-        return {};
+    if (role == Qt::DisplayRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            if (m_probe->isValidObject(edge->sender))
+                return Util::shortDisplayString(edge->sender);
+            return Util::addressToString(edge->sender);
+        case ReceiverColumn:
+            if (m_probe->isValidObject(edge->receiver))
+                return Util::shortDisplayString(edge->receiver);
+            return Util::addressToString(edge->receiver);
+        case CountColumn:
+            return edge->value;
+        default:
+            return {};
+        }
     }
+    if (role == ObjectIdRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            return QVariant::fromValue(ObjectId(edge->sender));
+        case ReceiverColumn:
+            return QVariant::fromValue(ObjectId(edge->receiver));
+        default:
+            return {};
+        }
+    }
+    if (role == ThreadIdRole) {
+        QMutexLocker lock(m_probe->objectLock());
+        auto edge = m_edges.at(index.row());
+        switch (index.column()) {
+        case SenderColumn:
+            if (m_probe->isValidObject(edge->sender))
+                return QVariant::fromValue(ObjectId(edge->sender->thread()));
+            return QVariant::fromValue(ObjectId());
+        case ReceiverColumn:
+            if (m_probe->isValidObject(edge->receiver))
+                return QVariant::fromValue(ObjectId(edge->receiver->thread()));
+            return QVariant::fromValue(ObjectId());
+        default:
+            return {};
+        }
+    }
+    return {};
 }
 
 QVariant ObjectVisualizerModel::headerData(int section,
@@ -106,8 +133,6 @@ QVariant ObjectVisualizerModel::headerData(int section,
     if (orientation != Qt::Horizontal)
         return {};
     switch (section) {
-    case ThreadColumn:
-        return "Thread";
     case SenderColumn:
         return "Sender";
     case ReceiverColumn:
@@ -119,61 +144,54 @@ QVariant ObjectVisualizerModel::headerData(int section,
     }
 }
 
-void ObjectVisualizerModel::onObjectAdded(QObject *sender) {
+QMap<int, QVariant>
+ObjectVisualizerModel::itemData(const QModelIndex &index) const {
+    QMap<int, QVariant> d = QAbstractItemModel::itemData(index);
+    d.insert(ObjectIdRole, data(index, ObjectIdRole));
+    d.insert(ThreadIdRole, data(index, ThreadIdRole));
+    return d;
+}
+
+void ObjectVisualizerModel::onObjectAdded(QObject *object) {
     Q_ASSERT(thread() == QThread::currentThread());
-    const auto connections =
+    Q_ASSERT(!m_senderMap.contains(object));
+    QObject *sender = object;
+    auto connections =
         OutboundConnectionsModel::outboundConnectionsForObject(sender);
-    if (connections.isEmpty())
-        return;
-    auto thread = sender->thread();
-    m_senderThreads.insert(sender, thread);
-    SenderTree &senderTree = m_threadTree[thread];
-    assert(!senderTree.contains(sender));
-    ReceiverMap &receiverMap = senderTree[sender];
     for (const auto &connection : connections) {
-        auto receiver = connection.endpoint.data();
-        if (receiverMap.contains(receiver)) {
-            Counter *counter = receiverMap.value(receiver);
-            assert(counter->thread == thread);
-            assert(counter->sender == sender);
-            assert(counter->receiver == receiver);
-            counter->value++;
-        } else {
-            const int row = m_counterList.count();
+        QObject *receiver = connection.endpoint.data();
+        const bool update = m_senderMap.contains(sender) &&
+            m_senderMap[sender].contains(receiver);
+        Edge *edge = m_senderMap[sender][receiver];
+        if (!update) {
+            edge = new Edge;
+            const int row = m_edges.count();
             beginInsertRows(QModelIndex(), row, row);
-            auto counter = new Counter{thread, sender, receiver, 1};
-            m_counterList.append(counter);
-            receiverMap.insert(receiver, counter);
-            endInsertRows();
-            // TODO: a null entry has to be added if the receiver is not any
-            // SenderTree
+            m_edges.append(edge);
+            m_senderMap[sender][receiver] = edge;
         }
+        m_senderMap[sender][receiver]->sender = sender;
+        m_senderMap[sender][receiver]->receiver = receiver;
+        m_senderMap[sender][receiver]->value++;
+        if (update) {
+            const int row = m_edges.indexOf(edge);
+            emit dataChanged(index(row, CountColumn), index(row, CountColumn));
+        } else
+            endInsertRows();
     }
 }
 
 void ObjectVisualizerModel::onObjectRemoved(QObject *object) {
-    {
-        QObject *sender = object;
-        if (!m_senderThreads.contains(sender))
-            return;
-        QThread *thread = m_senderThreads.value(sender);
-        assert(m_threadTree.contains(thread));
-        const ReceiverMap &receiverMap = m_threadTree[thread][sender];
-        assert(!receiverMap.isEmpty());
-        for (QObject *receiver : receiverMap.keys()) {
-            Counter *counter = receiverMap.value(receiver);
-            const int row = m_counterList.indexOf(counter);
-            beginRemoveRows(QModelIndex(), row, row);
-            m_counterList.removeAt(row);
-            delete counter;
-            endRemoveRows();
-        }
-        m_threadTree[thread].remove(sender);
-        if (m_threadTree[thread].isEmpty()) {
-            m_threadTree.remove(thread);
-            m_senderThreads.remove(sender);
-        }
+    Q_ASSERT(thread() == QThread::currentThread());
+    if (!m_senderMap.contains(object))
+        return;
+
+    for (auto edge : m_senderMap.value(object).values()) {
+        const auto row = m_edges.indexOf(edge);
+        beginRemoveRows(QModelIndex(), row, row);
+        m_edges.removeAt(row);
+        delete edge;
+        endRemoveRows();
     }
-    // TODO: update connection counter of receivers that were connected to
-    // this sender
+    m_senderMap.remove(object);
 }
