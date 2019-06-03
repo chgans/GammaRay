@@ -62,7 +62,6 @@ private:
     static void doProblemScan(const QMetaObject *parent);
 
     PropertyController *m_propertyController;
-    MetaObjectTreeModel *m_motm;
     QAbstractProxyModel *m_model;
 };
 

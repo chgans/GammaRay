@@ -29,6 +29,8 @@
 #ifndef GAMMARAY_OBJECTTREEMODEL_H
 #define GAMMARAY_OBJECTTREEMODEL_H
 
+#include "core/gammaray_core_export.h"
+
 #include "objectmodelbase.h"
 
 #include <QVector>
@@ -36,7 +38,7 @@
 namespace GammaRay {
 class Probe;
 
-class ObjectTreeModel : public ObjectModelBase<QAbstractItemModel>
+class GAMMARAY_CORE_EXPORT ObjectTreeModel : public ObjectModelBase<QAbstractItemModel>
 {
     Q_OBJECT
 public:

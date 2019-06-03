@@ -46,6 +46,8 @@
 #include "varianthandler.h"
 #include "metaobjectregistry.h"
 
+#include "tools/metaobjectbrowser/metaobjecttreemodel.h"
+
 #include "remote/server.h"
 #include "remote/remotemodelserver.h"
 #include "remote/serverproxymodel.h"
@@ -191,6 +193,7 @@ Probe::Probe(QObject *parent)
     , m_objectTreeModel(new ObjectTreeModel(this))
     , m_window(nullptr)
     , m_metaObjectRegistry(new MetaObjectRegistry(this))
+    , m_metaObjectTreeModel(new MetaObjectTreeModel(m_metaObjectRegistry, this))
     , m_queueTimer(new QTimer(this))
     , m_server(nullptr)
 {
@@ -508,6 +511,11 @@ const QVector<QObject *> &Probe::allQObjects() const
 QAbstractItemModel *Probe::objectTreeModel() const
 {
     return m_objectTreeModel;
+}
+
+QAbstractItemModel *Probe::metaObjectTreeModel() const
+{
+    return m_metaObjectTreeModel;
 }
 
 ProblemCollector *Probe::problemCollector() const

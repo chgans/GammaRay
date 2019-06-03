@@ -45,13 +45,16 @@
 
 using namespace GammaRay;
 
-static inline MetaObjectRegistry *registry()
-{
-    return Probe::instance()->metaObjectRegistry();
-}
+//static inline MetaObjectRegistry *registry()
+//{
+//    return Probe::instance()->metaObjectRegistry();
+//}
 
-MetaObjectTreeModel::MetaObjectTreeModel(QObject *parent)
+#define registry() m_registry
+
+MetaObjectTreeModel::MetaObjectTreeModel(MetaObjectRegistry *registry, QObject *parent)
     : QAbstractItemModel(parent)
+    , m_registry(registry)
     , m_pendingDataChangedTimer(new QTimer(this))
 {
     connect(registry(), &MetaObjectRegistry::beforeMetaObjectAdded, this, &MetaObjectTreeModel::addMetaObject);

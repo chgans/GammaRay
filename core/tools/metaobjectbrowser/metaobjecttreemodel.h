@@ -29,6 +29,8 @@
 #ifndef GAMMARAY_METAOBJECTTREEMODEL_H
 #define GAMMARAY_METAOBJECTTREEMODEL_H
 
+#include "core/gammaray_core_export.h"
+
 #include <QModelIndex>
 #include <QSet>
 #include <QVector>
@@ -39,13 +41,14 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 class Probe;
+class MetaObjectRegistry;
 
-class MetaObjectTreeModel : public QAbstractItemModel
+class GAMMARAY_CORE_EXPORT MetaObjectTreeModel : public QAbstractItemModel
 {
     Q_OBJECT
 
 public:
-    explicit MetaObjectTreeModel(QObject *parent = nullptr);
+    explicit MetaObjectTreeModel(MetaObjectRegistry *registry, QObject *parent = nullptr);
     ~MetaObjectTreeModel() override;
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -74,6 +77,7 @@ private slots:
     void emitPendingDataChanged();
 
 private:
+    MetaObjectRegistry *m_registry;
     QSet<const QMetaObject *> m_pendingDataChanged;
     QTimer *m_pendingDataChangedTimer;
 };

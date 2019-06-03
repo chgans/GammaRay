@@ -55,6 +55,7 @@ namespace GammaRay {
 class ProbeCreator;
 class ObjectListModel;
 class ObjectTreeModel;
+class MetaObjectTreeModel;
 class MainWindow;
 class BenchSuite;
 class Server;
@@ -116,6 +117,11 @@ public:
      * @return a pointer to a QAbstractItemModel instance.
      */
     QAbstractItemModel *objectTreeModel() const;
+    /*!
+     * Returns the meta object tree model.
+     * @return a pointer to a QAbstractItemModel instance.
+     */
+    QAbstractItemModel *metaObjectTreeModel() const;
     /*!
      * Register a model for remote usage.
      * @param objectName Unique identifier for the model, typically in reverse domain notation.
@@ -314,6 +320,7 @@ private:
     QObject *m_window;
     QSet<const QObject *> m_validObjects;
     MetaObjectRegistry *m_metaObjectRegistry;
+    MetaObjectTreeModel *m_metaObjectTreeModel;
 
     // all delayed object changes need to go through a single queue, as the order is crucial
     struct ObjectChange {

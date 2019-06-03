@@ -49,14 +49,14 @@ using namespace GammaRay;
 
 MetaObjectBrowser::MetaObjectBrowser(Probe *probe, QObject *parent)
     : QObject(parent)
-    , m_propertyController(new PropertyController(QStringLiteral("com.kdab.GammaRay.MetaObjectBrowser"), this))
-    , m_motm(new MetaObjectTreeModel(this))
+    , m_propertyController(
+          new PropertyController(QStringLiteral("com.kdab.GammaRay.MetaObjectBrowser"), this))
     , m_model(nullptr)
 {
     auto model = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
     model->addRole(QMetaObjectModel::MetaObjectIssues);
     model->addRole(QMetaObjectModel::MetaObjectInvalid);
-    model->setSourceModel(m_motm);
+    model->setSourceModel(probe->metaObjectTreeModel());
     m_model = model;
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.MetaObjectBrowserTreeModel"), m_model);
 
