@@ -1,0 +1,8 @@
+{
+    "id": "gammaray_connectivityinspector",
+    "name": "Connectivity Inspector",
+    "name[fr]": "Inspecteur de connectivité",
+    "types": [
+        "QObject"
+    ]
+}
