@@ -116,11 +116,13 @@ void ConnectivityAnalyser::registerConnectionModel()
 
 void ConnectivityAnalyser::registerConnectionRecordingModel()
 {
-    m_connectionRecordingModel = new ConnectionTypeModel(this);
+    auto model = new ConnectionTypeModel(this);
+    m_connectionRecordingModel = new RecordingProxyModel<int, ConnectionTypeModel::TypeRole>(this);
+    m_connectionRecordingModel->setSourceModel(model);
     auto connectionTypeProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     connectionTypeProxy->setSourceModel(m_connectionRecordingModel);
     m_probe->registerModel(ObjectVisualizerConnectionTypeModelId, connectionTypeProxy);
-    //new RecordingInterfaceBridge("Connection", m_connectionRecordingModel, this);
+    new RecordingInterfaceBridge("Connection", m_connectionRecordingModel, this);
 }
 
 void ConnectivityAnalyser::registerThreadRecordingModel()
@@ -129,7 +131,9 @@ void ConnectivityAnalyser::registerThreadRecordingModel()
     proxy->setSourceModel(m_probe->objectListModel());
     m_threadRecordingModel = new RecordingProxyModel<QObject *, ObjectModel::ObjectRole>(this);
     m_threadRecordingModel->setSourceModel(proxy);
-    m_probe->registerModel(ObjectVisualizerThreadModelId, m_threadRecordingModel);
+    auto threadProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    threadProxy->setSourceModel(m_threadRecordingModel);
+    m_probe->registerModel(ObjectVisualizerThreadModelId, threadProxy);
     new RecordingInterfaceBridge("Thread", m_threadRecordingModel, this);
 }
 
@@ -156,19 +160,24 @@ void ConnectivityAnalyser::addObject(QObject *object)
 {
     if (!m_probe->isValidObject(object))
         return;
-    auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
-    for (const auto &connection : connections) {
-        QObject *receiver = connection.endpoint.data();
-        const auto type = static_cast<Qt::ConnectionType>(connection.type);
-        if (!m_connectionRecordingModel->isRecording(type))
-            continue;
-        m_connectionModel->addOutboundConnection(object, receiver);
-        m_connectionRecordingModel->increaseCount(connection.type);
-    }
     m_classRecordingModel->increaseCount(object->metaObject());
     m_objectRecordingModel->increaseCount(object);
     if (object->inherits("QThread")) {
         m_threadRecordingModel->increaseCount(object);
+    }
+    auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
+    for (const auto &connection : connections) {
+        QObject *receiver = connection.endpoint.data();
+        m_connectionRecordingModel->increaseCount(connection.type);
+        if (!m_connectionRecordingModel->isRecording(connection.type))
+            continue;
+        if (!m_threadRecordingModel->isRecording(object->thread()))
+            continue;
+        if (m_classRecordingModel->isRecording(object->metaObject()))
+            continue;
+        if (!m_objectRecordingModel->isRecording(object))
+            return;
+        m_connectionModel->addOutboundConnection(object, receiver);
     }
 }
 

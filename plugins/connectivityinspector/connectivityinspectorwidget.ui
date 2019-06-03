@@ -62,7 +62,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>5</number>
+       <number>2</number>
       </property>
       <widget class="GvContainer" name="gvTab">
        <attribute name="title">
@@ -85,7 +85,7 @@
            <number>6</number>
           </property>
           <item>
-           <widget class="QLineEdit" name="connectionSearchLine_2">
+           <widget class="QLineEdit" name="connectionTypeSearchLine">
             <property name="placeholderText">
              <string>Filter...</string>
             </property>
@@ -383,7 +383,7 @@
   <tabstop>clearButton</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>connectionTreeView</tabstop>
-  <tabstop>connectionSearchLine_2</tabstop>
+  <tabstop>connectionTypeSearchLine</tabstop>
   <tabstop>recordAllConnectionsButton</tabstop>
   <tabstop>recordNoConnectionsButton</tabstop>
   <tabstop>showAllConnectionsButton</tabstop>

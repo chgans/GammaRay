@@ -29,6 +29,7 @@
 
 #include "connectivityinspectorinterface.h"
 
+#include "connectiontypemodel.h" // FIXME: TypeRole
 #include "recordingproxymodel.h"
 
 #include <core/toolfactory.h>
@@ -81,7 +82,7 @@ private slots:
 private:
     Probe *m_probe;
     ConnectionModel *m_connectionModel;
-    ConnectionTypeModel *m_connectionRecordingModel;
+    RecordingProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionRecordingModel;
     RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadRecordingModel;
     RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classRecordingModel;
     RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectRecordingModel;
