@@ -24,6 +24,8 @@
 
 #include "3rdparty/kde/kextracolumnsproxymodel.h"
 
+#include "recordinginterface.h"
+
 #include <QDebug>
 
 namespace GammaRay {
@@ -37,6 +39,11 @@ public:
     ~RecordingProxyModelBase() override;
 
     enum ExtraColumn { CountColumn = 0, IsRecordingColumn, IsVisibleColumn, ExtraColumnCount };
+
+    void recordAll();
+    void recordNone();
+    void showAll();
+    void showNone();
 
     // KExtraColumnsProxyModel interface
 public:
@@ -75,9 +82,13 @@ protected:
     virtual void addRecordingData(const QModelIndex &index) = 0;
     virtual void removeRecordingData(const QModelIndex &index) = 0;
     virtual void clearRecordingData() = 0;
+    virtual void setIsRecording(const QModelIndex &index, bool enabled) = 0;
+    virtual void setIsVisible(const QModelIndex &index, bool enabled) = 0;
 
+private:
+    using IndexVisitor = std::function<void(const QModelIndex &)>;
 private slots:
-    void processItem(const QModelIndex &sourceIndex);
+    void visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor);
     void initialiseRecordingModel();
     void finaliseRecordingModel();
 };
@@ -135,28 +146,6 @@ public:
         return m_data[m_indexes.value(target)].isRecording;
     }
 
-    void recordAll()
-    {
-        if (!sourceModel())
-            return;
-
-        beginResetModel();
-        for (auto &data : m_data)
-            data.isRecording = true;
-        endResetModel();
-    }
-
-    void recordNone()
-    {
-        if (!sourceModel())
-            return;
-
-        beginResetModel();
-        for (auto &data : m_data)
-            data.isRecording = false;
-        endResetModel();
-    }
-
     bool isVisible(const T &target) const
     {
         if (!sourceModel())
@@ -166,28 +155,7 @@ public:
         return m_data[m_indexes.value(target)].isVisible;
     }
 
-    void showAll()
-    {
-        if (!sourceModel())
-            return;
-
-        beginResetModel();
-        for (auto &data : m_data)
-            data.isVisible = true;
-        endResetModel();
-    }
-
-    void showNone()
-    {
-        if (!sourceModel())
-            return;
-
-        beginResetModel();
-        for (auto &data : m_data)
-            data.isVisible = false;
-        endResetModel();
-    }
-
+    // RecordingProxyModelBase interface
 protected:
     void addRecordingData(const QModelIndex &index) override
     {
@@ -227,10 +195,46 @@ protected:
         return m_data.value(index);
     }
 
+    void setIsRecording(const QModelIndex &index, bool enabled) override
+    {
+        Q_ASSERT(m_data.contains(index));
+        m_data[index].isRecording = enabled;
+    }
+
+    void setIsVisible(const QModelIndex &index, bool enabled) override
+    {
+        Q_ASSERT(m_data.contains(index));
+        m_data[index].isVisible = enabled;
+    }
+
 private:
     QHash<QPersistentModelIndex, RecordingData> m_data;
     QHash<T, QPersistentModelIndex> m_indexes;
 };
+
+class RecordingInterfaceBridge : public ConnectivityRecordingInterface
+{
+    Q_OBJECT
+public:
+    RecordingInterfaceBridge(const QString &name,
+                             RecordingProxyModelBase *model,
+                             QObject *parent = nullptr)
+        : ConnectivityRecordingInterface(name, parent)
+        , m_model(model)
+    {}
+    ~RecordingInterfaceBridge() override = default;
+
+    // ConnectivityInspectorRecordingInterface interface
+public slots:
+    void recordAll() override { m_model->recordAll(); }
+    void recordNone() override { m_model->recordNone(); }
+    void showAll() override { m_model->showAll(); }
+    void showNone() override { m_model->showNone(); }
+
+private:
+    RecordingProxyModelBase *m_model;
+};
+
 } // namespace GammaRay
 
 #endif // RECORDINGPROXYMODEL_H

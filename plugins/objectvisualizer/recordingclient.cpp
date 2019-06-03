@@ -1,5 +1,5 @@
 /*
-  objectvisualizerclient.cpp
+  recordingclient.cpp
 
  This file is part of GammaRay, the Qt application inspection and
  manipulation tool.
@@ -26,19 +26,34 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "objectvisualizerclient.h"
+#include "recordingclient.h"
 
 #include <common/endpoint.h>
 
 using namespace GammaRay;
 
-ConnectivityInspectorClient::ConnectivityInspectorClient(QObject *parent)
-    : ConnectivityInspectorInterface(parent)
+RecordingClient::RecordingClient(const QString &name, QObject *parent)
+    : ConnectivityRecordingInterface(name, parent)
 {}
 
-ConnectivityInspectorClient::~ConnectivityInspectorClient() = default;
+RecordingClient::~RecordingClient() = default;
 
-void ConnectivityInspectorClient::clearHistory()
+void RecordingClient::recordAll()
 {
-    Endpoint::instance()->invokeObject(objectName(), "clearHistory");
+    Endpoint::instance()->invokeObject(objectName(), "recordAll");
+}
+
+void RecordingClient::recordNone()
+{
+    Endpoint::instance()->invokeObject(objectName(), "recordNone");
+}
+
+void RecordingClient::showAll()
+{
+    Endpoint::instance()->invokeObject(objectName(), "showAll");
+}
+
+void RecordingClient::showNone()
+{
+    Endpoint::instance()->invokeObject(objectName(), "showNone");
 }

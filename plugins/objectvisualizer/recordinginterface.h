@@ -1,5 +1,5 @@
 /*
-  objectvisualizercommon.cpp
+  connectivityinspectorrecordinginterface.h
 
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
@@ -26,16 +26,35 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
-#define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#ifndef GAMMARAY_CONNECTIVITY_INSPECTOR_RECORDING_INTERFACE_H
+#define GAMMARAY_CONNECTIVITY_INSPECTOR_RECORDING_INTERFACE_H
+
+#include <QObject>
+
+QT_BEGIN_NAMESPACE
+class QSize;
+QT_END_NAMESPACE
 
 namespace GammaRay {
-extern const char *ObjectVisualizerConnectionModelId;
-extern const char *ObjectVisualizerConnectionTypeModelId;
-extern const char *ObjectVisualizerThreadModelId;
-extern const char *ObjectVisualizerClassModelId;
-extern const char *ObjectVisualizerObjectModelId;
-extern const char *ConnectivityInspectorBaseDomain;
+class ConnectivityRecordingInterface : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit ConnectivityRecordingInterface(const QString &name, QObject *parent = nullptr);
+    ~ConnectivityRecordingInterface() override;
+
+public slots:
+    virtual void recordAll() = 0;
+    virtual void recordNone() = 0;
+    virtual void showAll() = 0;
+    virtual void showNone() = 0;
+};
 } // namespace GammaRay
 
-#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+QT_BEGIN_NAMESPACE
+Q_DECLARE_INTERFACE(GammaRay::ConnectivityRecordingInterface,
+                    "com.kdab.GammaRay.ConnectivityInspector.RecordingInterface")
+QT_END_NAMESPACE
+
+#endif // GAMMARAY_CONNECTIVITY_INSPECTOR_RECORDING_INTERFACE_H

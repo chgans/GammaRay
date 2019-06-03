@@ -36,21 +36,17 @@ class QSize;
 QT_END_NAMESPACE
 
 namespace GammaRay {
-class ObjectVisualizerInterface : public QObject
+class ConnectivityInspectorInterface : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool isPaused READ isPaused WRITE setIsPaused NOTIFY isPausedChanged)
 
 public:
-    explicit ObjectVisualizerInterface(QObject *parent = nullptr);
-    ~ObjectVisualizerInterface() override;
+    explicit ConnectivityInspectorInterface(QObject *parent = nullptr);
+    ~ConnectivityInspectorInterface() override;
 
 public slots:
     virtual void clearHistory() = 0;
-    virtual void recordAll() = 0;
-    virtual void recordNone() = 0;
-    virtual void showAll() = 0;
-    virtual void showNone() = 0;
 
     bool isPaused() const { return m_isPaused; }
     void setIsPaused(bool value);
@@ -64,8 +60,8 @@ private:
 } // namespace GammaRay
 
 QT_BEGIN_NAMESPACE
-Q_DECLARE_INTERFACE(GammaRay::ObjectVisualizerInterface,
-                    "com.kdab.GammaRay.ObjectVisualizerInterface")
+Q_DECLARE_INTERFACE(GammaRay::ConnectivityInspectorInterface,
+                    "com.kdab.GammaRay.ConnectivityInspectorInterface")
 QT_END_NAMESPACE
 
 #endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERINTERFACE_H

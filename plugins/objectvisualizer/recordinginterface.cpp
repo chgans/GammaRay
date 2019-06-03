@@ -1,5 +1,5 @@
 /*
-  objectvisualizercommon.cpp
+  connectivityinspectorrecordinginterface.cpp
 
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
@@ -26,16 +26,19 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
-#define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#include "recordinginterface.h"
 
-namespace GammaRay {
-extern const char *ObjectVisualizerConnectionModelId;
-extern const char *ObjectVisualizerConnectionTypeModelId;
-extern const char *ObjectVisualizerThreadModelId;
-extern const char *ObjectVisualizerClassModelId;
-extern const char *ObjectVisualizerObjectModelId;
-extern const char *ConnectivityInspectorBaseDomain;
-} // namespace GammaRay
+#include "objectvisualizercommon.h"
 
-#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#include <common/objectbroker.h>
+
+using namespace GammaRay;
+
+ConnectivityRecordingInterface::ConnectivityRecordingInterface(const QString &name, QObject *parent)
+    : QObject(parent)
+{
+    const auto fqon = QStringLiteral("%1.%2.%3")
+                          .arg(ConnectivityInspectorBaseDomain, "RecordingInterface", name);
+    ObjectBroker::registerObject(fqon, this);
+}
+ConnectivityRecordingInterface::~ConnectivityRecordingInterface() = default;

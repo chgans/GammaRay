@@ -62,7 +62,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>5</number>
       </property>
       <widget class="GvContainer" name="gvTab">
        <attribute name="title">
@@ -85,21 +85,21 @@
            <number>6</number>
           </property>
           <item>
-           <widget class="QLineEdit" name="typeSearchLine">
+           <widget class="QLineEdit" name="connectionSearchLine_2">
             <property name="placeholderText">
              <string>Filter...</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordAllButton">
+           <widget class="QToolButton" name="recordAllConnectionsButton">
             <property name="text">
              <string>Record All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordNoneButton">
+           <widget class="QToolButton" name="recordNoConnectionsButton">
             <property name="text">
              <string>Record None</string>
             </property>
@@ -122,14 +122,14 @@
            </spacer>
           </item>
           <item>
-           <widget class="QToolButton" name="showAllButton">
+           <widget class="QToolButton" name="showAllConnectionsButton">
             <property name="text">
              <string>Show All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="showNoneButton">
+           <widget class="QToolButton" name="showNoConnecctionsButton">
             <property name="text">
              <string>Show None</string>
             </property>
@@ -167,14 +167,14 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordAllButton_2">
+           <widget class="QToolButton" name="recordAllThreadsButton">
             <property name="text">
              <string>Record All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordNoneButton_2">
+           <widget class="QToolButton" name="recordNoThreadsButton">
             <property name="text">
              <string>Record None</string>
             </property>
@@ -197,14 +197,14 @@
            </spacer>
           </item>
           <item>
-           <widget class="QToolButton" name="showAllButton_2">
+           <widget class="QToolButton" name="showAllThreadsButton">
             <property name="text">
              <string>Show All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="showNoneButton_2">
+           <widget class="QToolButton" name="showNoThreadsButton">
             <property name="text">
              <string>Show None</string>
             </property>
@@ -235,14 +235,14 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordAllButton_3">
+           <widget class="QToolButton" name="recordAllClassesButton">
             <property name="text">
              <string>Record All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordNoneButton_3">
+           <widget class="QToolButton" name="recordNoClassesButton">
             <property name="text">
              <string>Record None</string>
             </property>
@@ -265,14 +265,14 @@
            </spacer>
           </item>
           <item>
-           <widget class="QToolButton" name="showAllButton_3">
+           <widget class="QToolButton" name="showAllClassesButton">
             <property name="text">
              <string>Show All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="showNoneButton_3">
+           <widget class="QToolButton" name="showNoClassesButton">
             <property name="text">
              <string>Show None</string>
             </property>
@@ -303,14 +303,14 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordAllButton_4">
+           <widget class="QToolButton" name="recordAllObjectsButton">
             <property name="text">
              <string>Record All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="recordNoneButton_4">
+           <widget class="QToolButton" name="recordNoObjectsButton">
             <property name="text">
              <string>Record None</string>
             </property>
@@ -333,14 +333,14 @@
            </spacer>
           </item>
           <item>
-           <widget class="QToolButton" name="showAllButton_4">
+           <widget class="QToolButton" name="showAllObjectsButton">
             <property name="text">
              <string>Show All</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="showNoneButton_4">
+           <widget class="QToolButton" name="showNoObjectsButton">
             <property name="text">
              <string>Show None</string>
             </property>
@@ -383,11 +383,11 @@
   <tabstop>clearButton</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>connectionTreeView</tabstop>
-  <tabstop>typeSearchLine</tabstop>
-  <tabstop>recordAllButton</tabstop>
-  <tabstop>recordNoneButton</tabstop>
-  <tabstop>showAllButton</tabstop>
-  <tabstop>showNoneButton</tabstop>
+  <tabstop>connectionSearchLine_2</tabstop>
+  <tabstop>recordAllConnectionsButton</tabstop>
+  <tabstop>recordNoConnectionsButton</tabstop>
+  <tabstop>showAllConnectionsButton</tabstop>
+  <tabstop>showNoConnecctionsButton</tabstop>
   <tabstop>typeTreeView</tabstop>
  </tabstops>
  <resources/>

@@ -37,7 +37,8 @@ namespace Ui {
     class ObjectVisualizerWidget;
 }
 class DeferredTreeView;
-class ObjectVisualizerInterface;
+class ConnectivityInspectorInterface;
+class ConnectivityRecordingInterface;
 
 class ObjectVisualizerWidget : public QWidget
 {
@@ -60,14 +61,17 @@ private:
     void setup3dView();
 
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
-    ObjectVisualizerInterface *m_interface;
+    ConnectivityInspectorInterface *m_interface;
     UIStateManager m_stateManager;
     QAbstractItemModel *m_connectionModel;
-    QAbstractItemModel *m_connectionTypeModel;
-    QAbstractItemModel *m_threadModel;
-    QAbstractItemModel *m_classModel;
-    QAbstractItemModel *m_objectModel;
-    DeferredTreeView *m_objectTreeView;
+    QAbstractItemModel *m_connectionRecordingModel;
+    ConnectivityRecordingInterface *m_connectionRecordingInterface;
+    QAbstractItemModel *m_threadRecordingModel;
+    ConnectivityRecordingInterface *m_threadRecordingInterface;
+    QAbstractItemModel *m_classRecordingModel;
+    ConnectivityRecordingInterface *m_classRecordingInterface;
+    QAbstractItemModel *m_objectRecordingModel;
+    ConnectivityRecordingInterface *m_objectRecordingInterface;
 };
 
 class ObjectVisualizerUiFactory : public QObject,

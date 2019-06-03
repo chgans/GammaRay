@@ -33,20 +33,16 @@
 
 namespace GammaRay {
 
-class ObjectVisualizerClient : public ObjectVisualizerInterface
+class ConnectivityInspectorClient : public ConnectivityInspectorInterface
 {
     Q_OBJECT
-    Q_INTERFACES(GammaRay::ObjectVisualizerInterface)
+    Q_INTERFACES(GammaRay::ConnectivityInspectorInterface)
 public:
-    explicit ObjectVisualizerClient(QObject *parent = nullptr);
-    ~ObjectVisualizerClient() override;
+    explicit ConnectivityInspectorClient(QObject *parent = nullptr);
+    ~ConnectivityInspectorClient() override;
 
 public slots:
     virtual void clearHistory() override;
-    virtual void recordAll() override;
-    virtual void recordNone() override;
-    virtual void showAll() override;
-    virtual void showNone() override;
 };
 } // namespace GammaRay
 

@@ -1,5 +1,5 @@
 /*
-  objectvisualizercommon.cpp
+  recordingclient.h
 
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
@@ -26,16 +26,26 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
-#define GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#ifndef GAMMARAY_OBJECTVISUALIZER_RECORDINGCLIENT_H
+#define GAMMARAY_OBJECTVISUALIZER_RECORDINGCLIENT_H
+
+#include "recordinginterface.h"
 
 namespace GammaRay {
-extern const char *ObjectVisualizerConnectionModelId;
-extern const char *ObjectVisualizerConnectionTypeModelId;
-extern const char *ObjectVisualizerThreadModelId;
-extern const char *ObjectVisualizerClassModelId;
-extern const char *ObjectVisualizerObjectModelId;
-extern const char *ConnectivityInspectorBaseDomain;
+class RecordingClient : public ConnectivityRecordingInterface
+{
+    Q_OBJECT
+
+public:
+    explicit RecordingClient(const QString &name, QObject *parent = nullptr);
+    ~RecordingClient() override;
+
+public slots:
+    void recordAll() override;
+    void recordNone() override;
+    void showAll() override;
+    void showNone() override;
+};
 } // namespace GammaRay
 
-#endif // GAMMARAY_OBJECTVISUALIZER_OBJECTVISUALIZERCOMMON_H
+#endif // GAMMARAY_OBJECTVISUALIZER_RECORDINGCLIENT_H

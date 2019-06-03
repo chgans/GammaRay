@@ -29,7 +29,7 @@
 #include "objectvisualizercommon.h"
 
 namespace GammaRay {
-
+const char *ConnectivityInspectorBaseDomain = "com.kdab.GammaRay.ConnectivityInspector";
 const char *ObjectVisualizerConnectionModelId
     = "com.kdab.GammaRay.ObjectVisualizer.ConnectivityModel";
 const char *ObjectVisualizerConnectionTypeModelId

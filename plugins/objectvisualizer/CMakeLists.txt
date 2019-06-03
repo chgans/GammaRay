@@ -2,6 +2,7 @@
 set(gammaray_objectvisualizer_shared_srcs
   objectvisualizerinterface.cpp
   objectvisualizercommon.cpp
+  recordinginterface.cpp
 )
 add_library(gammaray_objectvisualizer_shared STATIC ${gammaray_objectvisualizer_shared_srcs})
 target_link_libraries(gammaray_objectvisualizer_shared LINK_PRIVATE gammaray_common)
@@ -68,6 +69,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
   set(gammaray_objectvisualizer_ui_plugin_srcs      
       objectvisualizerwidget.cpp
       objectvisualizerclient.cpp
+      recordingclient.cpp
 
       gvcontainer.cpp
       gvgraphicsview.cpp

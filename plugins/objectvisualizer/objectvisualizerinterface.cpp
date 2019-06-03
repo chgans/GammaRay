@@ -31,17 +31,17 @@
 
 using namespace GammaRay;
 
-ObjectVisualizerInterface::ObjectVisualizerInterface(QObject *parent)
+ConnectivityInspectorInterface::ConnectivityInspectorInterface(QObject *parent)
     : QObject(parent)
     , m_isPaused(false)
 {
-    ObjectBroker::registerObject<ObjectVisualizerInterface *>(this);
+    ObjectBroker::registerObject<ConnectivityInspectorInterface *>(this);
 }
 
-void ObjectVisualizerInterface::setIsPaused(bool value)
+void ConnectivityInspectorInterface::setIsPaused(bool value)
 {
     m_isPaused = value;
     emit isPausedChanged();
 }
 
-ObjectVisualizerInterface::~ObjectVisualizerInterface() = default;
+ConnectivityInspectorInterface::~ConnectivityInspectorInterface() = default;

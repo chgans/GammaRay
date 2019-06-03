@@ -48,7 +48,7 @@ namespace GammaRay {
 class ConnectionTypeModel;
 class ConnectionModel;
 
-class ConnectivityAnalyser : public ObjectVisualizerInterface
+class ConnectivityAnalyser : public ConnectivityInspectorInterface
 {
     Q_OBJECT
 
@@ -59,17 +59,13 @@ public:
     // ObjectVisualizerInterface interface
 public slots:
     void clearHistory() override;
-    void recordAll() override;
-    void recordNone() override;
-    void showAll() override;
-    void showNone() override;
 
 private:
-    void registerConnectionTypeModel();
+    void registerConnectionRecordingModel();
     void registerConnectionModel();
-    void registerThreadModel();
-    void registerClassModel();
-    void registerObjectModel();
+    void registerThreadRecordingModel();
+    void registerClassRecordingModel();
+    void registerObjectRecodingModel();
     void initialise();
 
     void scheduleAddObject(QObject *object);
@@ -85,10 +81,10 @@ private slots:
 private:
     Probe *m_probe;
     ConnectionModel *m_connectionModel;
-    ConnectionTypeModel *m_connectionTypeModel;
-    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadModel;
-    RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classModel;
-    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectModel;
+    ConnectionTypeModel *m_connectionRecordingModel;
+    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadRecordingModel;
+    RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classRecordingModel;
+    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectRecordingModel;
     QTimer *m_updateTimer;
     QQueue<QObject *> m_objectAdded;
     QQueue<QObject *> m_objectRemoved;
