@@ -189,6 +189,16 @@ QVariant KExtraColumnsProxyModel::data(const QModelIndex &index, int role) const
     return sourceModel()->data(mapToSource(index), role);
 }
 
+QMap<int, QVariant>
+KExtraColumnsProxyModel::itemData(const QModelIndex &index) const {
+    Q_D(const KExtraColumnsProxyModel);
+    const int extraCol = extraColumnForProxyColumn(index.column());
+    if (extraCol >= 0 && !d->m_extraHeaders.isEmpty()) {
+        return extraItemData(index);
+    }
+    return sourceModel()->itemData(mapToSource(index));
+}
+
 bool KExtraColumnsProxyModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     Q_D(const KExtraColumnsProxyModel);

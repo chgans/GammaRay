@@ -94,6 +94,9 @@ public:
     // KF6 TODO: add extraColumnFlags() virtual method
     virtual Qt::ItemFlags extraColumnFlags(int extraColumn) const = 0;
 
+    virtual QMap<int, QVariant>
+    extraItemData(const QModelIndex &index) const = 0;
+
     /**
      * This method is called by setData() for extra columns.
      * Reimplement this method to set the data for the extra columns, if editing is supported.
@@ -131,6 +134,8 @@ public:
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     /// @reimp
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    /// @reimp
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
     /// @reimp
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
     /// @reimp
