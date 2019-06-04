@@ -32,11 +32,14 @@
 
 using namespace GammaRay;
 
-ConnectivityRecordingInterface::ConnectivityRecordingInterface(const QString &name, QObject *parent)
-    : QObject(parent)
-{
+ConnectivityRecordingInterface::ConnectivityRecordingInterface(
+    const QString &name, QObject *parent)
+    : QObject(parent), m_name(name) {
     const auto fqon = QStringLiteral("%1.%2.%3")
                           .arg(ConnectivityInspectorBaseDomain, "RecordingInterface", name);
     ObjectBroker::registerObject(fqon, this);
 }
+
 ConnectivityRecordingInterface::~ConnectivityRecordingInterface() = default;
+
+QString ConnectivityRecordingInterface::name() const { return m_name; }

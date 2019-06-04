@@ -29,14 +29,9 @@
 
 #include "connectivityinspectorclient.h"
 #include "connectivityinspectorcommon.h"
-#include "gvcontainer.h"
 #include "recordingclient.h"
-#include "vtkcontainer.h"
 
 #include <common/objectbroker.h>
-#include <common/objectmodel.h>
-#include <ui/clientdecorationidentityproxymodel.h>
-#include <ui/deferredtreeview.h>
 #include <ui/searchlinecontroller.h>
 
 namespace {
@@ -70,18 +65,23 @@ void ObjectVisualizerWidget::setupClient()
 void ObjectVisualizerWidget::setupModels()
 {
     m_connectionModel = ObjectBroker::model(ObjectVisualizerConnectionModelId);
-    assert(m_connectionModel != nullptr);
-    m_connectionRecordingModel = ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
-    assert(m_connectionRecordingModel != nullptr);
+    Q_ASSERT(m_connectionModel != nullptr);
+
+    m_connectionRecordingModel =
+        ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
+    Q_ASSERT(m_connectionRecordingModel != nullptr);
     m_connectionRecordingInterface = new RecordingClient("Connection", this);
+
     m_threadRecordingModel = ObjectBroker::model(ObjectVisualizerThreadModelId);
-    assert(m_threadRecordingModel != nullptr);
+    Q_ASSERT(m_threadRecordingModel != nullptr);
     m_threadRecordingInterface = new RecordingClient("Thread", this);
+
     m_classRecordingModel = ObjectBroker::model(ObjectVisualizerClassModelId);
-    assert(m_classRecordingModel != nullptr);
+    Q_ASSERT(m_classRecordingModel != nullptr);
     m_classRecordingInterface = new RecordingClient("Class", this);
+
     m_objectRecordingModel = ObjectBroker::model(ObjectVisualizerObjectModelId);
-    assert(m_objectRecordingModel != nullptr);
+    Q_ASSERT(m_objectRecordingModel != nullptr);
     m_objectRecordingInterface = new RecordingClient("Object", this);
 }
 
@@ -89,12 +89,13 @@ void ObjectVisualizerWidget::setupUi()
 {
     m_ui->setupUi(this);
     setupConnectionView();
-    setupConnectionTypeView();
-    setupThreadView();
-    setupClassView();
-    setupObjectView();
-    setup2dView();
-    setup3dView();
+    m_ui->connTypesTab->setup(m_connectionRecordingInterface,
+                              m_connectionRecordingModel);
+    m_ui->threadTab->setup(m_threadRecordingInterface, m_threadRecordingModel);
+    m_ui->classTab->setup(m_classRecordingInterface, m_classRecordingModel);
+    m_ui->objectTab->setup(m_objectRecordingInterface, m_objectRecordingModel);
+    m_ui->gvTab->setModel(m_connectionModel);
+    m_ui->vtkTab->setModel(m_connectionModel);
 }
 
 void ObjectVisualizerWidget::setupConnectionView()
@@ -115,118 +116,4 @@ void ObjectVisualizerWidget::setupConnectionView()
             &QToolButton::clicked,
             m_interface,
             &ConnectivityInspectorInterface::clearHistory);
-}
-
-void ObjectVisualizerWidget::setupConnectionTypeView()
-{
-    auto view = m_ui->typeTreeView;
-    view->header()->setObjectName("connectionTypeViewHeader");
-    new SearchLineController(m_ui->connectionTypeSearchLine, m_connectionRecordingModel);
-    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
-    view->setModel(m_connectionRecordingModel);
-    view->setSortingEnabled(true);
-    connect(m_ui->recordAllConnectionsButton,
-            &QToolButton::clicked,
-            m_connectionRecordingInterface,
-            &ConnectivityRecordingInterface::recordAll);
-    connect(m_ui->recordNoConnectionsButton,
-            &QToolButton::clicked,
-            m_connectionRecordingInterface,
-            &ConnectivityRecordingInterface::recordNone);
-    connect(m_ui->showAllConnectionsButton,
-            &QToolButton::clicked,
-            m_connectionRecordingInterface,
-            &ConnectivityRecordingInterface::showAll);
-    connect(m_ui->showNoConnecctionsButton,
-            &QToolButton::clicked,
-            m_connectionRecordingInterface,
-            &ConnectivityRecordingInterface::showNone);
-}
-
-void ObjectVisualizerWidget::setupThreadView()
-{
-    auto view = m_ui->threadTreeView;
-    view->header()->setObjectName("threadViewHeader");
-    new SearchLineController(m_ui->threadSearchLine, m_threadRecordingModel);
-    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
-    view->setModel(m_threadRecordingModel);
-    view->setSortingEnabled(true);
-    connect(m_ui->recordAllThreadsButton,
-            &QToolButton::clicked,
-            m_threadRecordingInterface,
-            &ConnectivityRecordingInterface::recordAll);
-    connect(m_ui->recordNoThreadsButton,
-            &QToolButton::clicked,
-            m_threadRecordingInterface,
-            &ConnectivityRecordingInterface::recordNone);
-    connect(m_ui->showAllThreadsButton,
-            &QToolButton::clicked,
-            m_threadRecordingInterface,
-            &ConnectivityRecordingInterface::showAll);
-    connect(m_ui->showNoThreadsButton,
-            &QToolButton::clicked,
-            m_threadRecordingInterface,
-            &ConnectivityRecordingInterface::showNone);
-}
-
-void ObjectVisualizerWidget::setupClassView()
-{
-    auto view = m_ui->classTreeView;
-    view->header()->setObjectName("classViewHeader");
-    new SearchLineController(m_ui->threadSearchLine, m_classRecordingModel);
-    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
-    view->setModel(m_classRecordingModel);
-    view->setSortingEnabled(true);
-    connect(m_ui->recordAllClassesButton,
-            &QToolButton::clicked,
-            m_classRecordingInterface,
-            &ConnectivityRecordingInterface::recordAll);
-    connect(m_ui->recordNoClassesButton,
-            &QToolButton::clicked,
-            m_classRecordingInterface,
-            &ConnectivityRecordingInterface::recordNone);
-    connect(m_ui->showAllClassesButton,
-            &QToolButton::clicked,
-            m_classRecordingInterface,
-            &ConnectivityRecordingInterface::showAll);
-    connect(m_ui->showNoClassesButton,
-            &QToolButton::clicked,
-            m_classRecordingInterface,
-            &ConnectivityRecordingInterface::showNone);
-}
-
-void ObjectVisualizerWidget::setupObjectView()
-{
-    auto view = m_ui->objectTreeView;
-    view->header()->setObjectName("objectViewHeader");
-    new SearchLineController(m_ui->threadSearchLine, m_objectRecordingModel);
-    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
-    view->setModel(m_objectRecordingModel);
-    view->setSortingEnabled(true);
-    connect(m_ui->recordAllObjectsButton,
-            &QToolButton::clicked,
-            m_objectRecordingInterface,
-            &ConnectivityRecordingInterface::recordAll);
-    connect(m_ui->recordNoObjectsButton,
-            &QToolButton::clicked,
-            m_objectRecordingInterface,
-            &ConnectivityRecordingInterface::recordNone);
-    connect(m_ui->showAllObjectsButton,
-            &QToolButton::clicked,
-            m_objectRecordingInterface,
-            &ConnectivityRecordingInterface::showAll);
-    connect(m_ui->showNoObjectsButton,
-            &QToolButton::clicked,
-            m_objectRecordingInterface,
-            &ConnectivityRecordingInterface::showNone);
-}
-
-void ObjectVisualizerWidget::setup2dView()
-{
-    m_ui->gvTab->setModel(m_connectionModel);
-}
-
-void ObjectVisualizerWidget::setup3dView()
-{
-    m_ui->vtkTab->setModel(m_connectionModel);
 }

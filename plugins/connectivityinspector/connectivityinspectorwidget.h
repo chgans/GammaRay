@@ -57,13 +57,7 @@ private:
     void setupClient();
     void setupModels();
     void setupUi();
-    void setupConnectionTypeView();
     void setupConnectionView();
-    void setupThreadView();
-    void setupClassView();
-    void setupObjectView();
-    void setup2dView();
-    void setup3dView();
 
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
     ConnectivityInspectorInterface *m_interface;

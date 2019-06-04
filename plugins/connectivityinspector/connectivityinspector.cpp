@@ -54,7 +54,6 @@ using namespace GammaRay;
 namespace {
 constexpr int s_initialisationDelayMs = 0;
 constexpr int s_updateIntervalMs = 100;
-//std::chrono::milliseconds(1000);
 } // namespace
 
 ConnectivityAnalyser::ConnectivityAnalyser(Probe *probe, QObject *parent)
@@ -80,12 +79,13 @@ ConnectivityAnalyser::~ConnectivityAnalyser() = default;
 
 void ConnectivityAnalyser::initialise()
 {
-    QMutexLocker locker(m_probe->objectLock());
-    for (auto object : m_probe->allQObjects()) {
-        addObject(object);
-    }
-    //    connect(m_probe, &Probe::objectCreated, this, &ConnectivityAnalyser::addObject);
-    //    connect(m_probe, &Probe::objectDestroyed, this, &ConnectivityAnalyser::removeObject);
+    //    QMutexLocker locker(m_probe->objectLock());
+    //    for (auto object : m_probe->allQObjects()) {
+    //        addObject(object);
+    //    }
+    //    connect(m_probe, &Probe::objectCreated, this,
+    //    &ConnectivityAnalyser::addObject); connect(m_probe,
+    //    &Probe::objectDestroyed, this, &ConnectivityAnalyser::removeObject);
     //    connect(m_connectionTypeModel,
     //            &ConnectionTypeModel::modelReset,
     //            this,

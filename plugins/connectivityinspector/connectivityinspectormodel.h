@@ -44,7 +44,7 @@ class ConnectionModel : public QAbstractTableModel
     Q_OBJECT
 
 private:
-    struct Edge;
+    struct ConnectionItem;
 
 public:
     enum { SenderColumn, ReceiverColumn, CountColumn, ColumnCount };
@@ -69,21 +69,17 @@ public slots:
     void removeOutboundConnections(QObject *sender);
 
 private:
-    // TODO: add timestamp + emit/invoke?
-    struct Edge {
-        Edge(QObject *sender, QObject *receiver, int value)
-            : sender(sender)
-            , receiver(receiver)
-            , value(value)
-        {}
+    struct ConnectionItem {
+        ConnectionItem(QObject *sender, QObject *receiver, int value)
+            : sender(sender), receiver(receiver), value(value) {}
         QObject *sender = nullptr;
         QObject *receiver = nullptr;
         int value = 0;
     };
     Probe *m_probe;
-    QVector<Edge *> m_edges;
+    QVector<ConnectionItem *> m_items;
     // map[sender][receiver] = {sender, receiver, count}
-    QHash<QObject *, QHash<QObject *, Edge *>> m_senderMap;
+    QHash<QObject *, QHash<QObject *, ConnectionItem *>> m_senderMap;
 };
 } // namespace GammaRay
 

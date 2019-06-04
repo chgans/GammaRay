@@ -44,17 +44,14 @@ ConnectionModel::ConnectionModel(Probe *probe, QObject *parent)
     , m_probe(probe)
 {}
 
-ConnectionModel::~ConnectionModel()
-{
-    qDeleteAll(m_edges);
-}
+ConnectionModel::~ConnectionModel() { qDeleteAll(m_items); }
 
 int ConnectionModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
     QMutexLocker lock(m_probe->objectLock());
-    return m_edges.count();
+    return m_items.count();
 }
 
 int ConnectionModel::columnCount(const QModelIndex & /*parent*/) const
@@ -66,7 +63,7 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
 {
     if (role == Qt::DisplayRole) {
         QMutexLocker lock(m_probe->objectLock());
-        auto edge = m_edges.at(index.row());
+        auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
             if (m_probe->isValidObject(edge->sender))
@@ -84,7 +81,7 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
     }
     if (role == ObjectIdRole) {
         QMutexLocker lock(m_probe->objectLock());
-        auto edge = m_edges.at(index.row());
+        auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
             return QVariant::fromValue(ObjectId(edge->sender));
@@ -96,7 +93,7 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
     }
     if (role == ThreadIdRole) {
         QMutexLocker lock(m_probe->objectLock());
-        auto edge = m_edges.at(index.row());
+        auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
             if (m_probe->isValidObject(edge->sender))
@@ -142,8 +139,8 @@ QMap<int, QVariant> ConnectionModel::itemData(const QModelIndex &index) const
 void ConnectionModel::clear()
 {
     beginResetModel();
-    qDeleteAll(m_edges);
-    m_edges.clear();
+    qDeleteAll(m_items);
+    m_items.clear();
     m_senderMap.clear();
     endResetModel();
 }
@@ -157,13 +154,13 @@ void ConnectionModel::addOutboundConnection(QObject *sender, QObject *receiver)
     if (update) {
         auto &edge = m_senderMap[sender][receiver];
         edge->value++;
-        const int row = m_edges.indexOf(edge);
+        const int row = m_items.indexOf(edge);
         emit dataChanged(index(row, CountColumn), index(row, CountColumn));
     } else {
-        const int row = m_edges.count();
+        const int row = m_items.count();
         beginInsertRows(QModelIndex(), row, row);
-        auto edge = new Edge(sender, receiver, 1);
-        m_edges.append(edge);
+        auto edge = new ConnectionItem(sender, receiver, 1);
+        m_items.append(edge);
         m_senderMap[sender][receiver] = edge;
         endInsertRows();
     }
@@ -172,9 +169,9 @@ void ConnectionModel::addOutboundConnection(QObject *sender, QObject *receiver)
 void ConnectionModel::removeOutboundConnections(QObject *sender)
 {
     for (auto edge : m_senderMap.value(sender).values()) {
-        const auto row = m_edges.indexOf(edge);
+        const auto row = m_items.indexOf(edge);
         beginRemoveRows(QModelIndex(), row, row);
-        m_edges.removeAt(row);
+        m_items.removeAt(row);
         delete edge;
         endRemoveRows();
     }

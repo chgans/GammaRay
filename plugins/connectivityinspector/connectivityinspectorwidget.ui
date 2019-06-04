@@ -62,7 +62,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="GvContainer" name="gvTab">
        <attribute name="title">
@@ -74,284 +74,29 @@
         <string>3D</string>
        </attribute>
       </widget>
-      <widget class="QWidget" name="connTypesTab">
+      <widget class="GammaRay::RecordingWidget" name="connTypesTab">
        <attribute name="title">
         <string>Connections</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <layout class="QHBoxLayout" name="toolbarLayout">
-          <property name="bottomMargin">
-           <number>6</number>
-          </property>
-          <item>
-           <widget class="QLineEdit" name="connectionTypeSearchLine">
-            <property name="placeholderText">
-             <string>Filter...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordAllConnectionsButton">
-            <property name="text">
-             <string>Record All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordNoConnectionsButton">
-            <property name="text">
-             <string>Record None</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Maximum</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showAllConnectionsButton">
-            <property name="text">
-             <string>Show All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showNoConnecctionsButton">
-            <property name="text">
-             <string>Show None</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="GammaRay::DeferredTreeView" name="typeTreeView">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>10</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-       </layout>
+       <layout class="QVBoxLayout" name="verticalLayout_2"/>
       </widget>
-      <widget class="QWidget" name="threadTab">
+      <widget class="GammaRay::RecordingWidget" name="threadTab">
        <attribute name="title">
         <string>Threads</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
-        <item>
-         <layout class="QHBoxLayout" name="toolbarLayout_2">
-          <property name="bottomMargin">
-           <number>6</number>
-          </property>
-          <item>
-           <widget class="QLineEdit" name="threadSearchLine">
-            <property name="placeholderText">
-             <string>Filter...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordAllThreadsButton">
-            <property name="text">
-             <string>Record All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordNoThreadsButton">
-            <property name="text">
-             <string>Record None</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Maximum</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showAllThreadsButton">
-            <property name="text">
-             <string>Show All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showNoThreadsButton">
-            <property name="text">
-             <string>Show None</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="GammaRay::DeferredTreeView" name="threadTreeView"/>
-        </item>
-       </layout>
+       <layout class="QVBoxLayout" name="verticalLayout_3"/>
       </widget>
-      <widget class="QWidget" name="classTab">
+      <widget class="GammaRay::RecordingWidget" name="classTab">
        <attribute name="title">
         <string>Classes</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_4">
-        <item>
-         <layout class="QHBoxLayout" name="toolbarLayout_3">
-          <property name="bottomMargin">
-           <number>6</number>
-          </property>
-          <item>
-           <widget class="QLineEdit" name="classSearchLine">
-            <property name="placeholderText">
-             <string>Filter...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordAllClassesButton">
-            <property name="text">
-             <string>Record All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordNoClassesButton">
-            <property name="text">
-             <string>Record None</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Maximum</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showAllClassesButton">
-            <property name="text">
-             <string>Show All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showNoClassesButton">
-            <property name="text">
-             <string>Show None</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="GammaRay::DeferredTreeView" name="classTreeView"/>
-        </item>
-       </layout>
+       <layout class="QVBoxLayout" name="verticalLayout_4"/>
       </widget>
-      <widget class="QWidget" name="objectTab">
+      <widget class="GammaRay::RecordingWidget" name="objectTab">
        <attribute name="title">
         <string>Objects</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
-        <item>
-         <layout class="QHBoxLayout" name="toolbarLayout_4">
-          <property name="bottomMargin">
-           <number>6</number>
-          </property>
-          <item>
-           <widget class="QLineEdit" name="objectSearchLine">
-            <property name="placeholderText">
-             <string>Filter...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordAllObjectsButton">
-            <property name="text">
-             <string>Record All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="recordNoObjectsButton">
-            <property name="text">
-             <string>Record None</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_4">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Maximum</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showAllObjectsButton">
-            <property name="text">
-             <string>Show All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="showNoObjectsButton">
-            <property name="text">
-             <string>Show None</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="GammaRay::DeferredTreeView" name="objectTreeView"/>
-        </item>
-       </layout>
+       <layout class="QVBoxLayout" name="verticalLayout_5"/>
       </widget>
      </widget>
     </widget>
@@ -376,6 +121,12 @@
    <header>vtkcontainer.h</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>GammaRay::RecordingWidget</class>
+   <extends>QWidget</extends>
+   <header>recordingwidget.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <tabstops>
   <tabstop>connectionSearchLine</tabstop>
@@ -383,12 +134,6 @@
   <tabstop>clearButton</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>connectionTreeView</tabstop>
-  <tabstop>connectionTypeSearchLine</tabstop>
-  <tabstop>recordAllConnectionsButton</tabstop>
-  <tabstop>recordNoConnectionsButton</tabstop>
-  <tabstop>showAllConnectionsButton</tabstop>
-  <tabstop>showNoConnecctionsButton</tabstop>
-  <tabstop>typeTreeView</tabstop>
  </tabstops>
  <resources/>
  <connections/>

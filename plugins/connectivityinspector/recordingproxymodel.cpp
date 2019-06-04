@@ -47,19 +47,18 @@ QVariant RecordingProxyModelBase::extraColumnData(const QModelIndex &parent,
 {
     if (!sourceModel())
         return {};
-    auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
-    const auto data = recordingData(srcIndex);
+    const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
     if (role == Qt::DisplayRole) {
         switch (extraColumn) {
         case CountColumn:
-            return data.count;
+            return recordCount(srcIndex);
         }
     } else if (role == Qt::CheckStateRole) {
         switch (extraColumn) {
         case IsRecordingColumn:
-            return data.isRecording ? Qt::Checked : Qt::Unchecked;
+            return isRecording(srcIndex) ? Qt::Checked : Qt::Unchecked;
         case IsVisibleColumn:
-            return data.isVisible ? Qt::Checked : Qt::Unchecked;
+            return isVisible(srcIndex) ? Qt::Checked : Qt::Unchecked;
         }
     }
 
@@ -73,12 +72,11 @@ bool RecordingProxyModelBase::setExtraColumnData(
         return false;
 
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
-    RecordingData &data = recordingData(srcIndex);
-    const quint64 enabled = value.toInt() == Qt::Checked ? 1 : 0;
+    const bool enabled = value.toInt() == Qt::Checked;
     if (extraColumn == IsRecordingColumn) {
-        data.isRecording = enabled;
+        setIsRecording(srcIndex, enabled);
     } else if (extraColumn == IsVisibleColumn) {
-        data.isVisible = enabled;
+        setIsVisible(srcIndex, enabled);
     } else
         return false;
     extraColumnDataChanged(parent, row, extraColumn, {role});
@@ -104,13 +102,67 @@ void RecordingProxyModelBase::setSourceModel(QAbstractItemModel *model)
         initialiseRecordingModel();
 }
 
+void RecordingProxyModelBase::resetCounts() {
+    if (!sourceModel())
+        return;
+
+    beginResetModel();
+    for (auto &data : m_data)
+        data.count = 0;
+    endResetModel();
+}
+
+void RecordingProxyModelBase::increaseCount(const QModelIndex &index) {
+    Q_ASSERT(m_data.contains(index));
+    m_data[index].count++;
+    const auto proxyIndex = mapFromSource(index);
+    extraColumnDataChanged(proxyIndex.parent(), proxyIndex.row(), CountColumn,
+                           {Qt::DisplayRole});
+}
+
+void RecordingProxyModelBase::decreaseCount(const QModelIndex &index) {
+    Q_ASSERT(m_data.contains(index));
+    m_data[index].count--;
+    const auto proxyIndex = mapFromSource(index);
+    extraColumnDataChanged(proxyIndex.parent(), proxyIndex.row(), CountColumn,
+                           {Qt::DisplayRole});
+}
+
+quint64 RecordingProxyModelBase::recordCount(const QModelIndex &index) const {
+    Q_ASSERT(m_data.contains(index));
+    return m_data.value(index).count;
+}
+
+bool RecordingProxyModelBase::isRecording(const QModelIndex &index) const {
+    Q_ASSERT(m_data.contains(index));
+    return m_data.value(index).isRecording;
+}
+
+void RecordingProxyModelBase::setIsRecording(const QModelIndex &index,
+                                             bool enabled) {
+    Q_ASSERT(m_data.contains(index));
+    m_data[index].isRecording = enabled;
+}
+
+bool RecordingProxyModelBase::isVisible(const QModelIndex &index) const {
+    Q_ASSERT(m_data.contains(index));
+    return m_data.value(index).isVisible;
+}
+
+void RecordingProxyModelBase::setIsVisible(const QModelIndex &index,
+                                           bool enabled) {
+    Q_ASSERT(m_data.contains(index));
+    m_data[index].isVisible = enabled;
+}
+
 void RecordingProxyModelBase::recordAll()
 {
     if (!sourceModel())
         return;
 
     beginResetModel();
-    visitIndex(QModelIndex(), [this](const QModelIndex &index) { setIsRecording(index, true); });
+    for (auto &data : m_data)
+        data.isRecording = true;
     endResetModel();
 }
 
@@ -120,7 +172,8 @@ void RecordingProxyModelBase::recordNone()
         return;
 
     beginResetModel();
-    visitIndex(QModelIndex(), [this](const QModelIndex &index) { setIsRecording(index, false); });
+    for (auto &data : m_data)
+        data.isRecording = false;
     endResetModel();
 }
 
@@ -130,7 +183,8 @@ void RecordingProxyModelBase::showAll()
         return;
 
     beginResetModel();
-    visitIndex(QModelIndex(), [this](const QModelIndex &index) { setIsVisible(index, true); });
+    for (auto &data : m_data)
+        data.isVisible = true;
     endResetModel();
 }
 
@@ -140,7 +194,8 @@ void RecordingProxyModelBase::showNone()
         return;
 
     beginResetModel();
-    visitIndex(QModelIndex(), [this](const QModelIndex &index) { setIsVisible(index, false); });
+    for (auto &data : m_data)
+        data.isVisible = false;
     endResetModel();
 }
 
@@ -156,29 +211,34 @@ void RecordingProxyModelBase::visitIndex(const QModelIndex &sourceIndex, IndexVi
 
 void RecordingProxyModelBase::initialiseRecordingModel()
 {
-    visitIndex(QModelIndex(), [this](const QModelIndex &index) { addRecordingData(index); });
+    visitIndex(QModelIndex(), [this](const QModelIndex &index) {
+        m_data.insert(index, {});
+        addRecordingData(index);
+    });
     connect(sourceModel(),
             &QAbstractItemModel::rowsInserted,
             this,
             [this](const QModelIndex &parent, int first, int last) {
                 for (int row = first; row <= last; ++row) {
                     const auto index = sourceModel()->index(row, 0, parent);
+                    Q_ASSERT(!m_data.contains(index));
+                    m_data.insert(index, {});
                     addRecordingData(index);
                 }
             });
-    connect(sourceModel(),
-            &QAbstractItemModel::rowsAboutToBeRemoved,
-            this,
+    connect(sourceModel(), &QAbstractItemModel::rowsAboutToBeRemoved, this,
             [this](const QModelIndex &parent, int first, int last) {
                 for (int row = first; row <= last; ++row) {
                     const auto index = sourceModel()->index(row, 0, parent);
+                    Q_ASSERT(m_data.contains(index));
+                    m_data.remove(index);
                     removeRecordingData(index);
                 }
             });
-    //    connect(sourceModel(),
-    //            &QAbstractItemModel::modelReset,
-    //            this,
-    //            &RecordingProxyModelBase::clearRecordingData);
+    connect(sourceModel(), &QAbstractItemModel::modelReset, this, [this]() {
+        m_data = QHash<QPersistentModelIndex, RecordingData>();
+        clearRecordingData();
+    });
 }
 
 void RecordingProxyModelBase::finaliseRecordingModel()

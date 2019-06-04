@@ -47,6 +47,11 @@ public:
     void recordNone();
     void showAll();
     void showNone();
+    void resetCounts();
+
+    // QAbstractProxyModel interface
+public:
+    void setSourceModel(QAbstractItemModel *model) override;
 
     // KExtraColumnsProxyModel interface
 public:
@@ -63,10 +68,6 @@ public:
 
     Qt::ItemFlags extraColumnFlags(int extraColumn) const override;
 
-    // QAbstractProxyModel interface
-public:
-    void setSourceModel(QAbstractItemModel *model) override;
-
 protected:
     struct RecordingData
     {
@@ -80,16 +81,22 @@ protected:
         quint64 isVisible : 1;
     };
 
-    virtual RecordingData &recordingData(const QModelIndex &index) = 0;
-    virtual RecordingData recordingData(const QModelIndex &index) const = 0;
+    void increaseCount(const QModelIndex &index);
+    void decreaseCount(const QModelIndex &index);
+    quint64 recordCount(const QModelIndex &index) const;
+    bool isRecording(const QModelIndex &index) const;
+    void setIsRecording(const QModelIndex &index, bool enabled);
+    bool isVisible(const QModelIndex &index) const;
+    void setIsVisible(const QModelIndex &index, bool enabled);
+
     virtual void addRecordingData(const QModelIndex &index) = 0;
     virtual void removeRecordingData(const QModelIndex &index) = 0;
     virtual void clearRecordingData() = 0;
-    virtual void setIsRecording(const QModelIndex &index, bool enabled) = 0;
-    virtual void setIsVisible(const QModelIndex &index, bool enabled) = 0;
 
 private:
     using IndexVisitor = std::function<void(const QModelIndex &)>;
+    QHash<QPersistentModelIndex, RecordingData> m_data;
+
 private slots:
     void visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor);
     void initialiseRecordingModel();
@@ -111,10 +118,7 @@ public:
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        const auto &srcIndex = m_indexes[target];
-        m_data[srcIndex].count++;
-        const auto proxyIndex = mapFromSource(srcIndex);
-        emit dataChanged(proxyIndex, proxyIndex);
+        RecordingProxyModelBase::increaseCount(m_indexes.value(target));
     }
 
     void decreaseCount(const T &target)
@@ -124,20 +128,7 @@ public:
 
         Q_ASSERT(m_indexes.contains(target));
         const auto &srcIndex = m_indexes[target];
-        m_data[srcIndex].count--;
-        const auto proxyIndex = mapFromSource(srcIndex);
-        emit dataChanged(proxyIndex, proxyIndex);
-    }
-
-    void resetCounts()
-    {
-        if (!sourceModel())
-            return;
-
-        beginResetModel();
-        for (auto &data : m_data)
-            data.count = 0;
-        endResetModel();
+        RecordingProxyModelBase::decreaseCount(m_indexes.value(target));
     }
 
     bool isRecording(const T &target) const
@@ -146,7 +137,7 @@ public:
             return false;
 
         Q_ASSERT(m_indexes.contains(target));
-        return m_data[m_indexes.value(target)].isRecording;
+        return RecordingProxyModelBase::isRecording(m_indexes.value(target));
     }
 
     bool isVisible(const T &target) const
@@ -155,59 +146,30 @@ public:
             return false;
 
         Q_ASSERT(m_indexes.contains(target));
-        return m_data[m_indexes.value(target)].isVisible;
+        return RecordingProxyModelBase::isVisible(m_indexes.value(target));
     }
 
     // RecordingProxyModelBase interface
 protected:
-    void addRecordingData(const QModelIndex &index) override
-    {
+    void addRecordingData(const QModelIndex &index) override {
         auto target = index.data(TargetRole).value<T>();
-        Q_ASSERT(!m_data.contains(index));
-        m_data.insert(index, {});
+        // FIXME: not sure it's a one to one relationship here, due to invalid
+        // objects...
         m_indexes.insert(target, index);
     }
 
-    void removeRecordingData(const QModelIndex &index) override
-    {
+    void removeRecordingData(const QModelIndex &index) override {
         auto target = index.data(TargetRole).value<T>();
-        Q_ASSERT(m_data.contains(index));
-        m_data.remove(index);
+        // FIXME:
+        // Q_ASSERT(m_indexes.contains(target));
         m_indexes.remove(target);
     }
 
-    void clearRecordingData() override
-    {
+    void clearRecordingData() override {
         m_indexes = QHash<T, QPersistentModelIndex>();
-        m_data = QHash<QPersistentModelIndex, RecordingData>();
-    }
-
-    RecordingData &recordingData(const QModelIndex &index) override
-    {
-        Q_ASSERT(m_data.contains(index));
-        return m_data[index];
-    }
-
-    RecordingData recordingData(const QModelIndex &index) const override
-    {
-        Q_ASSERT(m_data.contains(index));
-        return m_data.value(index);
-    }
-
-    void setIsRecording(const QModelIndex &index, bool enabled) override
-    {
-        Q_ASSERT(m_data.contains(index));
-        m_data[index].isRecording = enabled;
-    }
-
-    void setIsVisible(const QModelIndex &index, bool enabled) override
-    {
-        Q_ASSERT(m_data.contains(index));
-        m_data[index].isVisible = enabled;
     }
 
 private:
-    QHash<QPersistentModelIndex, RecordingData> m_data;
     QHash<T, QPersistentModelIndex> m_indexes;
 };
 
@@ -223,7 +185,7 @@ public:
     {}
     ~RecordingInterfaceBridge() override = default;
 
-    // ConnectivityInspectorRecordingInterface interface
+    // ConnectivityRecordingInterface interface
 public slots:
     void recordAll() override { m_model->recordAll(); }
     void recordNone() override { m_model->recordNone(); }

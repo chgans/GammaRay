@@ -42,11 +42,16 @@ public:
     explicit ConnectivityRecordingInterface(const QString &name, QObject *parent = nullptr);
     ~ConnectivityRecordingInterface() override;
 
+    QString name() const;
+
 public slots:
     virtual void recordAll() = 0;
     virtual void recordNone() = 0;
     virtual void showAll() = 0;
     virtual void showNone() = 0;
+
+private:
+    const QString m_name;
 };
 } // namespace GammaRay
 

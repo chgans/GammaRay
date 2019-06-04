@@ -70,6 +70,8 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
       connectivityinspectorwidget.cpp
       connectivityinspectorclient.cpp
       recordingclient.cpp
+      recordingwidget.cpp
+      recordingwidget.ui
 
       gvcontainer.cpp
       gvgraphicsview.cpp
