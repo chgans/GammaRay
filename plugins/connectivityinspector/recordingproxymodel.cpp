@@ -26,6 +26,8 @@
 
 #include "recordingproxymodel.h"
 
+#include "connectivityinspectorcommon.h"
+
 #include <functional>
 
 using namespace GammaRay;
@@ -48,7 +50,15 @@ QVariant RecordingProxyModelBase::extraColumnData(const QModelIndex &parent,
     if (!sourceModel())
         return {};
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
-    if (role == Qt::DisplayRole) {
+    if (role == MetricColumRole) {
+        return proxyColumnForExtraColumn(CountColumn);
+    }
+    if (role == MetricMaxRole) {
+        switch (extraColumn) {
+        case CountColumn:
+            return int(m_maxCount);
+        }
+    } else if (role == Qt::DisplayRole) {
         switch (extraColumn) {
         case CountColumn:
             return recordCount(srcIndex);
@@ -93,6 +103,14 @@ Qt::ItemFlags RecordingProxyModelBase::extraColumnFlags(int extraColumn) const
     return flags;
 }
 
+QMap<int, QVariant>
+RecordingProxyModelBase::extraItemData(const QModelIndex &index) const {
+    QMap<int, QVariant> map = QAbstractItemModel::itemData(index);
+    map.insert(MetricColumRole, data(index, MetricColumRole));
+    map.insert(MetricMaxRole, data(index, MetricMaxRole));
+    return map;
+}
+
 void RecordingProxyModelBase::setSourceModel(QAbstractItemModel *model)
 {
     if (sourceModel())
@@ -109,12 +127,14 @@ void RecordingProxyModelBase::resetCounts() {
     beginResetModel();
     for (auto &data : m_data)
         data.count = 0;
+    m_maxCount = 0;
     endResetModel();
 }
 
 void RecordingProxyModelBase::increaseCount(const QModelIndex &index) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count++;
+    m_maxCount = std::max(m_maxCount, m_data.value(index).count);
     const auto proxyIndex = mapFromSource(index);
     extraColumnDataChanged(proxyIndex.parent(), proxyIndex.row(), CountColumn,
                            {Qt::DisplayRole});
@@ -123,6 +143,7 @@ void RecordingProxyModelBase::increaseCount(const QModelIndex &index) {
 void RecordingProxyModelBase::decreaseCount(const QModelIndex &index) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count--;
+    // max count?
     const auto proxyIndex = mapFromSource(index);
     extraColumnDataChanged(proxyIndex.parent(), proxyIndex.row(), CountColumn,
                            {Qt::DisplayRole});

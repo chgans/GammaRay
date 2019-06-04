@@ -68,7 +68,9 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
 
   set(gammaray_connectivityinspector_ui_plugin_srcs      
       connectivityinspectorwidget.cpp
+
       connectivityinspectorclient.cpp
+      countdecoratorproxymodel.cpp
       recordingclient.cpp
       recordingwidget.cpp
       recordingwidget.ui

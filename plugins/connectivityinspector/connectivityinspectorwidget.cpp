@@ -29,6 +29,7 @@
 
 #include "connectivityinspectorclient.h"
 #include "connectivityinspectorcommon.h"
+#include "countdecoratorproxymodel.h"
 #include "recordingclient.h"
 
 #include <common/objectbroker.h>
@@ -89,11 +90,14 @@ void ObjectVisualizerWidget::setupUi()
 {
     m_ui->setupUi(this);
     setupConnectionView();
-    m_ui->connTypesTab->setup(m_connectionRecordingInterface,
-                              m_connectionRecordingModel);
-    m_ui->threadTab->setup(m_threadRecordingInterface, m_threadRecordingModel);
-    m_ui->classTab->setup(m_classRecordingInterface, m_classRecordingModel);
-    m_ui->objectTab->setup(m_objectRecordingInterface, m_objectRecordingModel);
+    setupRecordingWidget(m_ui->connTypesTab, m_connectionRecordingInterface,
+                         m_connectionRecordingModel);
+    setupRecordingWidget(m_ui->threadTab, m_threadRecordingInterface,
+                         m_threadRecordingModel);
+    setupRecordingWidget(m_ui->classTab, m_classRecordingInterface,
+                         m_classRecordingModel);
+    setupRecordingWidget(m_ui->objectTab, m_objectRecordingInterface,
+                         m_objectRecordingModel);
     m_ui->gvTab->setModel(m_connectionModel);
     m_ui->vtkTab->setModel(m_connectionModel);
 }
@@ -116,4 +120,12 @@ void ObjectVisualizerWidget::setupConnectionView()
             &QToolButton::clicked,
             m_interface,
             &ConnectivityInspectorInterface::clearHistory);
+}
+
+void ObjectVisualizerWidget::setupRecordingWidget(
+    RecordingWidget *widget, ConnectivityRecordingInterface *interface,
+    QAbstractItemModel *model) {
+    auto proxy = new CountDecoratorProxyModel(this);
+    proxy->setSourceModel(model);
+    widget->setup(interface, proxy);
 }

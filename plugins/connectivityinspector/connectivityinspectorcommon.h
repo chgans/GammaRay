@@ -27,6 +27,8 @@
 #ifndef GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCOMMON_H
 #define GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCOMMON_H
 
+#include <qnamespace.h>
+
 namespace GammaRay {
 extern const char *ObjectVisualizerConnectionModelId;
 extern const char *ObjectVisualizerConnectionTypeModelId;
@@ -34,6 +36,12 @@ extern const char *ObjectVisualizerThreadModelId;
 extern const char *ObjectVisualizerClassModelId;
 extern const char *ObjectVisualizerObjectModelId;
 extern const char *ConnectivityInspectorBaseDomain;
+
+enum {
+    MetricColumRole = Qt::UserRole + 100,
+    MetricMaxRole,
+};
+
 } // namespace GammaRay
 
 #endif // GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCOMMON_H

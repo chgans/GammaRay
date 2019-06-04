@@ -68,6 +68,9 @@ public:
 
     Qt::ItemFlags extraColumnFlags(int extraColumn) const override;
 
+    virtual QMap<int, QVariant>
+    extraItemData(const QModelIndex &index) const override;
+
 protected:
     struct RecordingData
     {
@@ -96,6 +99,7 @@ protected:
 private:
     using IndexVisitor = std::function<void(const QModelIndex &)>;
     QHash<QPersistentModelIndex, RecordingData> m_data;
+    quint64 m_maxCount = 0;
 
 private slots:
     void visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor);
@@ -129,6 +133,15 @@ public:
         Q_ASSERT(m_indexes.contains(target));
         const auto &srcIndex = m_indexes[target];
         RecordingProxyModelBase::decreaseCount(m_indexes.value(target));
+    }
+
+    quint64 recordCount(const T &target) {
+        if (!sourceModel())
+            return 0;
+
+        Q_ASSERT(m_indexes.contains(target));
+        const auto &srcIndex = m_indexes[target];
+        return RecordingProxyModelBase::recordCount(m_indexes.value(target));
     }
 
     bool isRecording(const T &target) const

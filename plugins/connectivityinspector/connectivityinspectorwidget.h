@@ -44,6 +44,7 @@ namespace Ui {
 class DeferredTreeView;
 class ConnectivityInspectorInterface;
 class ConnectivityRecordingInterface;
+class RecordingWidget;
 
 class ObjectVisualizerWidget : public QWidget
 {
@@ -58,7 +59,9 @@ private:
     void setupModels();
     void setupUi();
     void setupConnectionView();
-
+    void setupRecordingWidget(GammaRay::RecordingWidget *widget,
+                              ConnectivityRecordingInterface *interface,
+                              QAbstractItemModel *model);
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
     ConnectivityInspectorInterface *m_interface;
     UIStateManager m_stateManager;
