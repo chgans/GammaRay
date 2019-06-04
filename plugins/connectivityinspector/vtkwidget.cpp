@@ -227,10 +227,12 @@ void VtkWidget::renderGraph()
 {
     if (!m_model)
         return;
+
     buildGraph();
-    static int i = 0;
-    if (i++ == 10)
+    if (m_graph->GetNumberOfVertices() == 0) {
         m_layoutView->ResetCamera();
+        return;
+    }
 
     /*
      * https://vtk.org/Wiki/VTK/Examples/Cxx/Graphs/VisualizeDirectedGraph
