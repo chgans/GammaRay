@@ -148,7 +148,9 @@ public:
     {
         if (!sourceModel())
             return false;
-
+        if (!m_indexes.contains(target))
+            return false; // FIXME: from main update
+        // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
         return RecordingProxyModelBase::isRecording(m_indexes.value(target));
     }
@@ -158,9 +160,15 @@ public:
         if (!sourceModel())
             return false;
 
+        if (!m_indexes.contains(target))
+            return false; // FIXME:  from main update
+        // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
         return RecordingProxyModelBase::isVisible(m_indexes.value(target));
     }
+
+    // TODO: something more efficient
+    QList<T> targets() const { return m_indexes.keys(); }
 
     // RecordingProxyModelBase interface
 protected:
@@ -180,7 +188,10 @@ protected:
 
     void clearRecordingData() override {
         m_indexes = QHash<T, QPersistentModelIndex>();
+        auto it = m_indexes.constBegin();
     }
+
+    // TODO: provide iterator/view interface?
 
 private:
     QHash<T, QPersistentModelIndex> m_indexes;

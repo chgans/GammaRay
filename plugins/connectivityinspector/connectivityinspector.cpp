@@ -53,15 +53,12 @@ using namespace GammaRay;
 
 namespace {
 constexpr int s_initialisationDelayMs = 0;
-constexpr int s_updateIntervalMs = 100;
+constexpr int s_updateIntervalMs = 1000;
 } // namespace
 
 ConnectivityAnalyser::ConnectivityAnalyser(Probe *probe, QObject *parent)
-    : ConnectivityInspectorInterface(parent)
-    , m_probe(probe)
-    , m_updateTimer(new QTimer(this))
-{
-    //m_probe->allQObjects(); // FIXME
+    : ConnectivityInspectorInterface(parent), m_probe(probe),
+      m_updateTimer(new QTimer(this)) {
 
     registerConnectionModel();
 
@@ -72,20 +69,24 @@ ConnectivityAnalyser::ConnectivityAnalyser(Probe *probe, QObject *parent)
 
     QTimer::singleShot(s_initialisationDelayMs, this, &ConnectivityAnalyser::initialise);
     m_updateTimer->setInterval(s_updateIntervalMs);
-    connect(m_updateTimer, &QTimer::timeout, this, &ConnectivityAnalyser::processPendingChanges);
+    connect(m_updateTimer, &QTimer::timeout, this,
+            &ConnectivityAnalyser::update);
 }
 
 ConnectivityAnalyser::~ConnectivityAnalyser() = default;
 
-void ConnectivityAnalyser::initialise()
-{
-    //    QMutexLocker locker(m_probe->objectLock());
-    //    for (auto object : m_probe->allQObjects()) {
-    //        addObject(object);
-    //    }
-    //    connect(m_probe, &Probe::objectCreated, this,
-    //    &ConnectivityAnalyser::addObject); connect(m_probe,
-    //    &Probe::objectDestroyed, this, &ConnectivityAnalyser::removeObject);
+void ConnectivityAnalyser::initialise() {
+    QMutexLocker locker(m_probe->objectLock());
+    for (auto object : m_probe->allQObjects()) {
+        addObject(object);
+    }
+
+    connect(m_probe, &Probe::objectCreated, this,
+            &ConnectivityAnalyser::addObject);
+
+    connect(m_probe, &Probe::objectDestroyed, this,
+            &ConnectivityAnalyser::removeObject);
+
     //    connect(m_connectionTypeModel,
     //            &ConnectionTypeModel::modelReset,
     //            this,
@@ -94,77 +95,61 @@ void ConnectivityAnalyser::initialise()
     //            &ConnectionTypeModel::recordingChanged,
     //            this,
     //            &ConnectivityAnalyser::refine);
-    //    m_updateTimer->start();
+
+    m_updateTimer->start();
 }
 
-void ConnectivityAnalyser::refine()
-{
+void ConnectivityAnalyser::update() {
+
+    if (isPaused()) // FIXME
+        return;
+
+    QMutexLocker locker(m_probe->objectLock());
+    for (const auto object : m_objectRecordingModel->targets()) {
+        if (!m_probe->isValidObject(object)) {
+            m_connectionModel->removeConnections(object);
+            continue;
+        }
+        const bool isRecordingObject =
+            m_threadRecordingModel->isRecording(object->thread()) ||
+            m_classRecordingModel->isRecording(object->metaObject()) ||
+            m_objectRecordingModel->isRecording(object);
+        auto connections =
+            OutboundConnectionsModel::outboundConnectionsForObject(object);
+        for (const auto &connection : connections) {
+            QObject *receiver = connection.endpoint.data();
+            const bool isRecodingConnection =
+                m_connectionRecordingModel->isRecording(connection.type);
+            const bool isRecorded =
+                m_connectionModel->hasConnection(object, receiver);
+            const bool isRecording = isRecordingObject || isRecodingConnection;
+            if (isRecorded == isRecording)
+                continue;
+            if (isRecording)
+                m_connectionModel->addConnection(object, receiver);
+            else
+                m_connectionModel->removeConnection(object, receiver);
+        }
+    }
+}
+
+void ConnectivityAnalyser::clearHistory() {
     QMutexLocker locker(m_probe->objectLock());
     m_connectionModel->clear();
-    for (auto object : m_probe->allQObjects()) {
-        addObject(object);
-    }
+    m_connectionRecordingModel->resetCounts();
+    m_objectAdded.clear();
+    m_objectRemoved.clear();
 }
 
-void ConnectivityAnalyser::registerConnectionModel()
-{
-    m_connectionModel = new ConnectionModel(m_probe, this);
-    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    proxy->setSourceModel(m_connectionModel);
-    m_probe->registerModel(ObjectVisualizerConnectionModelId, proxy);
-}
-
-void ConnectivityAnalyser::registerConnectionRecordingModel()
-{
-    auto model = new ConnectionTypeModel(this);
-    m_connectionRecordingModel = new RecordingProxyModel<int, ConnectionTypeModel::TypeRole>(this);
-    m_connectionRecordingModel->setSourceModel(model);
-    auto connectionTypeProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    connectionTypeProxy->setSourceModel(m_connectionRecordingModel);
-    m_probe->registerModel(ObjectVisualizerConnectionTypeModelId, connectionTypeProxy);
-    new RecordingInterfaceBridge("Connection", m_connectionRecordingModel, this);
-}
-
-void ConnectivityAnalyser::registerThreadRecordingModel()
-{
-    auto proxy = new ObjectTypeFilterProxyModel<QThread>(this);
-    proxy->setSourceModel(m_probe->objectListModel());
-    m_threadRecordingModel = new RecordingProxyModel<QObject *, ObjectModel::ObjectRole>(this);
-    m_threadRecordingModel->setSourceModel(proxy);
-    auto threadProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    threadProxy->setSourceModel(m_threadRecordingModel);
-    m_probe->registerModel(ObjectVisualizerThreadModelId, threadProxy);
-    new RecordingInterfaceBridge("Thread", m_threadRecordingModel, this);
-}
-
-void ConnectivityAnalyser::registerClassRecordingModel()
-{
-    auto model = new SingleColumnObjectProxyModel();
-    model->setSourceModel(m_probe->metaObjectTreeModel());
-    m_classRecordingModel
-        = new RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole>(this);
-    m_classRecordingModel->setSourceModel(model);
-    m_probe->registerModel(ObjectVisualizerClassModelId, m_classRecordingModel);
-    new RecordingInterfaceBridge("Class", m_classRecordingModel, this);
-}
-
-void ConnectivityAnalyser::registerObjectRecodingModel()
-{
-    m_objectRecordingModel = new RecordingProxyModel<QObject *, ObjectModel::ObjectRole>(this);
-    m_objectRecordingModel->setSourceModel(m_probe->objectTreeModel());
-    m_probe->registerModel(ObjectVisualizerObjectModelId, m_objectRecordingModel);
-    new RecordingInterfaceBridge("Object", m_objectRecordingModel, this);
-}
-
-void ConnectivityAnalyser::addObject(QObject *object)
-{
+void ConnectivityAnalyser::addObject(QObject *object) {
     if (!m_probe->isValidObject(object))
         return;
-    m_classRecordingModel->increaseCount(object->metaObject());
+    if (m_probe->filterObject(object))
+        return;
     m_objectRecordingModel->increaseCount(object);
-    if (object->inherits("QThread")) {
-        m_threadRecordingModel->increaseCount(object);
-    }
+    m_classRecordingModel->increaseCount(object->metaObject());
+    if (m_probe->isValidObject(object->thread()))
+        m_threadRecordingModel->increaseCount(object->thread());
     auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
     for (const auto &connection : connections) {
         QObject *receiver = connection.endpoint.data();
@@ -177,45 +162,73 @@ void ConnectivityAnalyser::addObject(QObject *object)
             continue;
         if (!m_objectRecordingModel->isRecording(object))
             return;
-        m_connectionModel->addOutboundConnection(object, receiver);
+        if (isPaused()) {
+
+        } else {
+            m_connectionModel->addConnection(object, receiver);
+        }
     }
 }
 
 void ConnectivityAnalyser::removeObject(QObject *object)
 {
-    m_connectionModel->removeOutboundConnections(object);
+    // qDebug() << __FUNCTION__ << Util::addressToString(object);
+    m_connectionModel->removeConnections(object);
     // TODO?
     // connections = m_connectionModel->removeConnections(object);
-    //m_connectionTypeModel->decreaseCount(connections);
+    // m_connectionTypeModel->decreaseCount(connections);
 }
 
-void ConnectivityAnalyser::processPendingChanges()
-{
-    QMutexLocker locker(m_probe->objectLock());
-    while (!m_objectAdded.isEmpty())
-        addObject(m_objectAdded.dequeue());
-    while (!m_objectRemoved.isEmpty())
-        removeObject(m_objectRemoved.dequeue());
+void ConnectivityAnalyser::registerConnectionModel() {
+    m_connectionModel = new ConnectionModel(m_probe, this);
+    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    proxy->setSourceModel(m_connectionModel);
+    m_probe->registerModel(ObjectVisualizerConnectionModelId, proxy);
 }
 
-void ConnectivityAnalyser::scheduleAddObject(QObject *object)
-{
-    m_objectAdded.removeAll(object);
-    m_objectRemoved.removeAll(object);
-    m_objectAdded.enqueue(object);
+void ConnectivityAnalyser::registerConnectionRecordingModel() {
+    auto model = new ConnectionTypeModel(this);
+    m_connectionRecordingModel =
+        new RecordingProxyModel<int, ConnectionTypeModel::TypeRole>(this);
+    m_connectionRecordingModel->setSourceModel(model);
+    auto connectionTypeProxy =
+        new ServerProxyModel<QSortFilterProxyModel>(this);
+    connectionTypeProxy->setSourceModel(m_connectionRecordingModel);
+    m_probe->registerModel(ObjectVisualizerConnectionTypeModelId,
+                           connectionTypeProxy);
+    new RecordingInterfaceBridge("Connection", m_connectionRecordingModel,
+                                 this);
 }
 
-void ConnectivityAnalyser::scheduleRemoveObject(QObject *object)
-{
-    m_objectAdded.removeAll(object);
-    m_objectRemoved.removeAll(object);
-    m_objectRemoved.enqueue(object);
+void ConnectivityAnalyser::registerThreadRecordingModel() {
+    auto proxy = new ObjectTypeFilterProxyModel<QThread>(this);
+    proxy->setSourceModel(m_probe->objectListModel());
+    m_threadRecordingModel =
+        new RecordingProxyModel<QObject *, ObjectModel::ObjectRole>(this);
+    m_threadRecordingModel->setSourceModel(proxy);
+    //    auto threadProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    //    threadProxy->setSourceModel(m_threadRecordingModel);
+    m_probe->registerModel(ObjectVisualizerThreadModelId,
+                           m_threadRecordingModel);
+    new RecordingInterfaceBridge("Thread", m_threadRecordingModel, this);
 }
 
-void ConnectivityAnalyser::clearHistory()
-{
-    m_connectionModel->clear();
-    m_connectionRecordingModel->resetCounts();
-    m_objectAdded.clear();
-    m_objectRemoved.clear();
+void ConnectivityAnalyser::registerClassRecordingModel() {
+    auto model = new SingleColumnObjectProxyModel();
+    model->setSourceModel(m_probe->metaObjectTreeModel());
+    m_classRecordingModel =
+        new RecordingProxyModel<const QMetaObject *,
+                                QMetaObjectModel::MetaObjectRole>(this);
+    m_classRecordingModel->setSourceModel(model);
+    m_probe->registerModel(ObjectVisualizerClassModelId, m_classRecordingModel);
+    new RecordingInterfaceBridge("Class", m_classRecordingModel, this);
+}
+
+void ConnectivityAnalyser::registerObjectRecodingModel() {
+    m_objectRecordingModel =
+        new RecordingProxyModel<QObject *, ObjectModel::ObjectRole>(this);
+    m_objectRecordingModel->setSourceModel(m_probe->objectTreeModel());
+    m_probe->registerModel(ObjectVisualizerObjectModelId,
+                           m_objectRecordingModel);
+    new RecordingInterfaceBridge("Object", m_objectRecordingModel, this);
 }

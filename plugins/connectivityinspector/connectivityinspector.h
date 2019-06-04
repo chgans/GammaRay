@@ -69,15 +69,11 @@ private:
     void registerObjectRecodingModel();
     void initialise();
 
-    void scheduleAddObject(QObject *object);
-    void scheduleRemoveObject(QObject *object);
-
     void addObject(QObject *object);
     void removeObject(QObject *object);
 
 private slots:
-    void processPendingChanges();
-    void refine();
+    void update();
 
 private:
     Probe *m_probe;

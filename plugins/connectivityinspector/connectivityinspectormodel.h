@@ -65,8 +65,10 @@ public:
 
 public slots:
     void clear();
-    void addOutboundConnection(QObject *sender, QObject *receiver);
-    void removeOutboundConnections(QObject *sender);
+    bool hasConnection(QObject *sender, QObject *receiver) const;
+    void addConnection(QObject *sender, QObject *receiver);
+    void removeConnection(QObject *sender, QObject *receiver);
+    void removeConnections(QObject *sender);
 
 private:
     struct ConnectionItem {

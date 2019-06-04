@@ -145,8 +145,12 @@ void ConnectionModel::clear()
     endResetModel();
 }
 
-void ConnectionModel::addOutboundConnection(QObject *sender, QObject *receiver)
-{
+bool ConnectionModel::hasConnection(QObject *sender, QObject *receiver) const {
+    return m_senderMap.contains(sender) &&
+        m_senderMap.value(sender).contains(receiver);
+}
+
+void ConnectionModel::addConnection(QObject *sender, QObject *receiver) {
     if (sender == receiver)
         return;
 
@@ -166,8 +170,7 @@ void ConnectionModel::addOutboundConnection(QObject *sender, QObject *receiver)
     }
 }
 
-void ConnectionModel::removeOutboundConnections(QObject *sender)
-{
+void ConnectionModel::removeConnections(QObject *sender) {
     for (auto edge : m_senderMap.value(sender).values()) {
         const auto row = m_items.indexOf(edge);
         beginRemoveRows(QModelIndex(), row, row);
@@ -175,5 +178,19 @@ void ConnectionModel::removeOutboundConnections(QObject *sender)
         delete edge;
         endRemoveRows();
     }
-    m_senderMap.remove(sender);
+    m_senderMap.remove(sender); // FIXME
+}
+
+void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
+    if (!m_senderMap.contains(sender))
+        return;
+    if (!m_senderMap.value(sender).contains(receiver))
+        return;
+    const auto edge = m_senderMap.value(sender).value(receiver);
+    const int row = m_items.indexOf(edge);
+    beginRemoveRows(QModelIndex(), row, row);
+    qDeleteAll(m_senderMap[sender].values());
+    m_items.removeAt(row);
+    m_senderMap[sender].remove(receiver);
+    endRemoveRows();
 }
