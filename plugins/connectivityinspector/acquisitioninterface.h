@@ -43,8 +43,7 @@ class AcquisitionInterface : public QObject {
     Q_PROPERTY(qreal bufferUsage READ bufferUsage NOTIFY bufferUsageChanged)
     Q_PROPERTY(int bufferOverrunCount READ bufferOverrunCount NOTIFY
                    bufferOverrunCountChanged)
-    Q_PROPERTY(bool samplingRate READ samplingRate WRITE setSamplingRate NOTIFY
-                   samplingRateChanged)
+    Q_PROPERTY(qreal samplingRate READ samplingRate WRITE setSamplingRate NOTIFY samplingRateChanged)
 
 public:
     enum State { Started, Paused, Stopped };
@@ -57,7 +56,7 @@ public:
     virtual int bufferSize() const = 0;
     virtual qreal bufferUsage() const = 0;
     virtual int bufferOverrunCount() const = 0;
-    virtual int samplingRate() const = 0;
+    virtual qreal samplingRate() const = 0;
 
 public slots:
     virtual void start() = 0;
@@ -68,14 +67,14 @@ public slots:
     virtual void clear() = 0;
 
     virtual void setBufferSize(int size) = 0;
-    virtual void setSamplingRate(int rate) = 0;
+    virtual void setSamplingRate(qreal rate) = 0;
 
 signals:
     void stateChanged(State state);
     void bufferSizeChanged(int size);
     void bufferUsageChanged(int usage);
     void bufferOverrunCountChanged(int count);
-    void samplingRateChanged(int rate);
+    void samplingRateChanged(qreal rate);
 };
 } // namespace GammaRay
 

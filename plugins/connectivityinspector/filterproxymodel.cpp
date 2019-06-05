@@ -247,7 +247,7 @@ void FilterProxyModelBase::initialiseRecordingModel() {
                 }
             });
     connect(sourceModel(), &QAbstractItemModel::modelReset, this, [this]() {
-        m_data = QHash<QPersistentModelIndex, RecordingData>();
+        m_data = QHash<QPersistentModelIndex, FilterItem>();
         clearRecordingData();
     });
 }

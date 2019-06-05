@@ -36,16 +36,6 @@
 #include <common/objectbroker.h>
 #include <ui/searchlinecontroller.h>
 
-/*
- * Acquire: Obtain the data
- * Parse: Organise data into meaninful, categorised structures
- * Filter: Remove all but the data of interest
- * Mine: Discern pattern, use stats, math, algortihms, ...
- * Represent: Basic visualisation model
- * Refine: Improve representation: clearer and visually engaging
- * Interact: Allow data manipulation, feature visibility
- */
-
 namespace {
 QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 {

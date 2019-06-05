@@ -44,7 +44,11 @@ AcquisitionInterface::State AcquisitionController::state() const {
     return Stopped;
 }
 
-int AcquisitionController::bufferSize() const { Q_ASSERT(false); }
+int AcquisitionController::bufferSize() const
+{
+    Q_ASSERT(false);
+    return 0;
+}
 
 qreal AcquisitionController::bufferUsage() const {
     Q_ASSERT(false);
@@ -56,7 +60,8 @@ int AcquisitionController::bufferOverrunCount() const {
     return 0;
 }
 
-int AcquisitionController::samplingRate() const {
+qreal AcquisitionController::samplingRate() const
+{
     Q_ASSERT(false);
     return 1;
 }
@@ -86,7 +91,8 @@ void AcquisitionController::setBufferSize(int size) {
                                        QVariantList() << size);
 }
 
-void AcquisitionController::setSamplingRate(int rate) {
+void AcquisitionController::setSamplingRate(qreal rate)
+{
     Endpoint::instance()->invokeObject(objectName(), "setSamplingRate",
                                        QVariantList() << rate);
 }

@@ -47,7 +47,7 @@ public:
     int bufferSize() const override;
     qreal bufferUsage() const override;
     int bufferOverrunCount() const override;
-    int samplingRate() const override;
+    qreal samplingRate() const override;
 
 public slots:
     void start() override;
@@ -56,7 +56,7 @@ public slots:
     void resume() override;
     void refresh() override;
     void setBufferSize(int size) override;
-    void setSamplingRate(int rate) override;
+    void setSamplingRate(qreal rate) override;
 };
 } // namespace GammaRay
 

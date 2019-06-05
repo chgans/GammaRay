@@ -33,7 +33,37 @@
 
 namespace GammaRay {
 
-class FilterProxyModelBase : public KExtraColumnsProxyModel {
+// From Chapter 1 of http://shop.oreilly.com/product/9780596514556.do:
+//  - Acquire: Obtain the data
+//  - Parse: Organise data into meaninful, categorised structures
+//  - Filter: Remove all but the data of interest
+//  - Mine: Discern patterns, use stats, math, algortihms, ...
+//  - Represent: Basic visualisation model
+//  - Refine: Improve representation: clearer and visually engaging
+//  - Interact: Allow data manipulation, feature visibility
+//
+// TODO: Improve/fix filtering in AcquisitionEngine
+//
+//               +-------------------------------- DiscriminatorIface ---+
+//               v                                                       |
+//         +-> DiscriminatorProxy ---------------> ServerProxy ------> ClientFilterGui
+//         |     ^
+// Source -+     |
+//         |     v
+//         +-> FilterProxy -> AcquisitionEngine -> ServerProxy ------> ClientGraphGui
+//                              ^
+//                              +----------------- AcquisitionIface -- ClientAcquisitionGui
+//
+// Tasks:
+//  - Rename FilterProxyModel to DiscriminatorProxyModel
+//  - Rename {record|show}{All|None} to {include|exclude}{All|None}
+//  - Rename is{Recording|Visible} to is{Including|Excluding}
+//  - Create a real FilterProxyModel that filters Source by querying Discriminator
+//  - The AcquisitionEngine should output filtered MetaObject, Object, Thread lists and an Connection list
+//  - The gui should consume the AcquisitionEngine output, and deal with isVisible itself
+
+class FilterProxyModelBase : public KExtraColumnsProxyModel
+{
     Q_OBJECT
 
 public:
@@ -71,9 +101,9 @@ public:
     extraItemData(const QModelIndex &index) const override;
 
 protected:
-    struct RecordingData
+    struct FilterItem
     {
-        RecordingData()
+        FilterItem()
             : count(0)
             , isRecording(0)
             , isVisible(0)
@@ -97,7 +127,7 @@ protected:
 
 private:
     using IndexVisitor = std::function<void(const QModelIndex &)>;
-    QHash<QPersistentModelIndex, RecordingData> m_data;
+    QHash<QPersistentModelIndex, FilterItem> m_data;
     quint64 m_maxCount = 0;
 
 private slots:
@@ -185,21 +215,24 @@ protected:
 
     void clearRecordingData() override { m_indexes.clear(); }
 
-    // TODO: provide iterator/view interface?
-
 private:
+    // TODO: provide iterator/view interface?
     QHash<T, QPersistentModelIndex> m_indexes;
 };
 
-class RecordingInterfaceBridge : public FilterInterface {
+class FilterInterfaceBridge : public FilterInterface
+{
     Q_OBJECT
 public:
-    RecordingInterfaceBridge(const QString &name, FilterProxyModelBase *model,
-                             QObject *parent = nullptr)
-        : FilterInterface(name, parent), m_model(model) {}
-    ~RecordingInterfaceBridge() override = default;
+    FilterInterfaceBridge(const QString &name,
+                          FilterProxyModelBase *model,
+                          QObject *parent = nullptr)
+        : FilterInterface(name, parent)
+        , m_model(model)
+    {}
+    ~FilterInterfaceBridge() override = default;
 
-    // ConnectivityRecordingInterface interface
+    // FilterInterface interface
 public slots:
     void recordAll() override { m_model->recordAll(); }
     void recordNone() override { m_model->recordNone(); }

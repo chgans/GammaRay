@@ -3,7 +3,13 @@
 
 #include "acquisitioninterface.h"
 
+#include <QTimer>
+
 using namespace GammaRay;
+
+#include <QDebug>
+
+#define DEBUG qWarning() << __FUNCTION__ << __LINE__
 
 AcquisitionWidget::AcquisitionWidget(QWidget *parent)
     : QWidget(parent), m_ui(new Ui::AcquisitionWidget) {
@@ -22,15 +28,18 @@ void AcquisitionWidget::setAcquisitionInterface(
             &AcquisitionInterface::start);
     connect(m_ui->stopButton, &QToolButton::clicked, m_interface,
             &AcquisitionInterface::stop);
-    connect(m_ui->pauseButton, &QToolButton::toggled, this,
-            [this](bool checked) {
-                if (checked)
-                    m_interface->pause();
-                else
-                    m_interface->resume();
-            });
-    connect(m_interface, &AcquisitionInterface::stateChanged, this,
+    connect(m_ui->pauseButton, &QToolButton::toggled, this, [this](bool checked) {
+        DEBUG << checked;
+        if (checked)
+            m_interface->pause();
+        else
+            m_interface->resume();
+    });
+    connect(m_interface,
+            &AcquisitionInterface::stateChanged,
+            this,
             [this](AcquisitionInterface::State state) {
+                DEBUG << state;
                 switch (state) {
                 case AcquisitionInterface::Stopped:
                     m_ui->stopButton->setEnabled(false);
@@ -66,18 +75,41 @@ void AcquisitionWidget::setAcquisitionInterface(
     connect(m_ui->bufferSizeSpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged), m_interface,
             &AcquisitionInterface::setBufferSize);
-    connect(m_interface, &AcquisitionInterface::bufferSizeChanged,
-            m_ui->bufferSizeSpinBox, &QSpinBox::setValue);
-    connect(m_ui->samplingRateSpinBox,
-            QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_interface,
-            &AcquisitionInterface::setSamplingRate);
-    connect(m_interface, &AcquisitionInterface::samplingRateChanged,
-            m_ui->samplingRateSpinBox, &QDoubleSpinBox::setValue);
+    connect(m_interface,
+            &AcquisitionInterface::bufferSizeChanged,
+            m_ui->bufferSizeSpinBox,
+            &QSpinBox::setValue);
 
-    connect(m_interface, &AcquisitionInterface::bufferOverrunCountChanged,
-            m_ui->overrunLabel, [this](int value) {
-                m_ui->overrunLabel->setText(QString::number(value));
+    //    connect(m_ui->samplingRateSpinBox,
+    //            QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+    //            m_interface,
+    //            &AcquisitionInterface::setSamplingRate);
+    //    connect(m_interface, &AcquisitionInterface::samplingRateChanged,
+    //            m_ui->samplingRateSpinBox, &QDoubleSpinBox::setValue);
+    connect(m_ui->samplingRateSpinBox,
+            QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this,
+            [this](double value) {
+                DEBUG << "QDoubleSpinBox::valueChanged" << value;
+                m_interface->setSamplingRate(value);
+                // throttle rate of change, can go into crazy loop
+                m_ui->samplingRateSpinBox->setEnabled(false);
+                QTimer::singleShot(200, this, [this]() {
+                    m_ui->samplingRateSpinBox->setEnabled(true);
+                });
             });
-    connect(m_interface, &AcquisitionInterface::bufferUsageChanged,
-            m_ui->usageBar, &QProgressBar::setValue);
+    connect(m_interface, &AcquisitionInterface::samplingRateChanged, this, [this](double value) {
+        DEBUG << "AcquisitionInterface::samplingRateChanged" << value;
+        m_ui->samplingRateSpinBox->setValue(value);
+    });
+
+    connect(m_interface,
+            &AcquisitionInterface::bufferOverrunCountChanged,
+            m_ui->overrunLabel,
+            [this](int value) { m_ui->overrunLabel->setText(QString::number(value)); });
+
+    connect(m_interface,
+            &AcquisitionInterface::bufferUsageChanged,
+            m_ui->usageBar,
+            &QProgressBar::setValue);
 }

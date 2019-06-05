@@ -34,7 +34,7 @@ public:
     int bufferSize() const override;
     qreal bufferUsage() const override;
     int bufferOverrunCount() const override;
-    int samplingRate() const override;
+    qreal samplingRate() const override;
 
 public slots:
     void start() override;
@@ -44,7 +44,7 @@ public slots:
     void refresh() override;
     void clear() override;
     void setBufferSize(int size) override;
-    void setSamplingRate(int rate) override;
+    void setSamplingRate(qreal rate) override;
 
 private:
     void registerConnectionFilterModel();
@@ -81,7 +81,7 @@ private:
     QQueue<Connection> m_connectionQueue;
     int m_bufferSize = 0;
     int m_bufferOverrunCount = 0;
-    int m_samplingRate = 0;
+    qreal m_samplingRate = 0;
     bool m_isPaused = false;
 
     Probe *m_probe;

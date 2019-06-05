@@ -163,7 +163,7 @@ void AcquisitionEngine::registerConnectionFilterModel() {
     proxy->setSourceModel(m_connectionFilterModel);
 
     m_probe->registerModel(ObjectVisualizerConnectionTypeModelId, proxy);
-    new RecordingInterfaceBridge("Connection", m_connectionFilterModel, this);
+    new FilterInterfaceBridge("Connection", m_connectionFilterModel, this);
 }
 
 void AcquisitionEngine::registerThreadFilterModel() {
@@ -177,7 +177,7 @@ void AcquisitionEngine::registerThreadFilterModel() {
     proxy->setSourceModel(m_threadFilterModel);
 
     m_probe->registerModel(ObjectVisualizerThreadModelId, m_threadFilterModel);
-    new RecordingInterfaceBridge("Thread", m_threadFilterModel, this);
+    new FilterInterfaceBridge("Thread", m_threadFilterModel, this);
 }
 
 void AcquisitionEngine::registerClassFilterModel() {
@@ -192,7 +192,7 @@ void AcquisitionEngine::registerClassFilterModel() {
     proxy->setSourceModel(m_classFilterModel);
 
     m_probe->registerModel(ObjectVisualizerClassModelId, m_classFilterModel);
-    new RecordingInterfaceBridge("Class", m_classFilterModel, this);
+    new FilterInterfaceBridge("Class", m_classFilterModel, this);
 }
 
 void AcquisitionEngine::registerObjectFilterModel() {
@@ -204,7 +204,7 @@ void AcquisitionEngine::registerObjectFilterModel() {
     proxy->setSourceModel(m_objectFilterModel);
 
     m_probe->registerModel(ObjectVisualizerObjectModelId, m_objectFilterModel);
-    new RecordingInterfaceBridge("Object", m_objectFilterModel, this);
+    new FilterInterfaceBridge("Object", m_objectFilterModel, this);
 }
 
 /*
@@ -235,7 +235,8 @@ int AcquisitionEngine::bufferOverrunCount() const {
     return m_bufferOverrunCount;
 }
 
-int AcquisitionEngine::samplingRate() const {
+qreal AcquisitionEngine::samplingRate() const
+{
     DEBUG;
     return m_samplingRate;
 }
@@ -300,17 +301,20 @@ void AcquisitionEngine::setBufferSize(int size) {
     emit bufferSizeChanged(m_bufferSize);
 }
 
-void AcquisitionEngine::setSamplingRate(int rate) {
-    DEBUG;
-    if (m_samplingRate == rate)
+void AcquisitionEngine::setSamplingRate(qreal rate)
+{
+    DEBUG << "requested" << rate;
+    if (qFuzzyCompare(m_samplingRate, rate))
         return;
-    if (rate <= 0 || rate >= 100)
+    if (rate <= 0. || rate >= 100.)
         return;
     m_samplingRate = rate;
+    DEBUG << "period" << samplingPeriodMs();
     m_timer->setInterval(samplingPeriodMs());
+    DEBUG << "actual" << m_samplingRate;
     emit samplingRateChanged(m_samplingRate);
 }
 
 int AcquisitionEngine::samplingPeriodMs() const {
-    return qRound(1. / static_cast<qreal>(m_samplingRate)) * 1000;
+    return qRound(1. / static_cast<qreal>(m_samplingRate) * 1000);
 }
