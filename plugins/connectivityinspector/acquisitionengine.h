@@ -53,6 +53,9 @@ private:
     void registerObjectFilterModel();
     void registerConnectionModel();
 
+    void increaseCountersForObject(QObject *object);
+    void decreaseCountersForObject(QObject *object);
+
     // clang-format off
     QAbstractItemModel *m_connectionInputModel;
     FilterProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionFilterModel;

@@ -48,51 +48,45 @@ AcquisitionEngine::AcquisitionEngine(Probe *probe, QObject *parent)
 
     connect(m_timer, &QTimer::timeout, this, &AcquisitionEngine::takeSample);
 
-    // TODO: counter updates
+    connect(m_probe, &Probe::objectCreated, this,
+            &AcquisitionEngine::increaseCountersForObject);
+    connect(m_probe, &Probe::objectDestroyed, this,
+            &AcquisitionEngine::decreaseCountersForObject);
 }
 
 AcquisitionEngine::~AcquisitionEngine() = default;
 
-// TODO: counters
-#if 0
-void ConnectivityAnalyser::addObject(QObject *object) {
+void AcquisitionEngine::increaseCountersForObject(QObject *object) {
     if (!m_probe->isValidObject(object))
+        return;
+    if (!m_probe->isValidObject(object->thread()))
         return;
     if (m_probe->filterObject(object))
         return;
-    m_objectRecordingModel->increaseCount(object);
-    m_classRecordingModel->increaseCount(object->metaObject());
+    m_objectFilterModel->increaseCount(object);
+    m_classFilterModel->increaseCount(object->metaObject());
     if (m_probe->isValidObject(object->thread()))
-        m_threadRecordingModel->increaseCount(object->thread());
+        m_threadFilterModel->increaseCount(object->thread());
     auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
     for (const auto &connection : connections) {
-        QObject *receiver = connection.endpoint.data();
-        m_connectionRecordingModel->increaseCount(connection.type);
-        if (!m_connectionRecordingModel->isRecording(connection.type))
-            continue;
-        if (!m_threadRecordingModel->isRecording(object->thread()))
-            continue;
-        if (m_classRecordingModel->isRecording(object->metaObject()))
-            continue;
-        if (!m_objectRecordingModel->isRecording(object))
-            return;
-        if (isPaused()) {
-
-        } else {
-            m_connectionModel->addConnection(object, receiver);
-        }
+        m_connectionFilterModel->increaseCount(connection.type);
     }
 }
 
-void ConnectivityAnalyser::removeObject(QObject *object)
-{
-    // qDebug() << __FUNCTION__ << Util::addressToString(object);
-    m_connectionModel->removeConnections(object);
-    // TODO?
-    // connections = m_connectionModel->removeConnections(object);
+void AcquisitionEngine::decreaseCountersForObject(QObject *object) {
+    if (!m_probe->isValidObject(object))
+        return;
+    if (!m_probe->isValidObject(object->thread()))
+        return;
+    if (m_probe->filterObject(object))
+        return;
+
+    // FIXME:
+    m_objectFilterModel->decreaseCount(object);
+    // m_threadFilterModel->decreaseCount(object->thread());
+    // m_classFilterModel->increaseCount(object->metaObject());
     // m_connectionTypeModel->decreaseCount(connections);
 }
-#endif
 
 void AcquisitionEngine::startSampling() {
     DEBUG;
