@@ -40,6 +40,8 @@ class QTimer;
 QT_END_NAMESPACE
 
 class QVTKInteractor;
+class vtkActor;
+class vtkAlgorithmOutput;
 class vtkGraphLayout;
 class vtkGraphLayoutStrategy;
 class vtkGraphLayoutView;
@@ -77,19 +79,19 @@ private:
     vtkSmartPointer<vtkGraphLayoutView> m_layoutView;
     vtkSmartPointer<QVTKInteractor> m_interactor;
     vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
+    vtkSmartPointer<vtkActor> m_arrowDecorator;
     vtkStringArray *m_objectLabelArray;
     vtkUnsignedLongLongArray *m_objectIdArray;
     vtkUnsignedLongLongArray *m_threadIdArray;
     vtkIntArray *m_connWeightArray;
     QAbstractItemModel *m_model = nullptr;
     QTimer *m_renderTimer = nullptr;
-
-    // FIXME: That should be part of the pipeline creation
     bool m_showEdgeArrow = false;
 
     void buildGraph();
     void updateGraph();
     void renderGraph();
+    void createArrowDecorator(vtkAlgorithmOutput *input);
 };
 } // namespace GammaRay
 

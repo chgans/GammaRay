@@ -139,6 +139,8 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_layoutView->SetEdgeLabelArrayName(s_connWeightArrayName);
     m_layoutView->SetEdgeLabelVisibility(true);
 
+    createArrowDecorator(m_layout->GetOutputPort());
+
     m_objectIdArray = vtkUnsignedLongLongArray::New();
     m_objectIdArray->SetName(s_ObjectIdArrayName);
     m_threadIdArray = vtkUnsignedLongLongArray::New();
@@ -164,7 +166,10 @@ void VtkWidget::setModel(QAbstractItemModel *model)
     m_model = model;
 
     if (m_model) {
-        m_renderTimer->start(); // FIXME
+        connect(m_model, &QAbstractItemModel::modelReset, this, &VtkWidget::renderGraph);
+        connect(m_model, &QAbstractItemModel::rowsRemoved, this, &VtkWidget::renderGraph);
+        connect(m_model, &QAbstractItemModel::rowsInserted, this, &VtkWidget::renderGraph);
+        renderGraph();
     }
 }
 
@@ -181,51 +186,74 @@ void VtkWidget::buildGraph()
     m_connWeightArray->Reset();
     m_graph->GetEdgeData()->AddArray(m_connWeightArray);
 
-    // Collect unique and valid objects
-    QHash<quint64, std::pair<std::string, quint64>> objects;
+    // Collect unique and valid objects and their connection counters
+    // Keep everything ordered for the graph data arrays
+    QSet<quint64> objectIds;
+    QVector<std::tuple<quint64, quint64, std::string>> objects;
+    QVector<std::tuple<quint64, quint64, int>> connections;
     for (int row = 0; row < m_model->rowCount(); ++row) {
-        {
-            auto oId = objectId(m_model, row, ConnectionModel::SenderColumn);
-            auto tId = threadId(m_model, row, ConnectionModel::SenderColumn);
-            auto label = objectLabel(m_model, row, ConnectionModel::SenderColumn);
-            if (oId && tId)
-                objects.insert(oId, {label, tId});
-        }
-        {
-            auto oId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
-            auto tId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
-            auto label = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
-            if (oId && tId)
-                objects.insert(oId, {label, tId});
-        }
-    }
-
-    // Create object nodes
-    auto next = objects.constKeyValueBegin();
-    const auto none = objects.constKeyValueEnd();
-    while (next != none) {
-        m_graph->AddVertex();
-        m_objectIdArray->InsertNextValue((*next).first);
-        m_objectLabelArray->InsertNextValue((*next).second.first);
-        m_threadIdArray->InsertNextValue((*next).second.second);
-        ++next;
-    }
-
-    // Create connection edges
-    for (int row = 0; row < m_model->rowCount(); ++row) {
-        auto senderId = objectId(m_model, row, ConnectionModel::SenderColumn);
-        auto receiverId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
+        auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
+        auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
+        auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
+        auto receiverObjectId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
+        auto receiverThreadId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
+        auto receiverLabel = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
         auto edgeWeight = weight(m_model, row);
-        if (senderId && receiverId) {
-            m_graph->AddEdge(vtkVariant(senderId), vtkVariant(receiverId));
-            m_connWeightArray->InsertNextValue(edgeWeight);
+        if (receiverObjectId && receiverThreadId && senderObjectId && senderThreadId) {
+            if (!objectIds.contains(senderObjectId))
+                objects.append({senderObjectId, senderThreadId, senderLabel});
+            if (!objectIds.contains(receiverObjectId))
+                objects.append({receiverObjectId, receiverThreadId, receiverLabel});
+            connections.append({senderObjectId, receiverObjectId, edgeWeight});
+        } else {
+            qWarning() << __PRETTY_FUNCTION__ << "Got invalid records: " << senderObjectId
+                       << senderThreadId << QString::fromStdString(senderLabel) << receiverObjectId
+                       << receiverThreadId << QString::fromStdString(receiverLabel) << edgeWeight;
         }
+    }
+
+    // Create all the nodes and only then the edges to avoid auto-created nodes
+    for (const auto &data : objects) {
+        m_graph->AddVertex();
+        m_objectIdArray->InsertNextValue(std::get<0>(data));
+        m_threadIdArray->InsertNextValue(std::get<1>(data));
+        m_objectLabelArray->InsertNextValue(std::get<2>(data));
+    }
+    for (const auto &data : connections) {
+        const auto senderId = std::get<0>(data);
+        const auto receiverId = std::get<1>(data);
+        const auto weight = std::get<2>(data);
+        m_graph->AddEdge(vtkVariant(senderId), vtkVariant(receiverId));
+        m_connWeightArray->InsertNextValue(weight);
     }
 }
 
 void VtkWidget::updateGraph()
 {
     // TODO: add/remove pending nodes/edges
+}
+
+// FIXME: Arrow size need to scale with graph representation size.
+void VtkWidget::createArrowDecorator(vtkAlgorithmOutput *input)
+{
+    vtkSmartPointer<vtkGraphToPolyData> graphToPoly = vtkSmartPointer<vtkGraphToPolyData>::New();
+    graphToPoly->SetInputConnection(input);
+    graphToPoly->EdgeGlyphOutputOn();
+    graphToPoly->SetEdgeGlyphPosition(0.6);
+    auto arrowSource = vtkSmartPointer<vtkArrowSource>::New();
+    // arrowSource->SetTipLength();
+    // arrowSource->SetTipRadius();
+    // arrowSource->SetTipResolution();
+    // arrowSource->SetShaftRadius(1.0);
+    // arrowSource->SetShaftResolution();
+    arrowSource->Update();
+    auto arrowGlyph = vtkSmartPointer<vtkGlyph3D>::New();
+    arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
+    arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
+    auto arrowMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
+    m_arrowDecorator = vtkSmartPointer<vtkActor>::New();
+    m_arrowDecorator->SetMapper(arrowMapper);
 }
 
 void VtkWidget::renderGraph()
@@ -235,59 +263,14 @@ void VtkWidget::renderGraph()
 
     buildGraph();
     if (m_graph->GetNumberOfVertices() == 0) {
-        m_layoutView->ResetCamera();
         return;
     }
 
-    /*
-     * https://vtk.org/Wiki/VTK/Examples/Cxx/Graphs/VisualizeDirectedGraph
-     * https://lorensen.github.io/VTKExamples/site/Cxx/GeometricObjects/Arrow/
-     * 
-     * TODO: 
-     *  - Should be part of the "pipeline", eg. buildPipeline() which should handle the bits in the ctor.
-     *  - Still very buggy ... :(
-     */
-    if (m_showEdgeArrow) {
-        // Do layout manually before handing graph to the view.
-        // This allows us to know the positions of edge arrows.
-        m_layout->SetInputDataObject(m_graph);
-        m_layout->SetLayoutStrategy(m_layoutStrategy);
-        // Tell the view to use the vertex layout we provide
-        m_layoutView->SetLayoutStrategyToPassThrough();
-        // The arrows will be positioned on a straight line between two
-        // vertices so tell the view not to draw arcs for parallel edges
-        m_layoutView->SetEdgeLayoutStrategyToPassThrough();
-        // Add the graph to the view. This will render vertices and edges,
-        // but not edge arrows.
-        m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
-        // Manually create an actor containing the glyphed arrows.
-        vtkSmartPointer<vtkGraphToPolyData> graphToPoly = vtkSmartPointer<vtkGraphToPolyData>::New();
-        graphToPoly->SetInputConnection(m_layout->GetOutputPort());
-        graphToPoly->EdgeGlyphOutputOn();
-        // Set the position (0: edge start, 1: edge end) where
-        // the edge arrows should go.
-        // chgans: the arrow center is the node position, so 0.98 is not goos, and 0.5 is too close to labels...
-        graphToPoly->SetEdgeGlyphPosition(0.51);
-        // Create an arrow.
-        auto arrowSource = vtkSmartPointer<vtkArrowSource>::New();
-        //arrowSource->SetShaftRadius(1.0);
-        //arrowSource->SetTipLength(1.0);
-        arrowSource->Update();
-        // Use Glyph3D to repeat the glyph on all edges.
-        auto arrowGlyph = vtkSmartPointer<vtkGlyph3D>::New();
-        arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
-        arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
-        // Create a mapper and actor
-        auto arrowMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
-        auto arrowActor = vtkSmartPointer<vtkActor>::New();
-        arrowActor->SetMapper(arrowMapper);
-        // Visualise
-        m_layoutView->GetRenderer()->AddActor(arrowActor);
-        m_layoutView->SetRepresentationFromInput(m_layout->GetOutput());
-    } else {
-        m_layoutView->SetRepresentationFromInput(m_graph);
-    }
+    m_layout->SetInputDataObject(m_graph);
+    m_layout->SetLayoutStrategy(m_layoutStrategy);
+    m_layoutView->SetLayoutStrategyToPassThrough();
+    m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
+    m_layoutView->ResetCamera();
     m_layoutView->Render();
 }
 
@@ -296,11 +279,18 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     switch (strategy) {
     case Vtk::LayoutStrategy::Cone: {
         auto *strategy = vtkConeLayoutStrategy::New();
+        // strategy->SetSpacing(1.0);
+        // strategy->SetCompactness(1.0);
+        // strategy->SetCompression(1);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::Tree: {
         auto strategy = vtkTreeLayoutStrategy::New();
+        // strategy->SetRotation(0.0);
+        // strategy->SetLeafSpacing(1.0);
+        // strategy->SetLogSpacingValue(1.0);
+        // strategy->SetDistanceArrayName("distance");
         strategy->SetRadial(true);
         strategy->SetAngle(360);
         strategy->SetLogSpacingValue(1);
@@ -309,11 +299,18 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     }
     case Vtk::LayoutStrategy::Fast2D: {
         auto *strategy = vtkFast2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetJitter(true);
+        // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::Random: {
         auto *strategy = vtkRandomLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetGraphBounds(...);
+        // strategy->SetThreeDimensionalLayout(1);
+        // strategy->SetAutomaticBoundsComputation(1);
         m_layoutStrategy = strategy;
         break;
     }
@@ -324,30 +321,46 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     }
     case Vtk::LayoutStrategy::Simple2D: {
         auto *strategy = vtkSimple2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetJitter(true);
+        // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::SpanTree: {
         auto *strategy = vtkSpanTreeLayoutStrategy::New();
+        // strategy->SetDepthFirstSpanningTree(true);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::Community2D: {
         auto *strategy = vtkCommunity2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetRestDistance(1.0);
+        // strategy->SetCommunityStrength(1.0);
+        strategy->SetCommunityArrayName(s_ThreadIdArrayName);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::Clustering2D: {
         auto *strategy = vtkClustering2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::ForceDirected2D: {
         auto *strategy = vtkForceDirectedLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetRandomInitialPoints(1);
+        // strategy->SetGraphBounds(...);
+        // strategy->SetThreeDimensionalLayout(1);
+        // strategy->SetAutomaticBoundsComputation(1);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::ForceDirected3D: {
+        // same as above
         auto *strategy = vtkForceDirectedLayoutStrategy::New();
         strategy->SetThreeDimensionalLayout(true);
         m_layoutStrategy = strategy;
@@ -355,27 +368,52 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     }
     case Vtk::LayoutStrategy::AssignCoordinates: {
         auto *strategy = vtkAssignCoordinatesLayoutStrategy::New();
+        // strategy->SetXCoordArrayName();
+        // strategy->SetYCoordArrayName();
+        // strategy->SetZCoordArrayName();
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::AttributeClustering2D: {
         auto *strategy = vtkAttributeClustering2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        // strategy->SetRestDistance();
         strategy->SetVertexAttribute(s_ThreadIdArrayName);
         m_layoutStrategy = strategy;
         break;
     }
     case Vtk::LayoutStrategy::Constrained2D: {
         auto *strategy = vtkConstrained2DLayoutStrategy::New();
+        strategy->SetRandomSeed(0);
+        strategy->SetInputArrayName(s_connWeightArrayName);
         m_layoutStrategy = strategy;
+
         break;
     }
     case Vtk::LayoutStrategy::Simple3DCircles: {
         auto *strategy = vtkSimple3DCirclesStrategy::New();
+        // strategy->SetHeight();
+        // strategy->SetMethod();
+        // strategy->SetOrigin();
+        // strategy->SetRadius();
+        // strategy->SetDirection();
+        // strategy->SetAutoHeight();
+        // strategy->SetMarkedValue();
+        // strategy->SetMinimumDegree();
+        // strategy->SetMinimumRadian();
+        // strategy->SetHierarchicalOrder();
+        // strategy->SetHierarchicalLayers();
+        // strategy->SetMarkedStartVertices();
+        // strategy->SetForceToUseUniversalStartPointsFinder();
         m_layoutStrategy = strategy;
         break;
     }
     }
 
+    // m_layoutStrategy->SetWeightEdges(true);
+    // m_layoutStrategy->SetEdgeWeightField(s_connWeightArrayName);
+    m_layoutStrategy->DebugOn();
+    m_layoutStrategy->GlobalWarningDisplayOn();
     renderGraph();
 }
 
@@ -424,10 +462,21 @@ void VtkWidget::setShowEdgeLabel(bool show)
     renderGraph();
 }
 
+/* See:
+ * https://vtk.org/Wiki/VTK/Examples/Cxx/Graphs/VisualizeDirectedGraph
+ * https://lorensen.github.io/VTKExamples/site/Cxx/GeometricObjects/Arrow/
+ */
 void VtkWidget::setShowEdgeArrow(bool show)
 {
     if (m_showEdgeArrow == show)
         return;
     m_showEdgeArrow = show;
+    if (m_showEdgeArrow) {
+        m_layoutView->GetRenderer()->AddActor(m_arrowDecorator);
+        m_layoutView->SetEdgeLayoutStrategyToPassThrough();
+    } else {
+        m_layoutView->GetRenderer()->RemoveActor(m_arrowDecorator);
+        m_layoutView->SetEdgeLayoutStrategyToArcParallel();
+    }
     renderGraph();
 }
