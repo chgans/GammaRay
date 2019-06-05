@@ -34,32 +34,54 @@ class QSize;
 QT_END_NAMESPACE
 
 namespace GammaRay {
-class ConnectivityInspectorInterface : public QObject
-{
+
+class AcquisitionInterface : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool isPaused READ isPaused WRITE setIsPaused NOTIFY isPausedChanged)
+    Q_PROPERTY(State state READ state NOTIFY stateChanged)
+    Q_PROPERTY(int bufferSize READ bufferSize WRITE setBufferSize NOTIFY
+                   bufferSizeChanged)
+    Q_PROPERTY(qreal bufferUsage READ bufferUsage NOTIFY bufferUsageChanged)
+    Q_PROPERTY(int bufferOverrunCount READ bufferOverrunCount NOTIFY
+                   bufferOverrunCountChanged)
+    Q_PROPERTY(bool samplingRate READ samplingRate WRITE setSamplingRate NOTIFY
+                   samplingRateChanged)
 
 public:
-    explicit ConnectivityInspectorInterface(QObject *parent = nullptr);
-    ~ConnectivityInspectorInterface() override;
+    enum State { Started, Paused, Stopped };
+    Q_ENUM(State)
+
+    explicit AcquisitionInterface(QObject *parent = nullptr);
+    ~AcquisitionInterface() override;
+
+    virtual State state() const = 0;
+    virtual int bufferSize() const = 0;
+    virtual qreal bufferUsage() const = 0;
+    virtual int bufferOverrunCount() const = 0;
+    virtual int samplingRate() const = 0;
 
 public slots:
-    virtual void clearHistory() = 0;
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual void pause() = 0;
+    virtual void resume() = 0;
+    virtual void refresh() = 0;
+    virtual void clear() = 0;
 
-    bool isPaused() const { return m_isPaused; }
-    void setIsPaused(bool value);
+    virtual void setBufferSize(int size) = 0;
+    virtual void setSamplingRate(int rate) = 0;
 
 signals:
-    void isPausedChanged();
-
-private:
-    bool m_isPaused;
+    void stateChanged(State state);
+    void bufferSizeChanged(int size);
+    void bufferUsageChanged(int usage);
+    void bufferOverrunCountChanged(int count);
+    void samplingRateChanged(int rate);
 };
 } // namespace GammaRay
 
 QT_BEGIN_NAMESPACE
-Q_DECLARE_INTERFACE(GammaRay::ConnectivityInspectorInterface,
-                    "com.kdab.GammaRay.ConnectivityInspectorInterface")
+Q_DECLARE_INTERFACE(GammaRay::AcquisitionInterface,
+                    "com.kdab.GammaRay.AcquisitionInterface")
 QT_END_NAMESPACE
 
 #endif // GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORINTERFACE_H

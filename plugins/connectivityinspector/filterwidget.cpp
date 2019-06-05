@@ -1,21 +1,21 @@
-#include "recordingwidget.h"
-#include "ui_recordingwidget.h"
+#include "filterwidget.h"
+#include "ui_filterwidget.h"
 
-#include "recordinginterface.h"
+#include "filterinterface.h"
 
 #include <ui/searchlinecontroller.h>
 
 using namespace GammaRay;
 
-RecordingWidget::RecordingWidget(QWidget *parent)
-    : QWidget(parent), m_ui(new Ui::RecordingWidget) {
+FilterWidget::FilterWidget(QWidget *parent)
+    : QWidget(parent), m_ui(new Ui::FilterWidget) {
     m_ui->setupUi(this);
 }
 
-RecordingWidget::~RecordingWidget() = default;
+FilterWidget::~FilterWidget() = default;
 
-void RecordingWidget::setup(ConnectivityRecordingInterface *interface,
-                            QAbstractItemModel *model) {
+void FilterWidget::setup(FilterInterface *interface,
+                         QAbstractItemModel *model) {
     Q_ASSERT(m_interface == nullptr);
     Q_ASSERT(m_model == nullptr);
     Q_ASSERT(interface != nullptr);
@@ -32,11 +32,11 @@ void RecordingWidget::setup(ConnectivityRecordingInterface *interface,
     view->setModel(m_model);
     view->setSortingEnabled(true);
     connect(m_ui->recordAllButton, &QToolButton::clicked, m_interface,
-            &ConnectivityRecordingInterface::recordAll);
+            &FilterInterface::recordAll);
     connect(m_ui->recordNoneButton, &QToolButton::clicked, m_interface,
-            &ConnectivityRecordingInterface::recordNone);
+            &FilterInterface::recordNone);
     connect(m_ui->showAllButton, &QToolButton::clicked, m_interface,
-            &ConnectivityRecordingInterface::showAll);
+            &FilterInterface::showAll);
     connect(m_ui->showNonoeButton, &QToolButton::clicked, m_interface,
-            &ConnectivityRecordingInterface::showNone);
+            &FilterInterface::showNone);
 }

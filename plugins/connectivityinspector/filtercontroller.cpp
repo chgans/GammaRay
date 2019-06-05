@@ -24,40 +24,29 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGINTERFACE_H
-#define GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGINTERFACE_H
+#include "filtercontroller.h"
 
-#include <QObject>
+#include <common/endpoint.h>
 
-QT_BEGIN_NAMESPACE
-class QSize;
-QT_END_NAMESPACE
+using namespace GammaRay;
 
-namespace GammaRay {
-class ConnectivityRecordingInterface : public QObject
-{
-    Q_OBJECT
+FilterController::FilterController(const QString &name, QObject *parent)
+    : FilterInterface(name, parent) {}
 
-public:
-    explicit ConnectivityRecordingInterface(const QString &name, QObject *parent = nullptr);
-    ~ConnectivityRecordingInterface() override;
+FilterController::~FilterController() = default;
 
-    QString name() const;
+void FilterController::recordAll() {
+    Endpoint::instance()->invokeObject(objectName(), "recordAll");
+}
 
-public slots:
-    virtual void recordAll() = 0;
-    virtual void recordNone() = 0;
-    virtual void showAll() = 0;
-    virtual void showNone() = 0;
+void FilterController::recordNone() {
+    Endpoint::instance()->invokeObject(objectName(), "recordNone");
+}
 
-private:
-    const QString m_name;
-};
-} // namespace GammaRay
+void FilterController::showAll() {
+    Endpoint::instance()->invokeObject(objectName(), "showAll");
+}
 
-QT_BEGIN_NAMESPACE
-Q_DECLARE_INTERFACE(GammaRay::ConnectivityRecordingInterface,
-                    "com.kdab.GammaRay.ConnectivityInspector.RecordingInterface")
-QT_END_NAMESPACE
-
-#endif // GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGINTERFACE_H
+void FilterController::showNone() {
+    Endpoint::instance()->invokeObject(objectName(), "showNone");
+}

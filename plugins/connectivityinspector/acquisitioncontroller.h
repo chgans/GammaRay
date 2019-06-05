@@ -24,26 +24,40 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGCLIENT_H
-#define GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGCLIENT_H
+#ifndef GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCLIENT_H
+#define GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCLIENT_H
 
-#include "recordinginterface.h"
+#include "acquisitioninterface.h"
 
 namespace GammaRay {
-class RecordingClient : public ConnectivityRecordingInterface
-{
-    Q_OBJECT
 
+class AcquisitionController : public AcquisitionInterface {
+    Q_OBJECT
+    Q_INTERFACES(GammaRay::AcquisitionInterface)
 public:
-    explicit RecordingClient(const QString &name, QObject *parent = nullptr);
-    ~RecordingClient() override;
+    explicit AcquisitionController(QObject *parent = nullptr);
+    ~AcquisitionController() override;
 
 public slots:
-    void recordAll() override;
-    void recordNone() override;
-    void showAll() override;
-    void showNone() override;
+    virtual void clear() override;
+
+    // AcquisitionInterface interface
+public:
+    State state() const override;
+    int bufferSize() const override;
+    qreal bufferUsage() const override;
+    int bufferOverrunCount() const override;
+    int samplingRate() const override;
+
+public slots:
+    void start() override;
+    void stop() override;
+    void pause() override;
+    void resume() override;
+    void refresh() override;
+    void setBufferSize(int size) override;
+    void setSamplingRate(int rate) override;
 };
 } // namespace GammaRay
 
-#endif // GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGCLIENT_H
+#endif // GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTORCLIENT_H

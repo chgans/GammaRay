@@ -29,17 +29,16 @@
 
 #include "3rdparty/kde/kextracolumnsproxymodel.h"
 
-#include "recordinginterface.h"
+#include "filterinterface.h"
 
 namespace GammaRay {
 
-class RecordingProxyModelBase : public KExtraColumnsProxyModel
-{
+class FilterProxyModelBase : public KExtraColumnsProxyModel {
     Q_OBJECT
 
 public:
-    RecordingProxyModelBase(QObject *parent = nullptr);
-    ~RecordingProxyModelBase() override;
+    FilterProxyModelBase(QObject *parent = nullptr);
+    ~FilterProxyModelBase() override;
 
     enum ExtraColumn { CountColumn = 0, IsRecordingColumn, IsVisibleColumn, ExtraColumnCount };
 
@@ -107,14 +106,12 @@ private slots:
     void finaliseRecordingModel();
 };
 
-template<typename T, int TargetRole>
-class RecordingProxyModel : public RecordingProxyModelBase
-{
+template <typename T, int TargetRole>
+class FilterProxyModel : public FilterProxyModelBase {
 public:
-    RecordingProxyModel(QObject *parent = nullptr)
-        : RecordingProxyModelBase(parent)
-    {}
-    ~RecordingProxyModel() override = default;
+    FilterProxyModel(QObject *parent = nullptr)
+        : FilterProxyModelBase(parent) {}
+    ~FilterProxyModel() override = default;
 
     void increaseCount(const T &target)
     {
@@ -122,7 +119,7 @@ public:
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        RecordingProxyModelBase::increaseCount(m_indexes.value(target));
+        FilterProxyModelBase::increaseCount(m_indexes.value(target));
     }
 
     void decreaseCount(const T &target)
@@ -132,7 +129,7 @@ public:
 
         Q_ASSERT(m_indexes.contains(target));
         const auto &srcIndex = m_indexes[target];
-        RecordingProxyModelBase::decreaseCount(m_indexes.value(target));
+        FilterProxyModelBase::decreaseCount(m_indexes.value(target));
     }
 
     quint64 recordCount(const T &target) {
@@ -141,7 +138,7 @@ public:
 
         Q_ASSERT(m_indexes.contains(target));
         const auto &srcIndex = m_indexes[target];
-        return RecordingProxyModelBase::recordCount(m_indexes.value(target));
+        return FilterProxyModelBase::recordCount(m_indexes.value(target));
     }
 
     bool isRecording(const T &target) const
@@ -152,7 +149,7 @@ public:
             return false; // FIXME: from main update
         // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
-        return RecordingProxyModelBase::isRecording(m_indexes.value(target));
+        return FilterProxyModelBase::isRecording(m_indexes.value(target));
     }
 
     bool isVisible(const T &target) const
@@ -164,7 +161,7 @@ public:
             return false; // FIXME:  from main update
         // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
-        return RecordingProxyModelBase::isVisible(m_indexes.value(target));
+        return FilterProxyModelBase::isVisible(m_indexes.value(target));
     }
 
     // TODO: something more efficient
@@ -186,10 +183,7 @@ protected:
         m_indexes.remove(target);
     }
 
-    void clearRecordingData() override {
-        m_indexes = QHash<T, QPersistentModelIndex>();
-        auto it = m_indexes.constBegin();
-    }
+    void clearRecordingData() override { m_indexes.clear(); }
 
     // TODO: provide iterator/view interface?
 
@@ -197,16 +191,12 @@ private:
     QHash<T, QPersistentModelIndex> m_indexes;
 };
 
-class RecordingInterfaceBridge : public ConnectivityRecordingInterface
-{
+class RecordingInterfaceBridge : public FilterInterface {
     Q_OBJECT
 public:
-    RecordingInterfaceBridge(const QString &name,
-                             RecordingProxyModelBase *model,
+    RecordingInterfaceBridge(const QString &name, FilterProxyModelBase *model,
                              QObject *parent = nullptr)
-        : ConnectivityRecordingInterface(name, parent)
-        , m_model(model)
-    {}
+        : FilterInterface(name, parent), m_model(model) {}
     ~RecordingInterfaceBridge() override = default;
 
     // ConnectivityRecordingInterface interface
@@ -217,7 +207,7 @@ public slots:
     void showNone() override { m_model->showNone(); }
 
 private:
-    RecordingProxyModelBase *m_model;
+    FilterProxyModelBase *m_model;
 };
 
 } // namespace GammaRay

@@ -13,48 +13,28 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
+  <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,10">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
+   <item>
+    <widget class="GammaRay::AcquisitionWidget" name="acquisitionWidget" native="true"/>
+   </item>
+   <item>
     <widget class="QSplitter" name="splitter">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
-     <widget class="QWidget" name="layoutWidget">
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QLineEdit" name="connectionSearchLine">
-           <property name="placeholderText">
-            <string>Filter...</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="pauseButton">
-           <property name="text">
-            <string>Pause</string>
-           </property>
-           <property name="checkable">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="clearButton">
-           <property name="text">
-            <string>Clear</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="GammaRay::DeferredTreeView" name="connectionTreeView"/>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QTabWidget" name="tabWidget">
+     <widget class="QTabWidget" name="mainTabWidget">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>3</horstretch>
@@ -62,41 +42,103 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
-      <widget class="GvContainer" name="gvTab">
+      <widget class="QWidget" name="filterTab">
        <attribute name="title">
-        <string>2D</string>
+        <string>Filter</string>
        </attribute>
+       <layout class="QGridLayout" name="gridLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item row="0" column="0">
+         <widget class="QTabWidget" name="filterTabWidget">
+          <property name="currentIndex">
+           <number>0</number>
+          </property>
+          <widget class="GammaRay::RecordingWidget" name="connectionFilterWidget">
+           <attribute name="title">
+            <string>Connection</string>
+           </attribute>
+          </widget>
+          <widget class="GammaRay::RecordingWidget" name="threadFilterWidget">
+           <attribute name="title">
+            <string>Thread</string>
+           </attribute>
+          </widget>
+          <widget class="GammaRay::RecordingWidget" name="classFilterWidget">
+           <attribute name="title">
+            <string>Class</string>
+           </attribute>
+          </widget>
+          <widget class="GammaRay::RecordingWidget" name="objectFilterWidget">
+           <attribute name="title">
+            <string>Object</string>
+           </attribute>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
-      <widget class="VtkContainer" name="vtkTab">
+      <widget class="QWidget" name="viewTab">
        <attribute name="title">
-        <string>3D</string>
+        <string>View</string>
        </attribute>
-      </widget>
-      <widget class="GammaRay::RecordingWidget" name="connTypesTab">
-       <attribute name="title">
-        <string>Connections</string>
-       </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_2"/>
-      </widget>
-      <widget class="GammaRay::RecordingWidget" name="threadTab">
-       <attribute name="title">
-        <string>Threads</string>
-       </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_3"/>
-      </widget>
-      <widget class="GammaRay::RecordingWidget" name="classTab">
-       <attribute name="title">
-        <string>Classes</string>
-       </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_4"/>
-      </widget>
-      <widget class="GammaRay::RecordingWidget" name="objectTab">
-       <attribute name="title">
-        <string>Objects</string>
-       </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_5"/>
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,5">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QLineEdit" name="connectionSearchLine">
+            <property name="placeholderText">
+             <string>Filter...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="GammaRay::DeferredTreeView" name="connectionTreeView"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTabWidget" name="viewTabWidget">
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <widget class="GvContainer" name="gvWidget">
+           <attribute name="title">
+            <string>GraphViz</string>
+           </attribute>
+          </widget>
+          <widget class="VtkContainer" name="vtkWidget">
+           <attribute name="title">
+            <string>Vtk</string>
+           </attribute>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </widget>
@@ -127,13 +169,15 @@
    <header>recordingwidget.h</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>GammaRay::AcquisitionWidget</class>
+   <extends>QWidget</extends>
+   <header>acquisitionwidget.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>connectionSearchLine</tabstop>
-  <tabstop>pauseButton</tabstop>
-  <tabstop>clearButton</tabstop>
-  <tabstop>tabWidget</tabstop>
-  <tabstop>connectionTreeView</tabstop>
+  <tabstop>mainTabWidget</tabstop>
  </tabstops>
  <resources/>
  <connections/>

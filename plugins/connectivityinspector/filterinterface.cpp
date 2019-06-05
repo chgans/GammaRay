@@ -24,7 +24,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "recordinginterface.h"
+#include "filterinterface.h"
 
 #include "connectivityinspectorcommon.h"
 
@@ -32,14 +32,15 @@
 
 using namespace GammaRay;
 
-ConnectivityRecordingInterface::ConnectivityRecordingInterface(
-    const QString &name, QObject *parent)
+// TODO: Rename to ConnectivityInspector::FilterInterface ?
+FilterInterface::FilterInterface(const QString &name, QObject *parent)
     : QObject(parent), m_name(name) {
-    const auto fqon = QStringLiteral("%1.%2.%3")
-                          .arg(ConnectivityInspectorBaseDomain, "RecordingInterface", name);
+    const auto fqon =
+        QStringLiteral("%1.%2.%3")
+            .arg(ConnectivityInspectorBaseDomain, "FilterInterface", name);
     ObjectBroker::registerObject(fqon, this);
 }
 
-ConnectivityRecordingInterface::~ConnectivityRecordingInterface() = default;
+FilterInterface::~FilterInterface() = default;
 
-QString ConnectivityRecordingInterface::name() const { return m_name; }
+QString FilterInterface::name() const { return m_name; }

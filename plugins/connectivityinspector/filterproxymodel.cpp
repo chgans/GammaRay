@@ -24,7 +24,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "recordingproxymodel.h"
+#include "filterproxymodel.h"
 
 #include "connectivityinspectorcommon.h"
 
@@ -32,21 +32,18 @@
 
 using namespace GammaRay;
 
-RecordingProxyModelBase::RecordingProxyModelBase(QObject *parent)
-    : KExtraColumnsProxyModel(parent)
-{
+FilterProxyModelBase::FilterProxyModelBase(QObject *parent)
+    : KExtraColumnsProxyModel(parent) {
     appendColumn("Count");
     appendColumn("Record");
     appendColumn("Show");
 }
 
-RecordingProxyModelBase::~RecordingProxyModelBase() = default;
+FilterProxyModelBase::~FilterProxyModelBase() = default;
 
-QVariant RecordingProxyModelBase::extraColumnData(const QModelIndex &parent,
-                                                  int row,
-                                                  int extraColumn,
-                                                  int role) const
-{
+QVariant FilterProxyModelBase::extraColumnData(const QModelIndex &parent,
+                                               int row, int extraColumn,
+                                               int role) const {
     if (!sourceModel())
         return {};
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
@@ -75,9 +72,9 @@ QVariant RecordingProxyModelBase::extraColumnData(const QModelIndex &parent,
     return {};
 }
 
-bool RecordingProxyModelBase::setExtraColumnData(
-    const QModelIndex &parent, int row, int extraColumn, const QVariant &value, int role)
-{
+bool FilterProxyModelBase::setExtraColumnData(const QModelIndex &parent,
+                                              int row, int extraColumn,
+                                              const QVariant &value, int role) {
     if (role != Qt::CheckStateRole)
         return false;
 
@@ -93,8 +90,7 @@ bool RecordingProxyModelBase::setExtraColumnData(
     return true;
 }
 
-Qt::ItemFlags RecordingProxyModelBase::extraColumnFlags(int extraColumn) const
-{
+Qt::ItemFlags FilterProxyModelBase::extraColumnFlags(int extraColumn) const {
     Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 
     if (extraColumn == IsRecordingColumn || extraColumn == IsVisibleColumn)
@@ -104,15 +100,14 @@ Qt::ItemFlags RecordingProxyModelBase::extraColumnFlags(int extraColumn) const
 }
 
 QMap<int, QVariant>
-RecordingProxyModelBase::extraItemData(const QModelIndex &index) const {
+FilterProxyModelBase::extraItemData(const QModelIndex &index) const {
     QMap<int, QVariant> map = QAbstractItemModel::itemData(index);
     map.insert(MetricColumRole, data(index, MetricColumRole));
     map.insert(MetricMaxRole, data(index, MetricMaxRole));
     return map;
 }
 
-void RecordingProxyModelBase::setSourceModel(QAbstractItemModel *model)
-{
+void FilterProxyModelBase::setSourceModel(QAbstractItemModel *model) {
     if (sourceModel())
         finaliseRecordingModel();
     QIdentityProxyModel::setSourceModel(model);
@@ -120,7 +115,7 @@ void RecordingProxyModelBase::setSourceModel(QAbstractItemModel *model)
         initialiseRecordingModel();
 }
 
-void RecordingProxyModelBase::resetCounts() {
+void FilterProxyModelBase::resetCounts() {
     if (!sourceModel())
         return;
 
@@ -131,7 +126,7 @@ void RecordingProxyModelBase::resetCounts() {
     endResetModel();
 }
 
-void RecordingProxyModelBase::increaseCount(const QModelIndex &index) {
+void FilterProxyModelBase::increaseCount(const QModelIndex &index) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count++;
     m_maxCount = std::max(m_maxCount, m_data.value(index).count);
@@ -140,7 +135,7 @@ void RecordingProxyModelBase::increaseCount(const QModelIndex &index) {
                            {Qt::DisplayRole});
 }
 
-void RecordingProxyModelBase::decreaseCount(const QModelIndex &index) {
+void FilterProxyModelBase::decreaseCount(const QModelIndex &index) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count--;
     // max count?
@@ -149,35 +144,34 @@ void RecordingProxyModelBase::decreaseCount(const QModelIndex &index) {
                            {Qt::DisplayRole});
 }
 
-quint64 RecordingProxyModelBase::recordCount(const QModelIndex &index) const {
+quint64 FilterProxyModelBase::recordCount(const QModelIndex &index) const {
     Q_ASSERT(m_data.contains(index));
     return m_data.value(index).count;
 }
 
-bool RecordingProxyModelBase::isRecording(const QModelIndex &index) const {
+bool FilterProxyModelBase::isRecording(const QModelIndex &index) const {
     Q_ASSERT(m_data.contains(index));
     return m_data.value(index).isRecording;
 }
 
-void RecordingProxyModelBase::setIsRecording(const QModelIndex &index,
-                                             bool enabled) {
+void FilterProxyModelBase::setIsRecording(const QModelIndex &index,
+                                          bool enabled) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].isRecording = enabled;
 }
 
-bool RecordingProxyModelBase::isVisible(const QModelIndex &index) const {
+bool FilterProxyModelBase::isVisible(const QModelIndex &index) const {
     Q_ASSERT(m_data.contains(index));
     return m_data.value(index).isVisible;
 }
 
-void RecordingProxyModelBase::setIsVisible(const QModelIndex &index,
-                                           bool enabled) {
+void FilterProxyModelBase::setIsVisible(const QModelIndex &index,
+                                        bool enabled) {
     Q_ASSERT(m_data.contains(index));
     m_data[index].isVisible = enabled;
 }
 
-void RecordingProxyModelBase::recordAll()
-{
+void FilterProxyModelBase::recordAll() {
     if (!sourceModel())
         return;
 
@@ -187,8 +181,7 @@ void RecordingProxyModelBase::recordAll()
     endResetModel();
 }
 
-void RecordingProxyModelBase::recordNone()
-{
+void FilterProxyModelBase::recordNone() {
     if (!sourceModel())
         return;
 
@@ -198,8 +191,7 @@ void RecordingProxyModelBase::recordNone()
     endResetModel();
 }
 
-void RecordingProxyModelBase::showAll()
-{
+void FilterProxyModelBase::showAll() {
     if (!sourceModel())
         return;
 
@@ -209,8 +201,7 @@ void RecordingProxyModelBase::showAll()
     endResetModel();
 }
 
-void RecordingProxyModelBase::showNone()
-{
+void FilterProxyModelBase::showNone() {
     if (!sourceModel())
         return;
 
@@ -220,8 +211,8 @@ void RecordingProxyModelBase::showNone()
     endResetModel();
 }
 
-void RecordingProxyModelBase::visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor)
-{
+void FilterProxyModelBase::visitIndex(const QModelIndex &sourceIndex,
+                                      IndexVisitor visitor) {
     const int rowCount = sourceModel()->rowCount(sourceIndex);
     for (int row = 0; row < rowCount; ++row) {
         const auto index = sourceModel()->index(row, 0, sourceIndex);
@@ -230,8 +221,7 @@ void RecordingProxyModelBase::visitIndex(const QModelIndex &sourceIndex, IndexVi
     }
 }
 
-void RecordingProxyModelBase::initialiseRecordingModel()
-{
+void FilterProxyModelBase::initialiseRecordingModel() {
     visitIndex(QModelIndex(), [this](const QModelIndex &index) {
         m_data.insert(index, {});
         addRecordingData(index);
@@ -262,8 +252,7 @@ void RecordingProxyModelBase::initialiseRecordingModel()
     });
 }
 
-void RecordingProxyModelBase::finaliseRecordingModel()
-{
+void FilterProxyModelBase::finaliseRecordingModel() {
     sourceModel()->disconnect(this);
     clearRecordingData();
 }

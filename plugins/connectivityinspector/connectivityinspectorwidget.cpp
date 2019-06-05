@@ -25,85 +25,92 @@
 */
 
 #include "connectivityinspectorwidget.h"
+#include "ui_acquisitionwidget.h"
 #include "ui_connectivityinspectorwidget.h"
 
-#include "connectivityinspectorclient.h"
+#include "acquisitioncontroller.h"
 #include "connectivityinspectorcommon.h"
 #include "countdecoratorproxymodel.h"
-#include "recordingclient.h"
+#include "filtercontroller.h"
 
 #include <common/objectbroker.h>
 #include <ui/searchlinecontroller.h>
 
+/*
+ * Acquire: Obtain the data
+ * Parse: Organise data into meaninful, categorised structures
+ * Filter: Remove all but the data of interest
+ * Mine: Discern pattern, use stats, math, algortihms, ...
+ * Represent: Basic visualisation model
+ * Refine: Improve representation: clearer and visually engaging
+ * Interact: Allow data manipulation, feature visibility
+ */
+
 namespace {
 QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 {
-    return new GammaRay::ConnectivityInspectorClient(parent);
+    return new GammaRay::AcquisitionController(parent);
 }
 } // namespace
 
 using namespace GammaRay;
 
-ObjectVisualizerWidget::ObjectVisualizerWidget(QWidget *parent)
-    : QWidget(parent)
-    , m_ui(new Ui::ObjectVisualizerWidget)
-    , m_stateManager(this)
-{
+ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
+    : QWidget(parent), m_ui(new Ui::ObjectVisualizerWidget),
+      m_stateManager(this) {
     setupClient();
     setupModels();
     setupUi();
 }
 
-ObjectVisualizerWidget::~ObjectVisualizerWidget() = default;
+ConnectivityInspectorWidget::~ConnectivityInspectorWidget() = default;
 
-void ObjectVisualizerWidget::setupClient()
-{
-    ObjectBroker::registerClientObjectFactoryCallback<ConnectivityInspectorInterface *>(
+void ConnectivityInspectorWidget::setupClient() {
+    ObjectBroker::registerClientObjectFactoryCallback<AcquisitionInterface *>(
         createObjectVisualizerClient);
-    m_interface = ObjectBroker::object<ConnectivityInspectorInterface *>();
+    m_interface = ObjectBroker::object<AcquisitionInterface *>();
 }
 
-void ObjectVisualizerWidget::setupModels()
-{
+void ConnectivityInspectorWidget::setupModels() {
     m_connectionModel = ObjectBroker::model(ObjectVisualizerConnectionModelId);
     Q_ASSERT(m_connectionModel != nullptr);
 
-    m_connectionRecordingModel =
+    m_connectionFilterModel =
         ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
-    Q_ASSERT(m_connectionRecordingModel != nullptr);
-    m_connectionRecordingInterface = new RecordingClient("Connection", this);
+    Q_ASSERT(m_connectionFilterModel != nullptr);
+    m_connectionFilterInterface = new FilterController("Connection", this);
 
     m_threadRecordingModel = ObjectBroker::model(ObjectVisualizerThreadModelId);
     Q_ASSERT(m_threadRecordingModel != nullptr);
-    m_threadRecordingInterface = new RecordingClient("Thread", this);
+    m_threadFilterInterface = new FilterController("Thread", this);
 
     m_classRecordingModel = ObjectBroker::model(ObjectVisualizerClassModelId);
     Q_ASSERT(m_classRecordingModel != nullptr);
-    m_classRecordingInterface = new RecordingClient("Class", this);
+    m_classFilterInterface = new FilterController("Class", this);
 
     m_objectRecordingModel = ObjectBroker::model(ObjectVisualizerObjectModelId);
     Q_ASSERT(m_objectRecordingModel != nullptr);
-    m_objectRecordingInterface = new RecordingClient("Object", this);
+    m_objectFilterInterface = new FilterController("Object", this);
 }
 
-void ObjectVisualizerWidget::setupUi()
-{
+void ConnectivityInspectorWidget::setupUi() {
     m_ui->setupUi(this);
     setupConnectionView();
-    setupRecordingWidget(m_ui->connTypesTab, m_connectionRecordingInterface,
-                         m_connectionRecordingModel);
-    setupRecordingWidget(m_ui->threadTab, m_threadRecordingInterface,
-                         m_threadRecordingModel);
-    setupRecordingWidget(m_ui->classTab, m_classRecordingInterface,
-                         m_classRecordingModel);
-    setupRecordingWidget(m_ui->objectTab, m_objectRecordingInterface,
-                         m_objectRecordingModel);
-    m_ui->gvTab->setModel(m_connectionModel);
-    m_ui->vtkTab->setModel(m_connectionModel);
+    setupFilterWidget(m_ui->connectionFilterWidget, m_connectionFilterInterface,
+                      m_connectionFilterModel);
+    setupFilterWidget(m_ui->threadFilterWidget, m_threadFilterInterface,
+                      m_threadRecordingModel);
+    setupFilterWidget(m_ui->classFilterWidget, m_classFilterInterface,
+                      m_classRecordingModel);
+    setupFilterWidget(m_ui->objectFilterWidget, m_objectFilterInterface,
+                      m_objectRecordingModel);
+    m_ui->gvWidget->setModel(m_connectionModel);
+    m_ui->vtkWidget->setModel(m_connectionModel);
+
+    m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
 }
 
-void ObjectVisualizerWidget::setupConnectionView()
-{
+void ConnectivityInspectorWidget::setupConnectionView() {
     auto view = m_ui->connectionTreeView;
     view->header()->setObjectName("connectionTreeViewHeader");
     new SearchLineController(m_ui->connectionSearchLine, m_connectionModel);
@@ -112,19 +119,11 @@ void ObjectVisualizerWidget::setupConnectionView()
     view->setDeferredResizeMode(1, QHeaderView::ResizeToContents);
     view->setDeferredResizeMode(2, QHeaderView::Stretch);
     view->setSortingEnabled(true);
-    connect(m_ui->pauseButton,
-            &QToolButton::toggled,
-            m_interface,
-            &ConnectivityInspectorInterface::setIsPaused);
-    connect(m_ui->clearButton,
-            &QToolButton::clicked,
-            m_interface,
-            &ConnectivityInspectorInterface::clearHistory);
 }
 
-void ObjectVisualizerWidget::setupRecordingWidget(
-    RecordingWidget *widget, ConnectivityRecordingInterface *interface,
-    QAbstractItemModel *model) {
+void ConnectivityInspectorWidget::setupFilterWidget(FilterWidget *widget,
+                                                    FilterInterface *interface,
+                                                    QAbstractItemModel *model) {
     auto proxy = new CountDecoratorProxyModel(this);
     proxy->setSourceModel(model);
     widget->setup(interface, proxy);

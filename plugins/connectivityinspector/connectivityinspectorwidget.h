@@ -42,43 +42,43 @@ namespace Ui {
     class ObjectVisualizerWidget;
 }
 class DeferredTreeView;
-class ConnectivityInspectorInterface;
-class ConnectivityRecordingInterface;
-class RecordingWidget;
+class AcquisitionInterface;
+class FilterInterface;
+class FilterWidget;
 
-class ObjectVisualizerWidget : public QWidget
-{
+class ConnectivityInspectorWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit ObjectVisualizerWidget(QWidget *parent = nullptr);
-    ~ObjectVisualizerWidget();
+    explicit ConnectivityInspectorWidget(QWidget *parent = nullptr);
+    ~ConnectivityInspectorWidget();
 
 private:
     void setupClient();
     void setupModels();
     void setupUi();
     void setupConnectionView();
-    void setupRecordingWidget(GammaRay::RecordingWidget *widget,
-                              ConnectivityRecordingInterface *interface,
-                              QAbstractItemModel *model);
+    void setupFilterWidget(FilterWidget *widget, FilterInterface *interface,
+                           QAbstractItemModel *model);
+
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
-    ConnectivityInspectorInterface *m_interface;
+    AcquisitionInterface *m_interface;
     UIStateManager m_stateManager;
     QAbstractItemModel *m_connectionModel;
-    QAbstractItemModel *m_connectionRecordingModel;
-    ConnectivityRecordingInterface *m_connectionRecordingInterface;
+
+    QAbstractItemModel *m_connectionFilterModel;
+    FilterInterface *m_connectionFilterInterface;
     QAbstractItemModel *m_threadRecordingModel;
-    ConnectivityRecordingInterface *m_threadRecordingInterface;
+    FilterInterface *m_threadFilterInterface;
     QAbstractItemModel *m_classRecordingModel;
-    ConnectivityRecordingInterface *m_classRecordingInterface;
+    FilterInterface *m_classFilterInterface;
     QAbstractItemModel *m_objectRecordingModel;
-    ConnectivityRecordingInterface *m_objectRecordingInterface;
+    FilterInterface *m_objectFilterInterface;
 };
 
-class ObjectVisualizerUiFactory : public QObject,
-                                  public StandardToolUiFactory<ObjectVisualizerWidget>
-{
+class ConnectivityInspectorUiFactory
+    : public QObject,
+      public StandardToolUiFactory<ConnectivityInspectorWidget> {
     Q_OBJECT
     Q_INTERFACES(GammaRay::ToolUiFactory)
     Q_PLUGIN_METADATA(IID "com.kdab.GammaRay.ToolUiFactory" FILE

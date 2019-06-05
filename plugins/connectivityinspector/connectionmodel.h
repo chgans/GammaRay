@@ -39,12 +39,17 @@ namespace GammaRay {
 
 class Probe;
 
+struct ConnectionItem {
+    ConnectionItem(QObject *sender, QObject *receiver, int value = 0)
+        : sender(sender), receiver(receiver), value(value) {}
+    QObject *sender = nullptr;
+    QObject *receiver = nullptr;
+    int value = 0;
+};
+
 class ConnectionModel : public QAbstractTableModel
 {
     Q_OBJECT
-
-private:
-    struct ConnectionItem;
 
 public:
     enum { SenderColumn, ReceiverColumn, CountColumn, ColumnCount };
@@ -71,13 +76,6 @@ public slots:
     void removeConnections(QObject *sender);
 
 private:
-    struct ConnectionItem {
-        ConnectionItem(QObject *sender, QObject *receiver, int value)
-            : sender(sender), receiver(receiver), value(value) {}
-        QObject *sender = nullptr;
-        QObject *receiver = nullptr;
-        int value = 0;
-    };
     Probe *m_probe;
     QVector<ConnectionItem *> m_items;
     // map[sender][receiver] = {sender, receiver, count}

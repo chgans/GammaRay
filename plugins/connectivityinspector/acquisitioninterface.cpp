@@ -24,19 +24,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "connectivityinspectorclient.h"
-
-#include <common/endpoint.h>
+#include "acquisitioninterface.h"
+#include <common/objectbroker.h>
 
 using namespace GammaRay;
 
-ConnectivityInspectorClient::ConnectivityInspectorClient(QObject *parent)
-    : ConnectivityInspectorInterface(parent)
-{}
-
-ConnectivityInspectorClient::~ConnectivityInspectorClient() = default;
-
-void ConnectivityInspectorClient::clearHistory()
-{
-    Endpoint::instance()->invokeObject(objectName(), "clearHistory");
+AcquisitionInterface::AcquisitionInterface(QObject *parent) : QObject(parent) {
+    ObjectBroker::registerObject<AcquisitionInterface *>(this);
 }
+
+AcquisitionInterface::~AcquisitionInterface() = default;

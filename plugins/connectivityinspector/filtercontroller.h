@@ -24,22 +24,25 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "connectivityinspectorinterface.h"
-#include <common/objectbroker.h>
+#ifndef GAMMARAY_CONNECTIVITYINSPECTOR_FilterController_H
+#define GAMMARAY_CONNECTIVITYINSPECTOR_FilterController_H
 
-using namespace GammaRay;
+#include "filterinterface.h"
 
-ConnectivityInspectorInterface::ConnectivityInspectorInterface(QObject *parent)
-    : QObject(parent)
-    , m_isPaused(false)
-{
-    ObjectBroker::registerObject<ConnectivityInspectorInterface *>(this);
-}
+namespace GammaRay {
+class FilterController : public FilterInterface {
+    Q_OBJECT
 
-void ConnectivityInspectorInterface::setIsPaused(bool value)
-{
-    m_isPaused = value;
-    emit isPausedChanged();
-}
+public:
+    explicit FilterController(const QString &name, QObject *parent = nullptr);
+    ~FilterController() override;
 
-ConnectivityInspectorInterface::~ConnectivityInspectorInterface() = default;
+public slots:
+    void recordAll() override;
+    void recordNone() override;
+    void showAll() override;
+    void showNone() override;
+};
+} // namespace GammaRay
+
+#endif // GAMMARAY_CONNECTIVITYINSPECTOR_FilterController_H

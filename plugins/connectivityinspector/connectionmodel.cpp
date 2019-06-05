@@ -24,7 +24,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "connectivityinspectormodel.h"
+#include "connectionmodel.h"
 
 #include <core/probe.h>
 #include <core/tools/objectinspector/outboundconnectionsmodel.h>

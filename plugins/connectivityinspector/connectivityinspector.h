@@ -27,78 +27,33 @@
 #ifndef GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTOR_H
 #define GAMMARAY_CONNECTIVITYINSPECTOR_CONNECTIVITYINSECTOR_H
 
-#include "connectivityinspectorinterface.h"
-
-#include "connectiontypemodel.h" // FIXME: TypeRole
-#include "recordingproxymodel.h"
-
 #include <core/toolfactory.h>
 
-#include <common/objectmodel.h>
-#include <common/tools/metaobjectbrowser/qmetaobjectmodel.h>
-
-#include <QQueue>
-
-QT_BEGIN_NAMESPACE
-class QTimer;
-class QAbstractProxyModel;
-QT_END_NAMESPACE
-
 namespace GammaRay {
+class AcquisitionEngine;
 
-class ConnectionTypeModel;
-class ConnectionModel;
-
-class ConnectivityAnalyser : public ConnectivityInspectorInterface
-{
+class ConnectivityInspector : public QObject {
     Q_OBJECT
 
 public:
-    explicit ConnectivityAnalyser(Probe *probe, QObject *parent = nullptr);
-    ~ConnectivityAnalyser() override;
-
-    // ObjectVisualizerInterface interface
-public slots:
-    void clearHistory() override;
+    explicit ConnectivityInspector(Probe *probe, QObject *parent = nullptr);
+    ~ConnectivityInspector() override;
 
 private:
-    void registerConnectionRecordingModel();
-    void registerConnectionModel();
-    void registerThreadRecordingModel();
-    void registerClassRecordingModel();
-    void registerObjectRecodingModel();
-    void initialise();
-
-    void addObject(QObject *object);
-    void removeObject(QObject *object);
-
-private slots:
-    void update();
-
-private:
-    Probe *m_probe;
-    ConnectionModel *m_connectionModel;
-    RecordingProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionRecordingModel;
-    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadRecordingModel;
-    RecordingProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classRecordingModel;
-    RecordingProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectRecordingModel;
-    QTimer *m_updateTimer;
-    QQueue<QObject *> m_objectAdded;
-    QQueue<QObject *> m_objectRemoved;
+    AcquisitionEngine *m_engine;
 };
 
-class ConnectivityAnalyserFactory : public QObject,
-                                    public StandardToolFactory<QObject, ConnectivityAnalyser>
-{
+class ConnectivityInspectorFactory
+    : public QObject,
+      public StandardToolFactory<QObject, ConnectivityInspector> {
     Q_OBJECT
     Q_INTERFACES(GammaRay::ToolFactory)
     Q_PLUGIN_METADATA(IID "com.kdab.GammaRay.ToolFactory" FILE
                           "gammaray_connectivityinspector.json")
 
 public:
-    explicit ConnectivityAnalyserFactory(QObject *parent = nullptr)
-        : QObject(parent)
-    {}
+    explicit ConnectivityInspectorFactory(QObject *parent = nullptr)
+        : QObject(parent) {}
 };
 } // namespace GammaRay
 

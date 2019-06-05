@@ -25,7 +25,7 @@
 */
 
 #include "vtkwidget.h"
-#include "connectivityinspectormodel.h"
+#include "connectionmodel.h"
 
 #include "common/objectid.h"
 
@@ -139,6 +139,15 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_layoutView->SetEdgeLabelArrayName(s_connWeightArrayName);
     m_layoutView->SetEdgeLabelVisibility(true);
 
+    m_objectIdArray = vtkUnsignedLongLongArray::New();
+    m_objectIdArray->SetName(s_ObjectIdArrayName);
+    m_threadIdArray = vtkUnsignedLongLongArray::New();
+    m_threadIdArray->SetName(s_ThreadIdArrayName);
+    m_objectLabelArray = vtkStringArray::New();
+    m_objectLabelArray->SetName(s_ObjectLabelArrayName);
+    m_connWeightArray = vtkIntArray::New();
+    m_connWeightArray->SetName(s_connWeightArrayName);
+
     m_renderTimer->setInterval(250);
     connect(m_renderTimer, &QTimer::timeout, this, [this]() { renderGraph(); });
 }
@@ -162,18 +171,14 @@ void VtkWidget::setModel(QAbstractItemModel *model)
 void VtkWidget::buildGraph()
 {
     m_graph = vtkMutableDirectedGraph::New();
-    m_objectIdArray = vtkUnsignedLongLongArray::New();
-    m_objectIdArray->SetName(s_ObjectIdArrayName);
+    m_objectIdArray->Reset();
     m_graph->GetVertexData()->AddArray(m_objectIdArray);
     m_graph->GetVertexData()->SetPedigreeIds(m_objectIdArray);
-    m_threadIdArray = vtkUnsignedLongLongArray::New();
-    m_threadIdArray->SetName(s_ThreadIdArrayName);
+    m_threadIdArray->Reset();
     m_graph->GetVertexData()->AddArray(m_threadIdArray);
-    m_objectLabelArray = vtkStringArray::New();
-    m_objectLabelArray->SetName(s_ObjectLabelArrayName);
+    m_objectLabelArray->Reset();
     m_graph->GetVertexData()->AddArray(m_objectLabelArray);
-    m_connWeightArray = vtkIntArray::New();
-    m_connWeightArray->SetName(s_connWeightArrayName);
+    m_connWeightArray->Reset();
     m_graph->GetEdgeData()->AddArray(m_connWeightArray);
 
     // Collect unique and valid objects

@@ -1,8 +1,8 @@
 # shared part
 set(gammaray_connectivityinspector_shared_srcs
-  connectivityinspectorinterface.cpp
+  acquisitioninterface.cpp
   connectivityinspectorcommon.cpp
-  recordinginterface.cpp
+  filterinterface.cpp
 )
 add_library(gammaray_connectivityinspector_shared STATIC ${gammaray_connectivityinspector_shared_srcs})
 target_link_libraries(gammaray_connectivityinspector_shared LINK_PRIVATE gammaray_common)
@@ -13,9 +13,10 @@ target_compile_features(gammaray_connectivityinspector_shared PUBLIC ${GAMMARAY_
 set(gammaray_connectivityinspector_plugin_srcs
   connectivityinspector.cpp
 
+  acquisitionengine.cpp
   connectiontypemodel.cpp
-  connectivityinspectormodel.cpp
-  recordingproxymodel.cpp
+  connectionmodel.cpp
+  filterproxymodel.cpp
 )
 
 gammaray_add_plugin(gammaray_connectivityinspector_plugin
@@ -69,11 +70,12 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
   set(gammaray_connectivityinspector_ui_plugin_srcs      
       connectivityinspectorwidget.cpp
 
-      connectivityinspectorclient.cpp
+      acquisitionwidget.cpp
+      acquisitioncontroller.cpp
       countdecoratorproxymodel.cpp
-      recordingclient.cpp
-      recordingwidget.cpp
-      recordingwidget.ui
+      filtercontroller.cpp
+      filterwidget.cpp
+      filterwidget.ui
 
       gvcontainer.cpp
       gvgraphicsview.cpp

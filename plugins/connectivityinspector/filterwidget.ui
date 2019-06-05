@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GammaRay::RecordingWidget</class>
- <widget class="QWidget" name="GammaRay::RecordingWidget">
+ <class>GammaRay::FilterWidget</class>
+ <widget class="QWidget" name="GammaRay::FilterWidget">
   <property name="geometry">
    <rect>
     <x>0</x>

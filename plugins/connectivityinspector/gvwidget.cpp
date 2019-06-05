@@ -26,7 +26,7 @@
 
 #include "gvwidget.h"
 
-#include "connectivityinspectormodel.h"
+#include "connectionmodel.h"
 #include "gvgraphicsview.h"
 #include "gvrenderer.h"
 
@@ -85,7 +85,7 @@ void GvWidget::setModel(QAbstractItemModel *model) {
     if (m_model) {
         renderGraph();
         m_renderTimer->setSingleShot(true);
-        m_renderTimer->start(std::chrono::milliseconds(100));
+        // m_renderTimer->start(std::chrono::milliseconds(100));
     }
 }
 
@@ -147,6 +147,7 @@ void GvWidget::processRow(int row) {
     m_gvGraph.addEdge(senderNode, receiverNode);
 }
 
+#define MISSING_GVQT_FIXES
 void GvWidget::renderGraph() {
     QElapsedTimer timer;
     timer.start();
@@ -154,8 +155,11 @@ void GvWidget::renderGraph() {
     m_scene->clear();
     m_renderingTime = timer.restart();
 
+    // FIXME
+#ifndef MISSING_GVQT_FIXES
     if (m_gvGraph.isValid())
         m_gvContext->discardGraph(m_gvGraph);
+#endif
     m_gvGraph = m_gvContext->newGraph("root", DirectedGraph);
     m_gvGraph.setGraphAttribute("concentrate", "true");
     m_gvGraph.setGraphAttribute("ranksep", QString::number(m_rankSeparation));
@@ -168,13 +172,18 @@ void GvWidget::renderGraph() {
         processRow(row);
     m_creatingTime = timer.restart();
 
+#ifndef MISSING_GVQT_FIXES
     auto result = m_gvContext->render(m_gvRenderer, m_gvGraph, m_currentAlgorithm);
     m_layoutingTime = result.first;
     m_renderingTime += result.second;
-
+#else
+    m_gvContext->render(m_gvRenderer, m_gvGraph, m_currentAlgorithm);
+#endif
     m_clusterCount = m_gvGraph.subGraphCount();
     m_nodeCount = m_gvGraph.nodeCount();
+#ifndef MISSING_GVQT_FIXES
     m_edgeCount = m_gvGraph.edgeCount();
+#endif
     updateStatusBar();
     QTimer::singleShot(0, this, [this]() {
         m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
