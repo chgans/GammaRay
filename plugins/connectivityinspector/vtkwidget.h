@@ -81,18 +81,33 @@ public slots:
     void setShowEdgeArrow(bool show);
 
 private:
+    // vtkDataObject: input of the pipeline
     vtkSmartPointer<vtkMutableDirectedGraph> m_graph;
-    vtkSmartPointer<vtkGraphLayoutStrategy> m_layoutStrategy;
-    vtkSmartPointer<vtkGraphLayout> m_layout;
-    vtkSmartPointer<vtkGraphLayoutView> m_layoutView;
-    vtkSmartPointer<QVTKInteractor> m_interactor;
-    vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
-    vtkSmartPointer<vtkActor> m_arrowDecorator;
+    // vtkAbstractArray (vertex and edge data)
     vtkStringArray *m_objectLabelArray;
     vtkUnsignedLongLongArray *m_objectIdArray;
     vtkUnsignedLongLongArray *m_threadIdArray;
     vtkIntArray *m_connWeightArray;
+    // vtkAlgorithm: Layout it's input graph using a strategy
+    vtkSmartPointer<vtkGraphLayout> m_layout;
+    // vtkObject
+    vtkSmartPointer<vtkGraphLayoutStrategy> m_layoutStrategy;
+    // vtkActor: takes the graph and an arrow source as input, decorate edges
+    vtkSmartPointer<vtkActor> m_arrowDecorator;
+
+    // vtkRenderView
+    vtkSmartPointer<vtkGraphLayoutView> m_layoutView;
+    // RenderWindowInteractor
+    vtkSmartPointer<QVTKInteractor> m_interactor;
+    // vtkInteractorObserver
+    vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
+
     QAbstractItemModel *m_model = nullptr;
+    QSet<quint64> m_objectIds;
+    QVector<std::tuple<quint64, quint64, std::string>> m_objects;
+    QVector<std::tuple<quint64, quint64, int>> m_connections;
+
+    // Internal state and data
     bool m_showEdgeArrow = false;
     bool m_inputHasChanged = true;
     bool m_configHasChanged = true;
@@ -101,11 +116,8 @@ private:
     qint64 m_renderDuration = 0;
     QElapsedTimer m_dataTimer;
     bool m_done = true;
-    QSet<quint64> m_objectIds;
-    QVector<std::tuple<quint64, quint64, std::string>> m_objects;
-    QVector<std::tuple<quint64, quint64, int>> m_connections;
 
-    bool tryFetchData();
+    bool tryUpdateGraph();
     bool fetchData();
     bool buildGraph();
     void renderGraph();

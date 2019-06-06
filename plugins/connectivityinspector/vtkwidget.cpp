@@ -119,7 +119,7 @@ VtkWidget::VtkWidget(QWidget *parent)
     : QVTKWidget(parent)
 {
     m_layout = vtkSmartPointer<vtkGraphLayout>::New();
-
+    m_graph = vtkMutableDirectedGraph::New();
     m_layoutView = vtkSmartPointer<vtkGraphLayoutView>::New();
 
     m_interactorStyle = vtkInteractorStyleTrackballCamera::New();
@@ -151,6 +151,7 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_connWeightArray = vtkIntArray::New();
     m_connWeightArray->SetName(s_connWeightArrayName);
 
+    m_layout->SetInputDataObject(m_graph);
     m_layoutView->SetLayoutStrategyToPassThrough();
     m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
 }
@@ -180,8 +181,6 @@ void VtkWidget::setModel(QAbstractItemModel *model)
 
 void VtkWidget::updateGraph()
 {
-    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
-
     if (!m_model)
         return;
 
@@ -191,25 +190,21 @@ void VtkWidget::updateGraph()
     if (!m_done)
         return;
 
-    qDebug() << __FUNCTION__;
     m_dataTimer.start();
     m_dataDuration = 0;
     setEnabled(false);
-    tryFetchData();
+    tryUpdateGraph();
 }
 
-bool VtkWidget::tryFetchData()
+bool VtkWidget::tryUpdateGraph()
 {
-    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
-
     updateSatus("Fetching data");
     if (!fetchData()) {
-        QTimer::singleShot(250, this, [this]() { tryFetchData(); });
+        QTimer::singleShot(250, this, [this]() { tryUpdateGraph(); });
         m_dataDuration = m_dataTimer.elapsed();
         return false;
     }
 
-    qDebug() << __FUNCTION__;
     m_dataDuration = m_dataTimer.elapsed();
     buildGraph();
     renderGraph();
@@ -224,13 +219,11 @@ bool VtkWidget::tryFetchData()
 
 bool VtkWidget::fetchData()
 {
-    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
     if (!m_inputHasChanged)
         return true;
 
     // Collect unique and valid objects and their connection counters
     // Keep everything ordered for the graph data arrays
-    qDebug() << __FUNCTION__;
     m_objectIds.clear();
     m_objects.clear();
     m_connections.clear();
@@ -258,19 +251,16 @@ bool VtkWidget::fetchData()
 
 bool VtkWidget::buildGraph()
 {
-    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
-
     if (!m_inputHasChanged)
         return true;
 
-    qDebug() << __FUNCTION__;
     m_graphDuration = 0;
     updateSatus("Building graph");
     QElapsedTimer timer;
     timer.start();
 
     // Create all the nodes and only then the edges to avoid auto-created nodes
-    m_graph = vtkMutableDirectedGraph::New();
+    m_graph->Initialize();
     m_objectIdArray->Reset();
     m_graph->GetVertexData()->AddArray(m_objectIdArray);
     m_graph->GetVertexData()->SetPedigreeIds(m_objectIdArray);
@@ -314,8 +304,9 @@ void VtkWidget::createArrowDecorator(vtkAlgorithmOutput *input)
     auto arrowGlyph = vtkSmartPointer<vtkGlyph3D>::New();
     arrowGlyph->SetInputConnection(0, graphToPoly->GetOutputPort(1));
     arrowGlyph->SetInputConnection(1, arrowSource->GetOutputPort());
+    //arrowGlyph->SetScaling(1);
     auto arrowMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());
+    arrowMapper->SetInputConnection(arrowGlyph->GetOutputPort());    
     m_arrowDecorator = vtkSmartPointer<vtkActor>::New();
     m_arrowDecorator->SetMapper(arrowMapper);
 }
@@ -338,7 +329,6 @@ void VtkWidget::renderGraph()
     updateSatus("Rendering graph");
     QElapsedTimer timer;
     timer.start();
-    m_layout->SetInputDataObject(m_graph);
     m_layoutView->Render();
     m_renderDuration = timer.elapsed();
 }
@@ -549,9 +539,11 @@ void VtkWidget::setShowEdgeArrow(bool show)
     if (m_showEdgeArrow) {
         m_layoutView->GetRenderer()->AddActor(m_arrowDecorator);
         m_layoutView->SetEdgeLayoutStrategyToPassThrough();
+        // m_layoutView->SetScaledGlyphs(true); // only applies to nodes
     } else {
         m_layoutView->GetRenderer()->RemoveActor(m_arrowDecorator);
         m_layoutView->SetEdgeLayoutStrategyToArcParallel();
+        // m_layoutView->SetScaledGlyphs(false);  // only applies to nodes
     }
     m_configHasChanged = true;
     updateGraph();
