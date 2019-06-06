@@ -168,12 +168,15 @@ void VtkWidget::setModel(QAbstractItemModel *model)
 
     if (m_model) {
         connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
+            qWarning() << "MODEL RESET";
             m_inputHasChanged = true;
         });
         connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this]() {
+            qWarning() << "ROW REMOVED";
             m_inputHasChanged = true;
         });
         connect(m_model, &QAbstractItemModel::rowsInserted, this, [this]() {
+            qWarning() << "ROW INSERTED";
             m_inputHasChanged = true;
         });
     }
@@ -181,6 +184,7 @@ void VtkWidget::setModel(QAbstractItemModel *model)
 
 void VtkWidget::updateGraph()
 {
+    qWarning() << "UPDATE GRAPH";
     if (!m_model)
         return;
 
@@ -191,8 +195,12 @@ void VtkWidget::updateGraph()
         return;
 
     m_dataTimer.start();
-    m_dataDuration = 0;
+    m_fetchDuration = 0;
     setEnabled(false);
+    m_rowDone.clear();
+    m_objectIds.clear();
+    m_objects.clear();
+    m_connections.clear();
     tryUpdateGraph();
 }
 
@@ -201,11 +209,11 @@ bool VtkWidget::tryUpdateGraph()
     updateSatus("Fetching data");
     if (!fetchData()) {
         QTimer::singleShot(250, this, [this]() { tryUpdateGraph(); });
-        m_dataDuration = m_dataTimer.elapsed();
+        m_fetchDuration = m_dataTimer.elapsed();
         return false;
     }
 
-    m_dataDuration = m_dataTimer.elapsed();
+    m_fetchDuration = m_dataTimer.elapsed();
     buildGraph();
     renderGraph();
     m_layoutView->ResetCamera();
@@ -224,11 +232,9 @@ bool VtkWidget::fetchData()
 
     // Collect unique and valid objects and their connection counters
     // Keep everything ordered for the graph data arrays
-    m_objectIds.clear();
-    m_objects.clear();
-    m_connections.clear();
-    bool done = true;
     for (int row = 0; row < m_model->rowCount(); ++row) {
+        if (m_rowDone.contains(row))
+            continue; // FIXME: Won't work if row added/removed
         auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
         auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
         auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
@@ -236,17 +242,20 @@ bool VtkWidget::fetchData()
         auto receiverThreadId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
         auto receiverLabel = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
         auto edgeWeight = weight(m_model, row);
-        done = senderObjectId && senderThreadId && !senderLabel.isNull() && receiverObjectId
-               && receiverThreadId && !receiverLabel.isNull() && edgeWeight;
+        const bool done = senderObjectId && senderThreadId && !senderLabel.isNull()
+                          && receiverObjectId && receiverThreadId && !receiverLabel.isNull()
+                          && edgeWeight;
         if (done) {
             if (!m_objectIds.contains(senderObjectId))
                 m_objects.append({senderObjectId, senderThreadId, senderLabel.toStdString()});
             if (!m_objectIds.contains(receiverObjectId))
                 m_objects.append({receiverObjectId, receiverThreadId, receiverLabel.toStdString()});
             m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
+            m_rowDone.insert(row);
         }
     }
-    return done;
+    qWarning() << __FUNCTION__ << m_rowDone.count() << m_model->rowCount();
+    return m_rowDone.count() == m_model->rowCount();
 }
 
 bool VtkWidget::buildGraph()
@@ -313,12 +322,11 @@ void VtkWidget::createArrowDecorator(vtkAlgorithmOutput *input)
 
 void VtkWidget::updateSatus(const QString &state)
 {
-    const auto status = QStringLiteral("State: %1, Wait: %2 ms, Build: %3 ms, "
-                                       "Layout: %4 ms, Render: %5 ms")
+    const auto status = QStringLiteral("State: %1, Fetch: %2 ms, Build: %3 ms, "
+                                       "Render: %4 ms")
                             .arg(state)
-                            .arg(m_dataDuration)
+                            .arg(m_fetchDuration)
                             .arg(m_graphDuration)
-                            .arg(0)
                             .arg(m_renderDuration);
     emit statusChanged(status);
 }

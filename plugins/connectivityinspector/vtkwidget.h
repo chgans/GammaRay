@@ -106,12 +106,13 @@ private:
     QSet<quint64> m_objectIds;
     QVector<std::tuple<quint64, quint64, std::string>> m_objects;
     QVector<std::tuple<quint64, quint64, int>> m_connections;
+    QSet<int> m_rowDone;
 
     // Internal state and data
     bool m_showEdgeArrow = false;
     bool m_inputHasChanged = true;
     bool m_configHasChanged = true;
-    qint64 m_dataDuration = 0;
+    qint64 m_fetchDuration = 0;
     qint64 m_graphDuration = 0;
     qint64 m_renderDuration = 0;
     QElapsedTimer m_dataTimer;
