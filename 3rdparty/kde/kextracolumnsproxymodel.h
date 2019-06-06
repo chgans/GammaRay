@@ -92,7 +92,9 @@ public:
     virtual QVariant extraColumnData(const QModelIndex &parent, int row, int extraColumn, int role = Qt::DisplayRole) const = 0;
 
     // KF6 TODO: add extraColumnFlags() virtual method
-    virtual Qt::ItemFlags extraColumnFlags(int extraColumn) const = 0;
+    virtual Qt::ItemFlags extraColumnFlags(const QModelIndex &parent,
+                                           int row,
+                                           int extraColumn) const = 0;
 
     virtual QMap<int, QVariant>
     extraItemData(const QModelIndex &index) const = 0;

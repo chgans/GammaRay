@@ -214,7 +214,7 @@ Qt::ItemFlags KExtraColumnsProxyModel::flags(const QModelIndex &index) const
     Q_D(const KExtraColumnsProxyModel);
     const int extraCol = extraColumnForProxyColumn(index.column());
     if (extraCol >= 0 && !d->m_extraHeaders.isEmpty()) {
-        return extraColumnFlags(extraCol);
+        return extraColumnFlags(index.parent(), index.row(), extraCol);
     }
     return sourceModel()->flags(mapToSource(index));
 }
