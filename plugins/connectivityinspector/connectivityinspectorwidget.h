@@ -43,7 +43,7 @@ namespace Ui {
 }
 class DeferredTreeView;
 class AcquisitionInterface;
-class FilterInterface;
+class DiscriminatorInterface;
 class FilterWidget;
 
 class ConnectivityInspectorWidget : public QWidget {
@@ -58,7 +58,7 @@ private:
     void setupModels();
     void setupUi();
     void setupConnectionView();
-    void setupFilterWidget(FilterWidget *widget, FilterInterface *interface,
+    void setupFilterWidget(FilterWidget *widget, DiscriminatorInterface *interface,
                            QAbstractItemModel *model);
 
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
@@ -67,13 +67,13 @@ private:
     QAbstractItemModel *m_connectionModel;
 
     QAbstractItemModel *m_connectionFilterModel;
-    FilterInterface *m_connectionFilterInterface;
+    DiscriminatorInterface *m_connectionFilterInterface;
     QAbstractItemModel *m_threadRecordingModel;
-    FilterInterface *m_threadFilterInterface;
+    DiscriminatorInterface *m_threadFilterInterface;
     QAbstractItemModel *m_classRecordingModel;
-    FilterInterface *m_classFilterInterface;
+    DiscriminatorInterface *m_classFilterInterface;
     QAbstractItemModel *m_objectRecordingModel;
-    FilterInterface *m_objectFilterInterface;
+    DiscriminatorInterface *m_objectFilterInterface;
 };
 
 class ConnectivityInspectorUiFactory

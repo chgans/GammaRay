@@ -112,8 +112,9 @@ void ConnectivityInspectorWidget::setupConnectionView() {
 }
 
 void ConnectivityInspectorWidget::setupFilterWidget(FilterWidget *widget,
-                                                    FilterInterface *interface,
-                                                    QAbstractItemModel *model) {
+                                                    DiscriminatorInterface *interface,
+                                                    QAbstractItemModel *model)
+{
     auto proxy = new CountDecoratorProxyModel(this);
     proxy->setSourceModel(model);
     widget->setup(interface, proxy);

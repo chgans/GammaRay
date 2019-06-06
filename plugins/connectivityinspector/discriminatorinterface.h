@@ -36,21 +36,22 @@ class QSize;
 QT_END_NAMESPACE
 
 namespace GammaRay {
-class FilterInterface : public QObject {
-
+class DiscriminatorInterface : public QObject
+{
     Q_OBJECT
 
 public:
-    explicit FilterInterface(const QString &name, QObject *parent = nullptr);
-    ~FilterInterface() override;
+    explicit DiscriminatorInterface(const QString &name, QObject *parent = nullptr);
+    ~DiscriminatorInterface() override;
 
     QString name() const;
 
 public slots:
-    virtual void recordAll() = 0;
-    virtual void recordNone() = 0;
-    virtual void showAll() = 0;
-    virtual void showNone() = 0;
+    virtual void setEnabled(bool enabled) = 0;
+    virtual void discriminateAll() = 0;
+    virtual void discriminateNone() = 0;
+    virtual void filterAll() = 0;
+    virtual void filterNone() = 0;
 
 private:
     const QString m_name;
@@ -58,8 +59,8 @@ private:
 } // namespace GammaRay
 
 QT_BEGIN_NAMESPACE
-Q_DECLARE_INTERFACE(GammaRay::FilterInterface,
-                    "com.kdab.GammaRay.ConnectivityInspector.FilterInterface")
+Q_DECLARE_INTERFACE(GammaRay::DiscriminatorInterface,
+                    "com.kdab.GammaRay.ConnectivityInspector.DiscriminatorInterface")
 QT_END_NAMESPACE
 
 #endif // GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGINTERFACE_H

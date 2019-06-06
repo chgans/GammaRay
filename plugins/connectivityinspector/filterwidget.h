@@ -8,7 +8,7 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 
-class FilterInterface;
+class DiscriminatorInterface;
 
 namespace Ui {
 class FilterWidget;
@@ -21,11 +21,11 @@ public:
     explicit FilterWidget(QWidget *parent = nullptr);
     ~FilterWidget();
 
-    void setup(FilterInterface *interface, QAbstractItemModel *model);
+    void setup(DiscriminatorInterface *interface, QAbstractItemModel *model);
 
 private:
     QScopedPointer<Ui::FilterWidget> m_ui;
-    FilterInterface *m_interface = nullptr;
+    DiscriminatorInterface *m_interface = nullptr;
     QAbstractItemModel *m_model = nullptr;
 };
 

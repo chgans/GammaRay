@@ -31,22 +31,32 @@
 using namespace GammaRay;
 
 FilterController::FilterController(const QString &name, QObject *parent)
-    : FilterInterface(name, parent) {}
+    : DiscriminatorInterface(name, parent)
+{}
 
 FilterController::~FilterController() = default;
 
-void FilterController::recordAll() {
-    Endpoint::instance()->invokeObject(objectName(), "recordAll");
+void FilterController::setEnabled(bool enabled)
+{
+    Endpoint::instance()->invokeObject(objectName(), "setEnabled", QVariantList() << enabled);
 }
 
-void FilterController::recordNone() {
-    Endpoint::instance()->invokeObject(objectName(), "recordNone");
+void FilterController::discriminateAll()
+{
+    Endpoint::instance()->invokeObject(objectName(), "discriminateAll");
 }
 
-void FilterController::showAll() {
-    Endpoint::instance()->invokeObject(objectName(), "showAll");
+void FilterController::discriminateNone()
+{
+    Endpoint::instance()->invokeObject(objectName(), "discriminateNone");
 }
 
-void FilterController::showNone() {
-    Endpoint::instance()->invokeObject(objectName(), "showNone");
+void FilterController::filterAll()
+{
+    Endpoint::instance()->invokeObject(objectName(), "filterAll");
+}
+
+void FilterController::filterNone()
+{
+    Endpoint::instance()->invokeObject(objectName(), "filterNone");
 }

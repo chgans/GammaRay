@@ -27,21 +27,23 @@
 #ifndef GAMMARAY_CONNECTIVITYINSPECTOR_FilterController_H
 #define GAMMARAY_CONNECTIVITYINSPECTOR_FilterController_H
 
-#include "filterinterface.h"
+#include "discriminatorinterface.h"
 
 namespace GammaRay {
-class FilterController : public FilterInterface {
+class FilterController : public DiscriminatorInterface {
     Q_OBJECT
 
 public:
     explicit FilterController(const QString &name, QObject *parent = nullptr);
     ~FilterController() override;
 
+    // DiscriminatorInterface interface
 public slots:
-    void recordAll() override;
-    void recordNone() override;
-    void showAll() override;
-    void showNone() override;
+    void setEnabled(bool enabled) override;
+    void discriminateAll() override;
+    void discriminateNone() override;
+    void filterAll() override;
+    void filterNone() override;
 };
 } // namespace GammaRay
 

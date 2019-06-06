@@ -2,7 +2,7 @@
 set(gammaray_connectivityinspector_shared_srcs
   acquisitioninterface.cpp
   connectivityinspectorcommon.cpp
-  filterinterface.cpp
+  discriminatorinterface.cpp
 )
 add_library(gammaray_connectivityinspector_shared STATIC ${gammaray_connectivityinspector_shared_srcs})
 target_link_libraries(gammaray_connectivityinspector_shared LINK_PRIVATE gammaray_common)
@@ -16,7 +16,7 @@ set(gammaray_connectivityinspector_plugin_srcs
   acquisitionengine.cpp
   connectiontypemodel.cpp
   connectionmodel.cpp
-  filterproxymodel.cpp
+  discriminatorproxymodel.cpp
 )
 
 gammaray_add_plugin(gammaray_connectivityinspector_plugin

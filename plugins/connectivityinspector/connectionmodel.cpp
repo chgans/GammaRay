@@ -188,9 +188,10 @@ void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
         return;
     const auto edge = m_senderMap.value(sender).value(receiver);
     const int row = m_items.indexOf(edge);
-    beginRemoveRows(QModelIndex(), row, row);
-    qDeleteAll(m_senderMap[sender].values());
+    Q_ASSERT(row >= 0);
+    beginRemoveRows(QModelIndex(), row, row);    
     m_items.removeAt(row);
+    delete edge;
     m_senderMap[sender].remove(receiver);
     endRemoveRows();
 }

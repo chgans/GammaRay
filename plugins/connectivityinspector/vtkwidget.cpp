@@ -166,9 +166,11 @@ void VtkWidget::setModel(QAbstractItemModel *model)
     m_model = model;
 
     if (m_model) {
-        connect(m_model, &QAbstractItemModel::modelReset, this, &VtkWidget::renderGraph);
-        connect(m_model, &QAbstractItemModel::rowsRemoved, this, &VtkWidget::renderGraph);
-        connect(m_model, &QAbstractItemModel::rowsInserted, this, &VtkWidget::renderGraph);
+        // TODO: connect to samplingDone()?
+        // But we'll still have invalid data
+        //        connect(m_model, &QAbstractItemModel::modelReset, this, &VtkWidget::renderGraph);
+        //        connect(m_model, &QAbstractItemModel::rowsRemoved, this, &VtkWidget::renderGraph);
+        //        connect(m_model, &QAbstractItemModel::rowsInserted, this, &VtkWidget::renderGraph);
         renderGraph();
     }
 }

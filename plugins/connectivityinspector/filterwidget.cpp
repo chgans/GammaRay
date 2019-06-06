@@ -1,7 +1,7 @@
 #include "filterwidget.h"
 #include "ui_filterwidget.h"
 
-#include "filterinterface.h"
+#include "discriminatorinterface.h"
 
 #include <ui/searchlinecontroller.h>
 
@@ -14,7 +14,7 @@ FilterWidget::FilterWidget(QWidget *parent)
 
 FilterWidget::~FilterWidget() = default;
 
-void FilterWidget::setup(FilterInterface *interface,
+void FilterWidget::setup(DiscriminatorInterface *interface,
                          QAbstractItemModel *model) {
     Q_ASSERT(m_interface == nullptr);
     Q_ASSERT(m_model == nullptr);
@@ -31,12 +31,24 @@ void FilterWidget::setup(FilterInterface *interface,
     view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
     view->setModel(m_model);
     view->setSortingEnabled(true);
-    connect(m_ui->recordAllButton, &QToolButton::clicked, m_interface,
-            &FilterInterface::recordAll);
-    connect(m_ui->recordNoneButton, &QToolButton::clicked, m_interface,
-            &FilterInterface::recordNone);
-    connect(m_ui->showAllButton, &QToolButton::clicked, m_interface,
-            &FilterInterface::showAll);
-    connect(m_ui->showNonoeButton, &QToolButton::clicked, m_interface,
-            &FilterInterface::showNone);
+    connect(m_ui->enableFilteringCheckBox,
+            &QCheckBox::toggled,
+            m_interface,
+            &DiscriminatorInterface::setEnabled);
+    connect(m_ui->enableAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &DiscriminatorInterface::discriminateAll);
+    connect(m_ui->disableAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &DiscriminatorInterface::discriminateNone);
+    connect(m_ui->filterAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &DiscriminatorInterface::filterAll);
+    connect(m_ui->passAllButton,
+            &QToolButton::clicked,
+            m_interface,
+            &DiscriminatorInterface::filterNone);
 }

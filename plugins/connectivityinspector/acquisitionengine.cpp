@@ -3,7 +3,7 @@
 #include "connectionmodel.h"
 #include "connectiontypemodel.h"
 #include "connectivityinspectorcommon.h"
-#include "filterproxymodel.h"
+#include "discriminatorproxymodel.h"
 
 #include <core/objecttreemodel.h>
 #include <core/objecttypefilterproxymodel.h>
@@ -63,13 +63,13 @@ void AcquisitionEngine::increaseCountersForObject(QObject *object) {
         return;
     if (m_probe->filterObject(object))
         return;
-    m_objectFilterModel->increaseCount(object);
-    m_classFilterModel->increaseCount(object->metaObject());
+    m_objectFilterModel->increaseUsageCount(object);
+    m_classFilterModel->increaseUsageCount(object->metaObject());
     if (m_probe->isValidObject(object->thread()))
-        m_threadFilterModel->increaseCount(object->thread());
+        m_threadFilterModel->increaseUsageCount(object->thread());
     auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
     for (const auto &connection : connections) {
-        m_connectionFilterModel->increaseCount(connection.type);
+        m_connectionFilterModel->increaseUsageCount(connection.type);
     }
 }
 
@@ -82,7 +82,7 @@ void AcquisitionEngine::decreaseCountersForObject(QObject *object) {
         return;
 
     // FIXME:
-    m_objectFilterModel->decreaseCount(object);
+    m_objectFilterModel->decreaseUsageCount(object);
     // m_threadFilterModel->decreaseCount(object->thread());
     // m_classFilterModel->increaseCount(object->metaObject());
     // m_connectionTypeModel->decreaseCount(connections);
@@ -116,19 +116,17 @@ void AcquisitionEngine::takeSample() {
             m_connectionModel->removeConnections(object);
             continue;
         }
-        const bool isRecordingObject =
-            m_threadFilterModel->isRecording(object->thread()) ||
-            m_classFilterModel->isRecording(object->metaObject()) ||
-            m_objectFilterModel->isRecording(object);
+        const bool isRecordingObject = m_threadFilterModel->isAccepting(object->thread())
+                                       && m_classFilterModel->isAccepting(object->metaObject())
+                                       && m_objectFilterModel->isAccepting(object);
         auto connections =
             OutboundConnectionsModel::outboundConnectionsForObject(object);
         for (const auto &connection : connections) {
             QObject *receiver = connection.endpoint.data();
-            const bool isRecordingConnection =
-                m_connectionFilterModel->isRecording(connection.type);
+            const bool isRecordingConnection = m_connectionFilterModel->isAccepting(connection.type);
             const bool isRecorded =
                 m_connectionModel->hasConnection(object, receiver);
-            const bool isRecording = isRecordingObject || isRecordingConnection;
+            const bool isRecording = isRecordingObject && isRecordingConnection;
             if (isRecorded == isRecording)
                 continue;
             if (isRecording)
@@ -156,55 +154,51 @@ void AcquisitionEngine::registerConnectionModel() {
 
 void AcquisitionEngine::registerConnectionFilterModel() {
     m_connectionInputModel = new ConnectionTypeModel(this);
-    m_connectionFilterModel =
-        new FilterProxyModel<int, ConnectionTypeModel::TypeRole>(this);
+    m_connectionFilterModel = new DiscriminatorProxyModel<int, ConnectionTypeModel::TypeRole>(this);
 
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_connectionFilterModel);
 
     m_probe->registerModel(ObjectVisualizerConnectionTypeModelId, proxy);
-    new FilterInterfaceBridge("Connection", m_connectionFilterModel, this);
+    new DiscriminatorInterfaceBridge("Connection", m_connectionFilterModel, this);
 }
 
 void AcquisitionEngine::registerThreadFilterModel() {
     auto input = new ObjectTypeFilterProxyModel<QThread>(this);
     input->setSourceModel(m_probe->objectListModel());
     m_threadInputModel = input;
-    m_threadFilterModel =
-        new FilterProxyModel<QObject *, ObjectModel::ObjectRole>(this);
+    m_threadFilterModel = new DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole>(this);
 
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_threadFilterModel);
 
     m_probe->registerModel(ObjectVisualizerThreadModelId, m_threadFilterModel);
-    new FilterInterfaceBridge("Thread", m_threadFilterModel, this);
+    new DiscriminatorInterfaceBridge("Thread", m_threadFilterModel, this);
 }
 
 void AcquisitionEngine::registerClassFilterModel() {
     auto input = new SingleColumnObjectProxyModel();
     input->setSourceModel(m_probe->metaObjectTreeModel());
     m_classInputModel = input;
-    m_classFilterModel =
-        new FilterProxyModel<const QMetaObject *,
-                             QMetaObjectModel::MetaObjectRole>(this);
+    m_classFilterModel
+        = new DiscriminatorProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole>(this);
 
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_classFilterModel);
 
     m_probe->registerModel(ObjectVisualizerClassModelId, m_classFilterModel);
-    new FilterInterfaceBridge("Class", m_classFilterModel, this);
+    new DiscriminatorInterfaceBridge("Class", m_classFilterModel, this);
 }
 
 void AcquisitionEngine::registerObjectFilterModel() {
     m_objectInputModel = m_probe->objectTreeModel();
-    m_objectFilterModel =
-        new FilterProxyModel<QObject *, ObjectModel::ObjectRole>(this);
+    m_objectFilterModel = new DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole>(this);
 
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_objectFilterModel);
 
     m_probe->registerModel(ObjectVisualizerObjectModelId, m_objectFilterModel);
-    new FilterInterfaceBridge("Object", m_objectFilterModel, this);
+    new DiscriminatorInterfaceBridge("Object", m_objectFilterModel, this);
 }
 
 /*

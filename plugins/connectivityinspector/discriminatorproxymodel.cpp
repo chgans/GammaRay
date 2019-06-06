@@ -24,7 +24,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "filterproxymodel.h"
+#include "discriminatorproxymodel.h"
 
 #include "connectivityinspectorcommon.h"
 
@@ -32,18 +32,21 @@
 
 using namespace GammaRay;
 
-FilterProxyModelBase::FilterProxyModelBase(QObject *parent)
-    : KExtraColumnsProxyModel(parent) {
-    appendColumn("Count");
-    appendColumn("Record");
-    appendColumn("Show");
+DiscriminatorProxyModelBase::DiscriminatorProxyModelBase(QObject *parent)
+    : KExtraColumnsProxyModel(parent)
+{
+    appendColumn("Connections");
+    appendColumn("Enable");
+    appendColumn("Filter");
 }
 
-FilterProxyModelBase::~FilterProxyModelBase() = default;
+DiscriminatorProxyModelBase::~DiscriminatorProxyModelBase() = default;
 
-QVariant FilterProxyModelBase::extraColumnData(const QModelIndex &parent,
-                                               int row, int extraColumn,
-                                               int role) const {
+QVariant DiscriminatorProxyModelBase::extraColumnData(const QModelIndex &parent,
+                                                      int row,
+                                                      int extraColumn,
+                                                      int role) const
+{
     if (!sourceModel())
         return {};
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
@@ -58,64 +61,81 @@ QVariant FilterProxyModelBase::extraColumnData(const QModelIndex &parent,
     } else if (role == Qt::DisplayRole) {
         switch (extraColumn) {
         case CountColumn:
-            return recordCount(srcIndex);
+            return usageCount(srcIndex);
         }
     } else if (role == Qt::CheckStateRole) {
         switch (extraColumn) {
-        case IsRecordingColumn:
-            return isRecording(srcIndex) ? Qt::Checked : Qt::Unchecked;
-        case IsVisibleColumn:
-            return isVisible(srcIndex) ? Qt::Checked : Qt::Unchecked;
+        case IsDiscrimatingColumn:
+            return isDiscriminating(srcIndex) ? Qt::Checked : Qt::Unchecked;
+        case IsFilteringColumn:
+            return isFiltering(srcIndex) ? Qt::Checked : Qt::Unchecked;
         }
     }
 
     return {};
 }
 
-bool FilterProxyModelBase::setExtraColumnData(const QModelIndex &parent,
-                                              int row, int extraColumn,
-                                              const QVariant &value, int role) {
+bool DiscriminatorProxyModelBase::setExtraColumnData(
+    const QModelIndex &parent, int row, int extraColumn, const QVariant &value, int role)
+{
     if (role != Qt::CheckStateRole)
         return false;
 
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
     const bool enabled = value.toInt() == Qt::Checked;
-    if (extraColumn == IsRecordingColumn) {
-        setIsRecording(srcIndex, enabled);
-    } else if (extraColumn == IsVisibleColumn) {
-        setIsVisible(srcIndex, enabled);
+    if (extraColumn == IsDiscrimatingColumn) {
+        setIsDiscriminating(srcIndex, enabled);
+    } else if (extraColumn == IsFilteringColumn) {
+        if (isDiscriminating(srcIndex))
+            setIsFiltering(srcIndex, enabled);
     } else
         return false;
-    extraColumnDataChanged(parent, row, extraColumn, {role});
+    extraColumnDataChanged(parent, row, IsDiscrimatingColumn, {role});
+    extraColumnDataChanged(parent, row, IsFilteringColumn, {role});
     return true;
 }
 
-Qt::ItemFlags FilterProxyModelBase::extraColumnFlags(int extraColumn) const {
-    Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+Qt::ItemFlags DiscriminatorProxyModelBase::extraColumnFlags(const QModelIndex &parent,
+                                                            int row,
+                                                            int extraColumn) const
+{
+    constexpr auto checkFlags = Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate;
 
-    if (extraColumn == IsRecordingColumn || extraColumn == IsVisibleColumn)
-        flags |= Qt::ItemIsUserCheckable;
-
-    return flags;
+    switch (extraColumn) {
+    case CountColumn:
+        return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+    case IsDiscrimatingColumn:
+        return Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags;
+    case IsFilteringColumn: {
+        const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
+        if (isDiscriminating(srcIndex))
+            return Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags;
+        return Qt::ItemIsSelectable | checkFlags;
+    }
+    }
+    Q_ASSERT(false);
+    return {};
 }
 
-QMap<int, QVariant>
-FilterProxyModelBase::extraItemData(const QModelIndex &index) const {
+QMap<int, QVariant> DiscriminatorProxyModelBase::extraItemData(const QModelIndex &index) const
+{
     QMap<int, QVariant> map = QAbstractItemModel::itemData(index);
     map.insert(MetricColumRole, data(index, MetricColumRole));
     map.insert(MetricMaxRole, data(index, MetricMaxRole));
     return map;
 }
 
-void FilterProxyModelBase::setSourceModel(QAbstractItemModel *model) {
+void DiscriminatorProxyModelBase::setSourceModel(QAbstractItemModel *model)
+{
     if (sourceModel())
-        finaliseRecordingModel();
+        finaliseDiscriminator();
     QIdentityProxyModel::setSourceModel(model);
     if (sourceModel())
-        initialiseRecordingModel();
+        initialiseDiscriminator();
 }
 
-void FilterProxyModelBase::resetCounts() {
+void DiscriminatorProxyModelBase::resetCounts()
+{
     if (!sourceModel())
         return;
 
@@ -126,7 +146,8 @@ void FilterProxyModelBase::resetCounts() {
     endResetModel();
 }
 
-void FilterProxyModelBase::increaseCount(const QModelIndex &index) {
+void DiscriminatorProxyModelBase::increaseUsageCount(const QModelIndex &index)
+{
     Q_ASSERT(m_data.contains(index));
     m_data[index].count++;
     m_maxCount = std::max(m_maxCount, m_data.value(index).count);
@@ -135,7 +156,8 @@ void FilterProxyModelBase::increaseCount(const QModelIndex &index) {
                            {Qt::DisplayRole});
 }
 
-void FilterProxyModelBase::decreaseCount(const QModelIndex &index) {
+void DiscriminatorProxyModelBase::decreaseUsageCount(const QModelIndex &index)
+{
     Q_ASSERT(m_data.contains(index));
     m_data[index].count--;
     // max count?
@@ -144,75 +166,94 @@ void FilterProxyModelBase::decreaseCount(const QModelIndex &index) {
                            {Qt::DisplayRole});
 }
 
-quint64 FilterProxyModelBase::recordCount(const QModelIndex &index) const {
+quint64 DiscriminatorProxyModelBase::usageCount(const QModelIndex &index) const
+{
     Q_ASSERT(m_data.contains(index));
     return m_data.value(index).count;
 }
 
-bool FilterProxyModelBase::isRecording(const QModelIndex &index) const {
-    Q_ASSERT(m_data.contains(index));
-    return m_data.value(index).isRecording;
+void DiscriminatorProxyModelBase::setEnabled(bool enabled)
+{
+    if (m_enabled == enabled)
+        return;
+    m_enabled = enabled;
+    // TODO: ?
+    // emit isEnabledChanged(m_enabled);
 }
 
-void FilterProxyModelBase::setIsRecording(const QModelIndex &index,
-                                          bool enabled) {
+bool DiscriminatorProxyModelBase::isDiscriminating(const QModelIndex &index) const
+{
     Q_ASSERT(m_data.contains(index));
-    m_data[index].isRecording = enabled;
+    return m_data.value(index).isDiscriminating;
 }
 
-bool FilterProxyModelBase::isVisible(const QModelIndex &index) const {
+void DiscriminatorProxyModelBase::setIsDiscriminating(const QModelIndex &index, bool enabled)
+{
     Q_ASSERT(m_data.contains(index));
-    return m_data.value(index).isVisible;
+    m_data[index].isDiscriminating = enabled;
 }
 
-void FilterProxyModelBase::setIsVisible(const QModelIndex &index,
-                                        bool enabled) {
+bool DiscriminatorProxyModelBase::isFiltering(const QModelIndex &index) const
+{
     Q_ASSERT(m_data.contains(index));
-    m_data[index].isVisible = enabled;
+    return m_data.value(index).isFiltering;
 }
 
-void FilterProxyModelBase::recordAll() {
+void DiscriminatorProxyModelBase::setIsFiltering(const QModelIndex &index, bool enabled)
+{
+    Q_ASSERT(m_data.contains(index));
+    m_data[index].isFiltering = enabled;
+}
+
+void DiscriminatorProxyModelBase::discriminateAll()
+{
     if (!sourceModel())
         return;
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isRecording = true;
+        data.isDiscriminating = true;
     endResetModel();
 }
 
-void FilterProxyModelBase::recordNone() {
+void DiscriminatorProxyModelBase::discriminateNone()
+{
     if (!sourceModel())
         return;
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isRecording = false;
+        data.isDiscriminating = false;
     endResetModel();
 }
 
-void FilterProxyModelBase::showAll() {
+void DiscriminatorProxyModelBase::filterAll()
+{
+    if (!sourceModel())
+        return;
+
+    beginResetModel();
+    for (auto &data : m_data) {
+        if (data.isDiscriminating)
+            data.isFiltering = true;
+    }
+    endResetModel();
+}
+
+void DiscriminatorProxyModelBase::filterNone()
+{
     if (!sourceModel())
         return;
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isVisible = true;
+        if (data.isDiscriminating)
+            data.isFiltering = false;
     endResetModel();
 }
 
-void FilterProxyModelBase::showNone() {
-    if (!sourceModel())
-        return;
-
-    beginResetModel();
-    for (auto &data : m_data)
-        data.isVisible = false;
-    endResetModel();
-}
-
-void FilterProxyModelBase::visitIndex(const QModelIndex &sourceIndex,
-                                      IndexVisitor visitor) {
+void DiscriminatorProxyModelBase::visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor)
+{
     const int rowCount = sourceModel()->rowCount(sourceIndex);
     for (int row = 0; row < rowCount; ++row) {
         const auto index = sourceModel()->index(row, 0, sourceIndex);
@@ -221,10 +262,11 @@ void FilterProxyModelBase::visitIndex(const QModelIndex &sourceIndex,
     }
 }
 
-void FilterProxyModelBase::initialiseRecordingModel() {
+void DiscriminatorProxyModelBase::initialiseDiscriminator()
+{
     visitIndex(QModelIndex(), [this](const QModelIndex &index) {
         m_data.insert(index, {});
-        addRecordingData(index);
+        addItemData(index);
     });
     connect(sourceModel(),
             &QAbstractItemModel::rowsInserted,
@@ -233,8 +275,8 @@ void FilterProxyModelBase::initialiseRecordingModel() {
                 for (int row = first; row <= last; ++row) {
                     const auto index = sourceModel()->index(row, 0, parent);
                     Q_ASSERT(!m_data.contains(index));
-                    m_data.insert(index, {});
-                    addRecordingData(index);
+                    m_data.insert(index, ItemData());
+                    addItemData(index);
                 }
             });
     connect(sourceModel(), &QAbstractItemModel::rowsAboutToBeRemoved, this,
@@ -243,16 +285,17 @@ void FilterProxyModelBase::initialiseRecordingModel() {
                     const auto index = sourceModel()->index(row, 0, parent);
                     Q_ASSERT(m_data.contains(index));
                     m_data.remove(index);
-                    removeRecordingData(index);
+                    removeItemData(index);
                 }
             });
     connect(sourceModel(), &QAbstractItemModel::modelReset, this, [this]() {
-        m_data = QHash<QPersistentModelIndex, FilterItem>();
-        clearRecordingData();
+        m_data = QHash<QPersistentModelIndex, ItemData>();
+        clearItemData();
     });
 }
 
-void FilterProxyModelBase::finaliseRecordingModel() {
+void DiscriminatorProxyModelBase::finaliseDiscriminator()
+{
     sourceModel()->disconnect(this);
-    clearRecordingData();
+    clearItemData();
 }

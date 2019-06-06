@@ -20,7 +20,8 @@ namespace GammaRay {
 
 class Probe;
 class ConnectionModel;
-template <class T, int> class FilterProxyModel;
+template<class T, int>
+class DiscriminatorProxyModel;
 
 class AcquisitionEngine : public AcquisitionInterface {
     Q_OBJECT
@@ -58,13 +59,13 @@ private:
 
     // clang-format off
     QAbstractItemModel *m_connectionInputModel;
-    FilterProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionFilterModel;
+    DiscriminatorProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionFilterModel;
     QAbstractItemModel *m_threadInputModel;
-    FilterProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadFilterModel;
+    DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadFilterModel;
     QAbstractItemModel *m_classInputModel;
-    FilterProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classFilterModel;
+    DiscriminatorProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classFilterModel;
     QAbstractItemModel *m_objectInputModel;
-    FilterProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectFilterModel;
+    DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectFilterModel;
     // clang-format on
 
     void startSampling();

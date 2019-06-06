@@ -24,7 +24,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "filterinterface.h"
+#include "discriminatorinterface.h"
 
 #include "connectivityinspectorcommon.h"
 
@@ -33,14 +33,18 @@
 using namespace GammaRay;
 
 // TODO: Rename to ConnectivityInspector::FilterInterface ?
-FilterInterface::FilterInterface(const QString &name, QObject *parent)
-    : QObject(parent), m_name(name) {
-    const auto fqon =
-        QStringLiteral("%1.%2.%3")
-            .arg(ConnectivityInspectorBaseDomain, "FilterInterface", name);
+DiscriminatorInterface::DiscriminatorInterface(const QString &name, QObject *parent)
+    : QObject(parent)
+    , m_name(name)
+{
+    const auto fqon = QStringLiteral("%1.%2.%3")
+                          .arg(ConnectivityInspectorBaseDomain, "DiscriminatorInterface", name);
     ObjectBroker::registerObject(fqon, this);
 }
 
-FilterInterface::~FilterInterface() = default;
+DiscriminatorInterface::~DiscriminatorInterface() = default;
 
-QString FilterInterface::name() const { return m_name; }
+QString DiscriminatorInterface::name() const
+{
+    return m_name;
+}

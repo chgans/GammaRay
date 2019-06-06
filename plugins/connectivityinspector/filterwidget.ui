@@ -20,53 +20,72 @@
       <number>6</number>
      </property>
      <item>
+      <widget class="QCheckBox" name="enableFilteringCheckBox">
+       <property name="text">
+        <string>Enable filtering</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLineEdit" name="searchLine">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="placeholderText">
-        <string>Filter...</string>
+        <string>Search...</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QToolButton" name="recordAllButton">
-       <property name="text">
-        <string>Record All</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QToolButton" name="recordNoneButton">
-       <property name="text">
-        <string>Record None</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer">
+      <spacer name="horizontalSpacer_2">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Maximum</enum>
-       </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>50</width>
-         <height>0</height>
+         <width>40</width>
+         <height>20</height>
         </size>
        </property>
       </spacer>
      </item>
      <item>
-      <widget class="QToolButton" name="showAllButton">
+      <widget class="QToolButton" name="enableAllButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
-        <string>Show All</string>
+        <string>Enable All</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QToolButton" name="showNonoeButton">
+      <widget class="QToolButton" name="disableAllButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
-        <string>Show None</string>
+        <string>Disable all</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="filterAllButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Filter all</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="passAllButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Pass all</string>
        </property>
       </widget>
      </item>
@@ -74,6 +93,9 @@
    </item>
    <item>
     <widget class="GammaRay::DeferredTreeView" name="treeView">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
@@ -89,8 +111,108 @@
    <class>GammaRay::DeferredTreeView</class>
    <extends>QTreeView</extends>
    <header location="global">ui/deferredtreeview.h</header>
+   <slots>
+    <slot>setEnabled()</slot>
+   </slots>
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>searchLine</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>95</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>181</x>
+     <y>25</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>treeView</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>22</x>
+     <y>19</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>35</x>
+     <y>79</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>enableAllButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>112</x>
+     <y>13</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>652</x>
+     <y>24</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>filterAllButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>89</x>
+     <y>12</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>791</x>
+     <y>18</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>passAllButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>23</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>907</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableFilteringCheckBox</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>disableAllButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>71</x>
+     <y>17</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>733</x>
+     <y>26</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

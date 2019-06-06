@@ -29,7 +29,9 @@
 
 #include "3rdparty/kde/kextracolumnsproxymodel.h"
 
-#include "filterinterface.h"
+#include "discriminatorinterface.h"
+
+#include <QDebug>
 
 namespace GammaRay {
 
@@ -62,20 +64,21 @@ namespace GammaRay {
 //  - The AcquisitionEngine should output filtered MetaObject, Object, Thread lists and an Connection list
 //  - The gui should consume the AcquisitionEngine output, and deal with isVisible itself
 
-class FilterProxyModelBase : public KExtraColumnsProxyModel
+class DiscriminatorProxyModelBase : public KExtraColumnsProxyModel
 {
     Q_OBJECT
 
 public:
-    FilterProxyModelBase(QObject *parent = nullptr);
-    ~FilterProxyModelBase() override;
+    DiscriminatorProxyModelBase(QObject *parent = nullptr);
+    ~DiscriminatorProxyModelBase() override;
 
-    enum ExtraColumn { CountColumn = 0, IsRecordingColumn, IsVisibleColumn, ExtraColumnCount };
+    enum ExtraColumn { CountColumn = 0, IsDiscrimatingColumn, IsFilteringColumn, ExtraColumnCount };
 
-    void recordAll();
-    void recordNone();
-    void showAll();
-    void showNone();
+    void setEnabled(bool enabled);
+    void discriminateAll();
+    void discriminateNone();
+    void filterAll();
+    void filterNone();
     void resetCounts();
 
     // QAbstractProxyModel interface
@@ -95,83 +98,94 @@ public:
                             const QVariant &value,
                             int role) override;
 
-    Qt::ItemFlags extraColumnFlags(int extraColumn) const override;
+    Qt::ItemFlags extraColumnFlags(const QModelIndex &parent,
+                                   int row,
+                                   int extraColumn) const override;
 
     virtual QMap<int, QVariant>
     extraItemData(const QModelIndex &index) const override;
 
 protected:
-    struct FilterItem
+    struct ItemData
     {
-        FilterItem()
+        ItemData()
             : count(0)
-            , isRecording(0)
-            , isVisible(0)
+            , isDiscriminating(1)
+            , isFiltering(1)
         {}
         quint64 count : 62;
-        quint64 isRecording : 1;
-        quint64 isVisible : 1;
+        quint64 isDiscriminating : 1;
+        quint64 isFiltering : 1;
     };
 
-    void increaseCount(const QModelIndex &index);
-    void decreaseCount(const QModelIndex &index);
-    quint64 recordCount(const QModelIndex &index) const;
-    bool isRecording(const QModelIndex &index) const;
-    void setIsRecording(const QModelIndex &index, bool enabled);
-    bool isVisible(const QModelIndex &index) const;
-    void setIsVisible(const QModelIndex &index, bool enabled);
+    void increaseUsageCount(const QModelIndex &index);
+    void decreaseUsageCount(const QModelIndex &index);
+    quint64 usageCount(const QModelIndex &index) const;
+    bool isDiscriminating(const QModelIndex &index) const;
+    void setIsDiscriminating(const QModelIndex &index, bool enabled);
+    bool isFiltering(const QModelIndex &index) const;
+    void setIsFiltering(const QModelIndex &index, bool enabled);
+    bool isAccepting(const QModelIndex &index) const
+    {
+        qDebug() << __FUNCTION__ << index << m_enabled << isDiscriminating(index)
+                 << isFiltering(index)
+                 << !(m_enabled && isDiscriminating(index) && isFiltering(index));
+        return !(m_enabled && isDiscriminating(index) && isFiltering(index));
+    }
 
-    virtual void addRecordingData(const QModelIndex &index) = 0;
-    virtual void removeRecordingData(const QModelIndex &index) = 0;
-    virtual void clearRecordingData() = 0;
+    virtual void addItemData(const QModelIndex &index) = 0;
+    virtual void removeItemData(const QModelIndex &index) = 0;
+    virtual void clearItemData() = 0;
 
 private:
     using IndexVisitor = std::function<void(const QModelIndex &)>;
-    QHash<QPersistentModelIndex, FilterItem> m_data;
+    QHash<QPersistentModelIndex, ItemData> m_data;
     quint64 m_maxCount = 0;
+    bool m_enabled = false;
 
 private slots:
     void visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor);
-    void initialiseRecordingModel();
-    void finaliseRecordingModel();
+    void initialiseDiscriminator();
+    void finaliseDiscriminator();
 };
 
-template <typename T, int TargetRole>
-class FilterProxyModel : public FilterProxyModelBase {
+template<typename T, int TargetRole>
+class DiscriminatorProxyModel : public DiscriminatorProxyModelBase
+{
 public:
-    FilterProxyModel(QObject *parent = nullptr)
-        : FilterProxyModelBase(parent) {}
-    ~FilterProxyModel() override = default;
+    DiscriminatorProxyModel(QObject *parent = nullptr)
+        : DiscriminatorProxyModelBase(parent)
+    {}
+    ~DiscriminatorProxyModel() override = default;
 
-    void increaseCount(const T &target)
+    void increaseUsageCount(const T &target)
     {
         if (!sourceModel())
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        FilterProxyModelBase::increaseCount(m_indexes.value(target));
+        DiscriminatorProxyModelBase::increaseUsageCount(m_indexes.value(target));
     }
 
-    void decreaseCount(const T &target)
+    void decreaseUsageCount(const T &target)
     {
         if (!sourceModel())
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        const auto &srcIndex = m_indexes[target];
-        FilterProxyModelBase::decreaseCount(m_indexes.value(target));
+        DiscriminatorProxyModelBase::decreaseUsageCount(m_indexes.value(target));
     }
 
-    quint64 recordCount(const T &target) {
+    quint64 usageCount(const T &target)
+    {
         if (!sourceModel())
             return 0;
 
         Q_ASSERT(m_indexes.contains(target));
-        const auto &srcIndex = m_indexes[target];
-        return FilterProxyModelBase::recordCount(m_indexes.value(target));
+        return DiscriminatorProxyModelBase::usageCount(m_indexes.value(target));
     }
 
-    bool isRecording(const T &target) const
+    bool isDiscriminating(const T &target) const
     {
         if (!sourceModel())
             return false;
@@ -179,10 +193,10 @@ public:
             return false; // FIXME: from main update
         // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
-        return FilterProxyModelBase::isRecording(m_indexes.value(target));
+        return DiscriminatorProxyModelBase::isDiscriminating(m_indexes.value(target));
     }
 
-    bool isVisible(const T &target) const
+    bool isFiltering(const T &target) const
     {
         if (!sourceModel())
             return false;
@@ -191,7 +205,18 @@ public:
             return false; // FIXME:  from main update
         // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
-        return FilterProxyModelBase::isVisible(m_indexes.value(target));
+        return DiscriminatorProxyModelBase::isFiltering(m_indexes.value(target));
+    }
+
+    bool isAccepting(const T &target) const
+    {
+        if (!sourceModel())
+            return false;
+
+        if (!m_indexes.contains(target))
+            return false; // FIXME:  from main update
+        Q_ASSERT(m_indexes.contains(target));
+        return DiscriminatorProxyModelBase::isAccepting(m_indexes.value(target));
     }
 
     // TODO: something more efficient
@@ -199,48 +224,51 @@ public:
 
     // RecordingProxyModelBase interface
 protected:
-    void addRecordingData(const QModelIndex &index) override {
+    void addItemData(const QModelIndex &index) override
+    {
         auto target = index.data(TargetRole).value<T>();
         // FIXME: not sure it's a one to one relationship here, due to invalid
         // objects...
         m_indexes.insert(target, index);
     }
 
-    void removeRecordingData(const QModelIndex &index) override {
+    void removeItemData(const QModelIndex &index) override
+    {
         auto target = index.data(TargetRole).value<T>();
         // FIXME:
         // Q_ASSERT(m_indexes.contains(target));
         m_indexes.remove(target);
     }
 
-    void clearRecordingData() override { m_indexes.clear(); }
+    void clearItemData() override { m_indexes.clear(); }
 
 private:
     // TODO: provide iterator/view interface?
     QHash<T, QPersistentModelIndex> m_indexes;
 };
 
-class FilterInterfaceBridge : public FilterInterface
+class DiscriminatorInterfaceBridge : public DiscriminatorInterface
 {
     Q_OBJECT
 public:
-    FilterInterfaceBridge(const QString &name,
-                          FilterProxyModelBase *model,
-                          QObject *parent = nullptr)
-        : FilterInterface(name, parent)
+    DiscriminatorInterfaceBridge(const QString &name,
+                                 DiscriminatorProxyModelBase *model,
+                                 QObject *parent = nullptr)
+        : DiscriminatorInterface(name, parent)
         , m_model(model)
     {}
-    ~FilterInterfaceBridge() override = default;
+    ~DiscriminatorInterfaceBridge() override = default;
 
-    // FilterInterface interface
+    // DiscriminatorInterface interface
 public slots:
-    void recordAll() override { m_model->recordAll(); }
-    void recordNone() override { m_model->recordNone(); }
-    void showAll() override { m_model->showAll(); }
-    void showNone() override { m_model->showNone(); }
+    void setEnabled(bool enabled) override { m_model->setEnabled(enabled); };
+    void discriminateAll() override { m_model->discriminateAll(); }
+    void discriminateNone() override { m_model->discriminateNone(); }
+    void filterAll() override { m_model->filterAll(); }
+    void filterNone() override { m_model->filterNone(); }
 
 private:
-    FilterProxyModelBase *m_model;
+    DiscriminatorProxyModelBase *m_model;
 };
 
 } // namespace GammaRay
