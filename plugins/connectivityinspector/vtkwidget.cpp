@@ -150,6 +150,9 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_objectLabelArray->SetName(s_ObjectLabelArrayName);
     m_connWeightArray = vtkIntArray::New();
     m_connWeightArray->SetName(s_connWeightArrayName);
+
+    m_layoutView->SetLayoutStrategyToPassThrough();
+    m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
 }
 
 VtkWidget::~VtkWidget() {}
@@ -185,6 +188,9 @@ void VtkWidget::updateGraph()
     if (!(m_inputHasChanged || m_configHasChanged))
         return;
 
+    if (!m_done)
+        return;
+
     qDebug() << __FUNCTION__;
     m_dataTimer.start();
     m_dataDuration = 0;
@@ -212,6 +218,7 @@ bool VtkWidget::tryFetchData()
     updateSatus("Done");
     m_inputHasChanged = false;
     m_configHasChanged = false;
+    m_done = true;
     return true;
 }
 
@@ -227,35 +234,26 @@ bool VtkWidget::fetchData()
     m_objectIds.clear();
     m_objects.clear();
     m_connections.clear();
+    bool done = true;
     for (int row = 0; row < m_model->rowCount(); ++row) {
         auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
-        if (!senderObjectId)
-            return false;
         auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
-        if (!senderThreadId)
-            return false;
         auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
-        if (senderLabel.isNull())
-            return false;
         auto receiverObjectId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
-        if (!receiverObjectId)
-            return false;
         auto receiverThreadId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
-        if (!receiverThreadId)
-            return false;
         auto receiverLabel = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
-        if (receiverLabel.isNull())
-            return false;
         auto edgeWeight = weight(m_model, row);
-        if (!edgeWeight)
-            return false;
-        if (!m_objectIds.contains(senderObjectId))
-            m_objects.append({senderObjectId, senderThreadId, senderLabel.toStdString()});
-        if (!m_objectIds.contains(receiverObjectId))
-            m_objects.append({receiverObjectId, receiverThreadId, receiverLabel.toStdString()});
-        m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
+        done = senderObjectId && senderThreadId && !senderLabel.isNull() && receiverObjectId
+               && receiverThreadId && !receiverLabel.isNull() && edgeWeight;
+        if (done) {
+            if (!m_objectIds.contains(senderObjectId))
+                m_objects.append({senderObjectId, senderThreadId, senderLabel.toStdString()});
+            if (!m_objectIds.contains(receiverObjectId))
+                m_objects.append({receiverObjectId, receiverThreadId, receiverLabel.toStdString()});
+            m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
+        }
     }
-    return true;
+    return done;
 }
 
 bool VtkWidget::buildGraph()
@@ -341,9 +339,6 @@ void VtkWidget::renderGraph()
     QElapsedTimer timer;
     timer.start();
     m_layout->SetInputDataObject(m_graph);
-    m_layout->SetLayoutStrategy(m_layoutStrategy);
-    m_layoutView->SetLayoutStrategyToPassThrough();
-    m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
     m_layoutView->Render();
     m_renderDuration = timer.elapsed();
 }
@@ -488,6 +483,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     // m_layoutStrategy->SetEdgeWeightField(s_connWeightArrayName);
     m_layoutStrategy->DebugOn();
     m_layoutStrategy->GlobalWarningDisplayOn();
+    m_layout->SetLayoutStrategy(m_layoutStrategy);
     m_configHasChanged = true;
     updateGraph();
 }

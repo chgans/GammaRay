@@ -100,7 +100,7 @@ private:
     qint64 m_graphDuration = 0;
     qint64 m_renderDuration = 0;
     QElapsedTimer m_dataTimer;
-
+    bool m_done = true;
     QSet<quint64> m_objectIds;
     QVector<std::tuple<quint64, quint64, std::string>> m_objects;
     QVector<std::tuple<quint64, quint64, int>> m_connections;
