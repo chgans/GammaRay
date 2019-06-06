@@ -31,8 +31,6 @@
 
 #include "discriminatorinterface.h"
 
-#include <QDebug>
-
 namespace GammaRay {
 
 // From Chapter 1 of http://shop.oreilly.com/product/9780596514556.do:
@@ -127,9 +125,6 @@ protected:
     void setIsFiltering(const QModelIndex &index, bool enabled);
     bool isAccepting(const QModelIndex &index) const
     {
-        qDebug() << __FUNCTION__ << index << m_enabled << isDiscriminating(index)
-                 << isFiltering(index)
-                 << !(m_enabled && isDiscriminating(index) && isFiltering(index));
         return !(m_enabled && isDiscriminating(index) && isFiltering(index));
     }
 

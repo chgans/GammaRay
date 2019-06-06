@@ -112,4 +112,8 @@ void AcquisitionWidget::setAcquisitionInterface(
             &AcquisitionInterface::bufferUsageChanged,
             m_ui->usageBar,
             &QProgressBar::setValue);
+
+    connect(m_interface, &AcquisitionInterface::samplingDone, this, [this](qint64 duration) {
+        m_ui->durationLabel->setText(QStringLiteral("%1 ms").arg(duration));
+    });
 }

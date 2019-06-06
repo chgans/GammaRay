@@ -14,6 +14,7 @@
 
 #include <common/objectbroker.h>
 
+#include <QElapsedTimer>
 #include <QMutexLocker>
 #include <QQueue>
 #include <QThread>
@@ -110,31 +111,35 @@ void AcquisitionEngine::resumeSampling() { DEBUG; }
 
 void AcquisitionEngine::takeSample() {
     DEBUG;
+    QElapsedTimer timer;
+    timer.start();
     QMutexLocker locker(m_probe->objectLock());
     for (const auto object : m_objectFilterModel->targets()) {
         if (!m_probe->isValidObject(object)) {
-            m_connectionModel->removeConnections(object);
+            m_connectionModel->removeSender(object);
             continue;
         }
         const bool isRecordingObject = m_threadFilterModel->isAccepting(object->thread())
                                        && m_classFilterModel->isAccepting(object->metaObject())
                                        && m_objectFilterModel->isAccepting(object);
-        auto connections =
-            OutboundConnectionsModel::outboundConnectionsForObject(object);
+        if (m_connectionModel->hasSender(object) && !isRecordingObject) {
+            m_connectionModel->removeSender(object);
+            continue;
+        }
+
+        auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
         for (const auto &connection : connections) {
             QObject *receiver = connection.endpoint.data();
             const bool isRecordingConnection = m_connectionFilterModel->isAccepting(connection.type);
-            const bool isRecorded =
-                m_connectionModel->hasConnection(object, receiver);
-            const bool isRecording = isRecordingObject && isRecordingConnection;
-            if (isRecorded == isRecording)
+            if (m_connectionModel->hasConnection(object, receiver) == isRecordingConnection)
                 continue;
-            if (isRecording)
+            if (isRecordingConnection)
                 m_connectionModel->addConnection(object, receiver);
             else
                 m_connectionModel->removeConnection(object, receiver);
         }
     }
+    emit samplingDone(timer.elapsed());
 }
 
 void AcquisitionEngine::clearSamples() {
@@ -147,9 +152,9 @@ void AcquisitionEngine::clearSamples() {
  */
 void AcquisitionEngine::registerConnectionModel() {
     m_connectionModel = new ConnectionModel(m_probe, this);
-    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    proxy->setSourceModel(m_connectionModel);
-    m_probe->registerModel(ObjectVisualizerConnectionModelId, proxy);
+    //    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    //    proxy->setSourceModel(m_connectionModel);
+    m_probe->registerModel(ObjectVisualizerConnectionModelId, m_connectionModel);
 }
 
 void AcquisitionEngine::registerConnectionFilterModel() {

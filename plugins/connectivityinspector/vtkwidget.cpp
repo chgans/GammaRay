@@ -30,6 +30,8 @@
 #include "common/objectid.h"
 
 #include <QAbstractItemModel>
+#include <QDebug>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QTimer>
 
@@ -97,11 +99,11 @@ inline quint64 threadId(QAbstractItemModel *model, int row, int col)
     return index.data(role).value<ObjectId>().id();
 }
 
-inline std::string objectLabel(QAbstractItemModel *model, int row, int col)
+inline QString objectLabel(QAbstractItemModel *model, int row, int col)
 {
     constexpr int role = Qt::DisplayRole;
     const QModelIndex index = model->index(row, col);
-    return index.data(role).toString().toStdString();
+    return index.data(role).toString();
 }
 
 inline int weight(QAbstractItemModel *model, int row)
@@ -115,7 +117,6 @@ inline int weight(QAbstractItemModel *model, int row)
 
 VtkWidget::VtkWidget(QWidget *parent)
     : QVTKWidget(parent)
-    , m_renderTimer(new QTimer(this))
 {
     m_layout = vtkSmartPointer<vtkGraphLayout>::New();
 
@@ -149,9 +150,6 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_objectLabelArray->SetName(s_ObjectLabelArrayName);
     m_connWeightArray = vtkIntArray::New();
     m_connWeightArray->SetName(s_connWeightArrayName);
-
-    m_renderTimer->setInterval(250);
-    connect(m_renderTimer, &QTimer::timeout, this, [this]() { renderGraph(); });
 }
 
 VtkWidget::~VtkWidget() {}
@@ -160,23 +158,120 @@ void VtkWidget::setModel(QAbstractItemModel *model)
 {
     if (m_model) {
         m_model->disconnect(this);
-        m_renderTimer->stop();
     }
 
     m_model = model;
 
     if (m_model) {
-        // TODO: connect to samplingDone()?
-        // But we'll still have invalid data
-        //        connect(m_model, &QAbstractItemModel::modelReset, this, &VtkWidget::renderGraph);
-        //        connect(m_model, &QAbstractItemModel::rowsRemoved, this, &VtkWidget::renderGraph);
-        //        connect(m_model, &QAbstractItemModel::rowsInserted, this, &VtkWidget::renderGraph);
-        renderGraph();
+        connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
+            m_inputHasChanged = true;
+        });
+        connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this]() {
+            m_inputHasChanged = true;
+        });
+        connect(m_model, &QAbstractItemModel::rowsInserted, this, [this]() {
+            m_inputHasChanged = true;
+        });
     }
 }
 
-void VtkWidget::buildGraph()
+void VtkWidget::updateGraph()
 {
+    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
+
+    if (!m_model)
+        return;
+
+    if (!(m_inputHasChanged || m_configHasChanged))
+        return;
+
+    qDebug() << __FUNCTION__;
+    m_dataTimer.start();
+    m_dataDuration = 0;
+    setEnabled(false);
+    tryFetchData();
+}
+
+bool VtkWidget::tryFetchData()
+{
+    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
+
+    updateSatus("Fetching data");
+    if (!fetchData()) {
+        QTimer::singleShot(250, this, [this]() { tryFetchData(); });
+        m_dataDuration = m_dataTimer.elapsed();
+        return false;
+    }
+
+    qDebug() << __FUNCTION__;
+    m_dataDuration = m_dataTimer.elapsed();
+    buildGraph();
+    renderGraph();
+    m_layoutView->ResetCamera();
+    setEnabled(true);
+    updateSatus("Done");
+    m_inputHasChanged = false;
+    m_configHasChanged = false;
+    return true;
+}
+
+bool VtkWidget::fetchData()
+{
+    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
+    if (!m_inputHasChanged)
+        return true;
+
+    // Collect unique and valid objects and their connection counters
+    // Keep everything ordered for the graph data arrays
+    qDebug() << __FUNCTION__;
+    m_objectIds.clear();
+    m_objects.clear();
+    m_connections.clear();
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
+        if (!senderObjectId)
+            return false;
+        auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
+        if (!senderThreadId)
+            return false;
+        auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
+        if (senderLabel.isNull())
+            return false;
+        auto receiverObjectId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
+        if (!receiverObjectId)
+            return false;
+        auto receiverThreadId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
+        if (!receiverThreadId)
+            return false;
+        auto receiverLabel = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
+        if (receiverLabel.isNull())
+            return false;
+        auto edgeWeight = weight(m_model, row);
+        if (!edgeWeight)
+            return false;
+        if (!m_objectIds.contains(senderObjectId))
+            m_objects.append({senderObjectId, senderThreadId, senderLabel.toStdString()});
+        if (!m_objectIds.contains(receiverObjectId))
+            m_objects.append({receiverObjectId, receiverThreadId, receiverLabel.toStdString()});
+        m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
+    }
+    return true;
+}
+
+bool VtkWidget::buildGraph()
+{
+    qDebug() << __FUNCTION__ << m_inputHasChanged << m_configHasChanged;
+
+    if (!m_inputHasChanged)
+        return true;
+
+    qDebug() << __FUNCTION__;
+    m_graphDuration = 0;
+    updateSatus("Building graph");
+    QElapsedTimer timer;
+    timer.start();
+
+    // Create all the nodes and only then the edges to avoid auto-created nodes
     m_graph = vtkMutableDirectedGraph::New();
     m_objectIdArray->Reset();
     m_graph->GetVertexData()->AddArray(m_objectIdArray);
@@ -187,52 +282,21 @@ void VtkWidget::buildGraph()
     m_graph->GetVertexData()->AddArray(m_objectLabelArray);
     m_connWeightArray->Reset();
     m_graph->GetEdgeData()->AddArray(m_connWeightArray);
-
-    // Collect unique and valid objects and their connection counters
-    // Keep everything ordered for the graph data arrays
-    QSet<quint64> objectIds;
-    QVector<std::tuple<quint64, quint64, std::string>> objects;
-    QVector<std::tuple<quint64, quint64, int>> connections;
-    for (int row = 0; row < m_model->rowCount(); ++row) {
-        auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
-        auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
-        auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
-        auto receiverObjectId = objectId(m_model, row, ConnectionModel::ReceiverColumn);
-        auto receiverThreadId = threadId(m_model, row, ConnectionModel::ReceiverColumn);
-        auto receiverLabel = objectLabel(m_model, row, ConnectionModel::ReceiverColumn);
-        auto edgeWeight = weight(m_model, row);
-        if (receiverObjectId && receiverThreadId && senderObjectId && senderThreadId) {
-            if (!objectIds.contains(senderObjectId))
-                objects.append({senderObjectId, senderThreadId, senderLabel});
-            if (!objectIds.contains(receiverObjectId))
-                objects.append({receiverObjectId, receiverThreadId, receiverLabel});
-            connections.append({senderObjectId, receiverObjectId, edgeWeight});
-        } else {
-            qWarning() << __PRETTY_FUNCTION__ << "Got invalid records: " << senderObjectId
-                       << senderThreadId << QString::fromStdString(senderLabel) << receiverObjectId
-                       << receiverThreadId << QString::fromStdString(receiverLabel) << edgeWeight;
-        }
-    }
-
-    // Create all the nodes and only then the edges to avoid auto-created nodes
-    for (const auto &data : objects) {
+    for (const auto &data : m_objects) {
         m_graph->AddVertex();
         m_objectIdArray->InsertNextValue(std::get<0>(data));
         m_threadIdArray->InsertNextValue(std::get<1>(data));
         m_objectLabelArray->InsertNextValue(std::get<2>(data));
     }
-    for (const auto &data : connections) {
+    for (const auto &data : m_connections) {
         const auto senderId = std::get<0>(data);
         const auto receiverId = std::get<1>(data);
         const auto weight = std::get<2>(data);
         m_graph->AddEdge(vtkVariant(senderId), vtkVariant(receiverId));
         m_connWeightArray->InsertNextValue(weight);
     }
-}
-
-void VtkWidget::updateGraph()
-{
-    // TODO: add/remove pending nodes/edges
+    m_graphDuration = timer.elapsed();
+    return true;
 }
 
 // FIXME: Arrow size need to scale with graph representation size.
@@ -258,22 +322,30 @@ void VtkWidget::createArrowDecorator(vtkAlgorithmOutput *input)
     m_arrowDecorator->SetMapper(arrowMapper);
 }
 
+void VtkWidget::updateSatus(const QString &state)
+{
+    const auto status = QStringLiteral("State: %1, Wait: %2 ms, Build: %3 ms, "
+                                       "Layout: %4 ms, Render: %5 ms")
+                            .arg(state)
+                            .arg(m_dataDuration)
+                            .arg(m_graphDuration)
+                            .arg(0)
+                            .arg(m_renderDuration);
+    emit statusChanged(status);
+}
+
 void VtkWidget::renderGraph()
 {
-    if (!m_model)
-        return;
-
-    buildGraph();
-    if (m_graph->GetNumberOfVertices() == 0) {
-        return;
-    }
-
+    m_renderDuration = 0;
+    updateSatus("Rendering graph");
+    QElapsedTimer timer;
+    timer.start();
     m_layout->SetInputDataObject(m_graph);
     m_layout->SetLayoutStrategy(m_layoutStrategy);
     m_layoutView->SetLayoutStrategyToPassThrough();
     m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
-    m_layoutView->ResetCamera();
     m_layoutView->Render();
+    m_renderDuration = timer.elapsed();
 }
 
 void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
@@ -416,13 +488,15 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
     // m_layoutStrategy->SetEdgeWeightField(s_connWeightArrayName);
     m_layoutStrategy->DebugOn();
     m_layoutStrategy->GlobalWarningDisplayOn();
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }
 
 void VtkWidget::setStereoMode(Vtk::StereoMode mode)
 {
     GetRenderWindow()->SetStereoType(static_cast<int>(mode));
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }
 
 void VtkWidget::setThemeType(Vtk::ThemeType themeType)
@@ -445,7 +519,8 @@ void VtkWidget::setThemeType(Vtk::ThemeType themeType)
     viewTheme->SetCellOpacity(0.3);
     m_layoutView->ApplyViewTheme(viewTheme);
     viewTheme->Delete();
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }
 
 void VtkWidget::setShowNodeLabel(bool show)
@@ -453,7 +528,8 @@ void VtkWidget::setShowNodeLabel(bool show)
     if (m_layoutView->GetVertexLabelVisibility() == show)
         return;
     m_layoutView->SetVertexLabelVisibility(show);
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }
 
 void VtkWidget::setShowEdgeLabel(bool show)
@@ -461,7 +537,8 @@ void VtkWidget::setShowEdgeLabel(bool show)
     if (m_layoutView->GetEdgeLabelVisibility() == show)
         return;
     m_layoutView->SetEdgeLabelVisibility(show);
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }
 
 /* See:
@@ -480,5 +557,6 @@ void VtkWidget::setShowEdgeArrow(bool show)
         m_layoutView->GetRenderer()->RemoveActor(m_arrowDecorator);
         m_layoutView->SetEdgeLayoutStrategyToArcParallel();
     }
-    renderGraph();
+    m_configHasChanged = true;
+    updateGraph();
 }

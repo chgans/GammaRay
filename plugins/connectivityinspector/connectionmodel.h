@@ -73,7 +73,8 @@ public slots:
     bool hasConnection(QObject *sender, QObject *receiver) const;
     void addConnection(QObject *sender, QObject *receiver);
     void removeConnection(QObject *sender, QObject *receiver);
-    void removeConnections(QObject *sender);
+    bool hasSender(QObject *sender) const;
+    void removeSender(QObject *sender);
 
 private:
     Probe *m_probe;

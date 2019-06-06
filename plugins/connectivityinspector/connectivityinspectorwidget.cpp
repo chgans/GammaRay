@@ -94,10 +94,15 @@ void ConnectivityInspectorWidget::setupUi() {
                       m_classRecordingModel);
     setupFilterWidget(m_ui->objectFilterWidget, m_objectFilterInterface,
                       m_objectRecordingModel);
+
+    m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
+
     m_ui->gvWidget->setModel(m_connectionModel);
     m_ui->vtkWidget->setModel(m_connectionModel);
 
-    m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
+    connect(m_interface, &AcquisitionInterface::samplingDone, this, [this]() {
+        m_ui->vtkWidget->updateGraph();
+    });
 }
 
 void ConnectivityInspectorWidget::setupConnectionView() {

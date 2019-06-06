@@ -26,6 +26,7 @@
 
 #include "vtkcontainer.h"
 
+#include <QLabel>
 #include <QVBoxLayout>
 
 #include "vtkwidget.h"
@@ -38,8 +39,10 @@ VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
 
     m_vtkWidget = new VtkWidget(this);
     m_vtkPanel = new VtkPanel(this);
+    m_statusLabel = new QLabel(this);
     vbox->addWidget(m_vtkPanel);
     vbox->addWidget(m_vtkWidget);
+    vbox->addWidget(m_statusLabel);
 
     m_vtkPanel->setLayoutStrategy(Vtk::LayoutStrategy::SpanTree);
     m_vtkPanel->setStereoMode(Vtk::StereoMode::Off);
@@ -54,6 +57,7 @@ VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
     m_vtkWidget->setShowNodeLabel(m_vtkPanel->showNodeLabel());
     m_vtkWidget->setShowEdgeLabel(m_vtkPanel->showEdgeLabel());
     m_vtkWidget->setShowEdgeArrow(m_vtkPanel->showEdgeArrow());
+
     connect(m_vtkPanel,
             &VtkPanel::layoutStrategyChanged,
             m_vtkWidget,
@@ -63,6 +67,8 @@ VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
     connect(m_vtkPanel, &VtkPanel::showNodeLabelChanged, m_vtkWidget, &VtkWidget::setShowNodeLabel);
     connect(m_vtkPanel, &VtkPanel::showEdgeLabelChanged, m_vtkWidget, &VtkWidget::setShowEdgeLabel);
     connect(m_vtkPanel, &VtkPanel::showEdgeArrowChanged, m_vtkWidget, &VtkWidget::setShowEdgeArrow);
+
+    connect(m_vtkWidget, &VtkWidget::statusChanged, m_statusLabel, &QLabel::setText);
 }
 
 VtkContainer::~VtkContainer() {}
@@ -70,4 +76,9 @@ VtkContainer::~VtkContainer() {}
 void VtkContainer::setModel(QAbstractItemModel *model)
 {
     m_vtkWidget->setModel(model);
+}
+
+void VtkContainer::updateGraph()
+{
+    m_vtkWidget->updateGraph();
 }

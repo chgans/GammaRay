@@ -31,6 +31,7 @@
 
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
+class QLabel;
 QT_END_NAMESPACE
 
 namespace GammaRay {
@@ -45,10 +46,12 @@ public:
     virtual ~VtkContainer();
 
     void setModel(QAbstractItemModel *model);
+    void updateGraph();
 
 private:
     VtkWidget *m_vtkWidget;
     VtkPanel *m_vtkPanel;
+    QLabel *m_statusLabel;
 };
 }
 

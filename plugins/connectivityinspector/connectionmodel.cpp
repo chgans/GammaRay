@@ -170,17 +170,6 @@ void ConnectionModel::addConnection(QObject *sender, QObject *receiver) {
     }
 }
 
-void ConnectionModel::removeConnections(QObject *sender) {
-    for (auto edge : m_senderMap.value(sender).values()) {
-        const auto row = m_items.indexOf(edge);
-        beginRemoveRows(QModelIndex(), row, row);
-        m_items.removeAt(row);
-        delete edge;
-        endRemoveRows();
-    }
-    m_senderMap.remove(sender); // FIXME
-}
-
 void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
     if (!m_senderMap.contains(sender))
         return;
@@ -194,4 +183,21 @@ void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
     delete edge;
     m_senderMap[sender].remove(receiver);
     endRemoveRows();
+}
+
+void ConnectionModel::removeSender(QObject *sender)
+{
+    for (auto edge : m_senderMap.value(sender).values()) {
+        const auto row = m_items.indexOf(edge);
+        beginRemoveRows(QModelIndex(), row, row);
+        m_items.removeAt(row);
+        delete edge;
+        endRemoveRows();
+    }
+    m_senderMap.remove(sender); // FIXME
+}
+
+bool ConnectionModel::hasSender(QObject *sender) const
+{
+    return m_senderMap.contains(sender);
 }

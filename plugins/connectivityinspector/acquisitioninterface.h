@@ -75,6 +75,7 @@ signals:
     void bufferUsageChanged(int usage);
     void bufferOverrunCountChanged(int count);
     void samplingRateChanged(qreal rate);
+    void samplingDone(qint64 duration);
 };
 } // namespace GammaRay
 

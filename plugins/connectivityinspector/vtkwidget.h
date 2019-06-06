@@ -34,9 +34,13 @@
 
 #include "vtkcommon.h"
 
+#include <QElapsedTimer>
+#include <QSet>
+#include <QVector>
+
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
-class QTimer;
+class QElapsedTimer;
 QT_END_NAMESPACE
 
 class QVTKInteractor;
@@ -63,6 +67,10 @@ public:
     virtual ~VtkWidget();
 
     void setModel(QAbstractItemModel *model);
+    void updateGraph();
+
+signals:
+    void statusChanged(const QString &text);
 
 public slots:
     void setLayoutStrategy(GammaRay::Vtk::LayoutStrategy strategy);
@@ -85,13 +93,24 @@ private:
     vtkUnsignedLongLongArray *m_threadIdArray;
     vtkIntArray *m_connWeightArray;
     QAbstractItemModel *m_model = nullptr;
-    QTimer *m_renderTimer = nullptr;
     bool m_showEdgeArrow = false;
+    bool m_inputHasChanged = true;
+    bool m_configHasChanged = true;
+    qint64 m_dataDuration = 0;
+    qint64 m_graphDuration = 0;
+    qint64 m_renderDuration = 0;
+    QElapsedTimer m_dataTimer;
 
-    void buildGraph();
-    void updateGraph();
+    QSet<quint64> m_objectIds;
+    QVector<std::tuple<quint64, quint64, std::string>> m_objects;
+    QVector<std::tuple<quint64, quint64, int>> m_connections;
+
+    bool tryFetchData();
+    bool fetchData();
+    bool buildGraph();
     void renderGraph();
     void createArrowDecorator(vtkAlgorithmOutput *input);
+    void updateSatus(const QString &state);
 };
 } // namespace GammaRay
 
