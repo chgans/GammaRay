@@ -40,10 +40,27 @@ namespace GammaRay {
 class Probe;
 
 struct ConnectionItem {
-    ConnectionItem(QObject *sender, QObject *receiver, int value = 0)
-        : sender(sender), receiver(receiver), value(value) {}
+    ConnectionItem(QObject *sender,
+                   QObject *senderThread,
+                   const QString &senderLabel,
+                   QObject *receiver,
+                   QObject *receiverThread,
+                   const QString &receiverLabel,
+                   int value = 0)
+        : sender(sender)
+        , senderThread(senderThread)
+        , senderLabel(senderLabel)
+        , receiver(receiver)
+        , receiverThread(receiverThread)
+        , receiverLabel(receiverLabel)
+        , value(value)
+    {}
     QObject *sender = nullptr;
+    QObject *senderThread = nullptr;
+    const QString senderLabel = nullptr;
     QObject *receiver = nullptr;
+    QObject *receiverThread = nullptr;
+    const QString receiverLabel = nullptr;
     int value = 0;
 };
 
@@ -58,7 +75,7 @@ public:
         ThreadIdRole = ObjectModel::UserRole + 1
     };
 
-    explicit ConnectionModel(Probe *probe, QObject *parent = nullptr);
+    explicit ConnectionModel(QObject *parent = nullptr);
     ~ConnectionModel() override;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -71,13 +88,17 @@ public:
 public slots:
     void clear();
     bool hasConnection(QObject *sender, QObject *receiver) const;
-    void addConnection(QObject *sender, QObject *receiver);
+    void addConnection(QObject *sender,
+                       QObject *senderThread,
+                       const QString senderLabel,
+                       QObject *receiver,
+                       QObject *receiverThread,
+                       const QString &receiverLabel);
     void removeConnection(QObject *sender, QObject *receiver);
     bool hasSender(QObject *sender) const;
     void removeSender(QObject *sender);
 
 private:
-    Probe *m_probe;
     QVector<ConnectionItem *> m_items;
     // map[sender][receiver] = {sender, receiver, count}
     QHash<QObject *, QHash<QObject *, ConnectionItem *>> m_senderMap;

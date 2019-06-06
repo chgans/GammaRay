@@ -39,9 +39,8 @@
 
 using namespace GammaRay;
 
-ConnectionModel::ConnectionModel(Probe *probe, QObject *parent)
+ConnectionModel::ConnectionModel(QObject *parent)
     : QAbstractTableModel(parent)
-    , m_probe(probe)
 {}
 
 ConnectionModel::~ConnectionModel() { qDeleteAll(m_items); }
@@ -50,7 +49,6 @@ int ConnectionModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    QMutexLocker lock(m_probe->objectLock());
     return m_items.count();
 }
 
@@ -62,17 +60,12 @@ int ConnectionModel::columnCount(const QModelIndex & /*parent*/) const
 QVariant ConnectionModel::data(const QModelIndex &index, int role) const
 {
     if (role == Qt::DisplayRole) {
-        QMutexLocker lock(m_probe->objectLock());
         auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
-            if (m_probe->isValidObject(edge->sender))
-                return Util::shortDisplayString(edge->sender);
-            return Util::addressToString(edge->sender);
+            return edge->senderLabel;
         case ReceiverColumn:
-            if (m_probe->isValidObject(edge->receiver))
-                return Util::shortDisplayString(edge->receiver);
-            return Util::addressToString(edge->receiver);
+            return edge->receiverLabel;
         case CountColumn:
             return edge->value;
         default:
@@ -80,7 +73,6 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
         }
     }
     if (role == ObjectIdRole) {
-        QMutexLocker lock(m_probe->objectLock());
         auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
@@ -92,17 +84,12 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
         }
     }
     if (role == ThreadIdRole) {
-        QMutexLocker lock(m_probe->objectLock());
         auto edge = m_items.at(index.row());
         switch (index.column()) {
         case SenderColumn:
-            if (m_probe->isValidObject(edge->sender))
-                return QVariant::fromValue(ObjectId(edge->sender->thread()));
-            return QVariant::fromValue(ObjectId());
+            return QVariant::fromValue(ObjectId(edge->senderThread));
         case ReceiverColumn:
-            if (m_probe->isValidObject(edge->receiver))
-                return QVariant::fromValue(ObjectId(edge->receiver->thread()));
-            return QVariant::fromValue(ObjectId());
+            return QVariant::fromValue(ObjectId(edge->receiverThread));
         default:
             return {};
         }
@@ -150,7 +137,13 @@ bool ConnectionModel::hasConnection(QObject *sender, QObject *receiver) const {
         m_senderMap.value(sender).contains(receiver);
 }
 
-void ConnectionModel::addConnection(QObject *sender, QObject *receiver) {
+void ConnectionModel::addConnection(QObject *sender,
+                                    QObject *senderThread,
+                                    const QString senderLabel,
+                                    QObject *receiver,
+                                    QObject *receiverThread,
+                                    const QString &receiverLabel)
+{
     if (sender == receiver)
         return;
 
@@ -163,7 +156,13 @@ void ConnectionModel::addConnection(QObject *sender, QObject *receiver) {
     } else {
         const int row = m_items.count();
         beginInsertRows(QModelIndex(), row, row);
-        auto edge = new ConnectionItem(sender, receiver, 1);
+        auto edge = new ConnectionItem(sender,
+                                       senderThread,
+                                       senderLabel,
+                                       receiver,
+                                       receiverThread,
+                                       receiverLabel,
+                                       1);
         m_items.append(edge);
         m_senderMap[sender][receiver] = edge;
         endInsertRows();

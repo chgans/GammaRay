@@ -114,29 +114,52 @@ void AcquisitionEngine::takeSample() {
     QElapsedTimer timer;
     timer.start();
     QMutexLocker locker(m_probe->objectLock());
-    for (const auto object : m_objectFilterModel->targets()) {
-        if (!m_probe->isValidObject(object)) {
-            m_connectionModel->removeSender(object);
+    for (const auto sender : m_objectFilterModel->targets()) {
+        if (!m_probe->isValidObject(sender) || m_probe->filterObject(sender)) {
+            m_connectionModel->removeSender(sender);
             continue;
         }
-        const bool isRecordingObject = m_threadFilterModel->isAccepting(object->thread())
-                                       && m_classFilterModel->isAccepting(object->metaObject())
-                                       && m_objectFilterModel->isAccepting(object);
-        if (m_connectionModel->hasSender(object) && !isRecordingObject) {
-            m_connectionModel->removeSender(object);
+        auto senderThread = sender->thread();
+        if (!m_probe->isValidObject(senderThread) || m_probe->filterObject(senderThread)) {
+            m_connectionModel->removeSender(senderThread);
             continue;
         }
+        const bool isRecordingObject = m_threadFilterModel->isAccepting(sender->thread())
+                                       && m_classFilterModel->isAccepting(sender->metaObject())
+                                       && m_objectFilterModel->isAccepting(sender);
+        if (m_connectionModel->hasSender(sender) && !isRecordingObject) {
+            m_connectionModel->removeSender(sender);
+            continue;
+        }
+        const QString senderLabel = Util::shortDisplayString(sender);
 
-        auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
+        auto connections = OutboundConnectionsModel::outboundConnectionsForObject(sender);
         for (const auto &connection : connections) {
             QObject *receiver = connection.endpoint.data();
             const bool isRecordingConnection = m_connectionFilterModel->isAccepting(connection.type);
-            if (m_connectionModel->hasConnection(object, receiver) == isRecordingConnection)
+            if (m_connectionModel->hasConnection(sender, receiver) == isRecordingConnection)
                 continue;
-            if (isRecordingConnection)
-                m_connectionModel->addConnection(object, receiver);
-            else
-                m_connectionModel->removeConnection(object, receiver);
+            if (isRecordingConnection) {
+                if (!m_probe->isValidObject(receiver) || m_probe->filterObject(receiver)) {
+                    // FIXME: remove receiver?
+                    continue;
+                }
+                auto receiverThread = receiver->thread();
+                if (!m_probe->isValidObject(receiverThread)
+                    || m_probe->filterObject(receiverThread)) {
+                    // FIXME: remove receiver?
+                    continue;
+                }
+                const QString receiverLabel = Util::shortDisplayString(receiver);
+
+                m_connectionModel->addConnection(sender,
+                                                 senderThread,
+                                                 senderLabel,
+                                                 receiver,
+                                                 receiverThread,
+                                                 receiverLabel);
+            } else
+                m_connectionModel->removeConnection(sender, receiver);
         }
     }
     emit samplingDone(timer.elapsed());
@@ -151,9 +174,12 @@ void AcquisitionEngine::clearSamples() {
  * Dimensional filter models
  */
 void AcquisitionEngine::registerConnectionModel() {
-    m_connectionModel = new ConnectionModel(m_probe, this);
-    //    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    //    proxy->setSourceModel(m_connectionModel);
+    m_connectionModel = new ConnectionModel(this);
+
+    // TBD: sort/filter on gui side?
+    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    proxy->setSourceModel(m_connectionModel);
+
     m_probe->registerModel(ObjectVisualizerConnectionModelId, m_connectionModel);
 }
 
@@ -161,6 +187,7 @@ void AcquisitionEngine::registerConnectionFilterModel() {
     m_connectionInputModel = new ConnectionTypeModel(this);
     m_connectionFilterModel = new DiscriminatorProxyModel<int, ConnectionTypeModel::TypeRole>(this);
 
+    // TBD: sort/filter on gui side?
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_connectionFilterModel);
 
@@ -174,10 +201,11 @@ void AcquisitionEngine::registerThreadFilterModel() {
     m_threadInputModel = input;
     m_threadFilterModel = new DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole>(this);
 
+    // TBD: sort/filter on gui side?
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_threadFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerThreadModelId, m_threadFilterModel);
+    m_probe->registerModel(ObjectVisualizerThreadModelId, proxy);
     new DiscriminatorInterfaceBridge("Thread", m_threadFilterModel, this);
 }
 
@@ -188,10 +216,11 @@ void AcquisitionEngine::registerClassFilterModel() {
     m_classFilterModel
         = new DiscriminatorProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole>(this);
 
+    // TBD: sort/filter on gui side?
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_classFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerClassModelId, m_classFilterModel);
+    m_probe->registerModel(ObjectVisualizerClassModelId, proxy);
     new DiscriminatorInterfaceBridge("Class", m_classFilterModel, this);
 }
 
@@ -199,10 +228,11 @@ void AcquisitionEngine::registerObjectFilterModel() {
     m_objectInputModel = m_probe->objectTreeModel();
     m_objectFilterModel = new DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole>(this);
 
+    // TBD: sort/filter on gui side?
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_objectFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerObjectModelId, m_objectFilterModel);
+    m_probe->registerModel(ObjectVisualizerObjectModelId, proxy);
     new DiscriminatorInterfaceBridge("Object", m_objectFilterModel, this);
 }
 
