@@ -118,30 +118,6 @@ inline int weight(QAbstractItemModel *model, int row)
 VtkWidget::VtkWidget(QWidget *parent)
     : QVTKWidget(parent)
 {
-    m_layout = vtkSmartPointer<vtkGraphLayout>::New();
-    m_graph = vtkMutableDirectedGraph::New();
-    m_layoutView = vtkSmartPointer<vtkGraphLayoutView>::New();
-
-    m_interactorStyle = vtkInteractorStyleTrackballCamera::New();
-    m_interactor = vtkSmartPointer<QVTKInteractor>::New();
-    m_interactor->SetRenderWindow(m_layoutView->GetRenderWindow());
-    m_interactor->SetInteractorStyle(m_interactorStyle);
-    m_interactor->Initialize();
-    SetRenderWindow(m_layoutView->GetRenderWindow());
-
-    m_layoutView->SetVertexColorArrayName("VertexDegree");
-    m_layoutView->SetColorVertices(true);
-    m_layoutView->SetVertexLabelArrayName(s_ObjectLabelArrayName);
-    m_layoutView->SetVertexLabelVisibility(true);
-    m_layoutView->SetGlyphType(vtkGraphToGlyphs::SPHERE);
-
-    m_layoutView->SetEdgeColorArrayName(s_connWeightArrayName);
-    m_layoutView->SetColorEdges(true);
-    m_layoutView->SetEdgeLabelArrayName(s_connWeightArrayName);
-    m_layoutView->SetEdgeLabelVisibility(true);
-
-    createArrowDecorator(m_layout->GetOutputPort());
-
     m_objectIdArray = vtkUnsignedLongLongArray::New();
     m_objectIdArray->SetName(s_ObjectIdArrayName);
     m_threadIdArray = vtkUnsignedLongLongArray::New();
@@ -151,9 +127,30 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_connWeightArray = vtkIntArray::New();
     m_connWeightArray->SetName(s_connWeightArrayName);
 
+    m_graph = vtkMutableDirectedGraph::New();
+    m_layout = vtkSmartPointer<vtkGraphLayout>::New();
     m_layout->SetInputDataObject(m_graph);
-    m_layoutView->SetLayoutStrategyToPassThrough();
+    m_layoutView = vtkSmartPointer<vtkGraphLayoutView>::New();
     m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
+    createArrowDecorator(m_layout->GetOutputPort());
+
+    m_layoutView->SetVertexColorArrayName("VertexDegree");
+    m_layoutView->SetColorVertices(true);
+    m_layoutView->SetVertexLabelArrayName(s_ObjectLabelArrayName);
+    m_layoutView->SetVertexLabelVisibility(true);
+    m_layoutView->SetGlyphType(vtkGraphToGlyphs::SPHERE);
+    m_layoutView->SetEdgeColorArrayName(s_connWeightArrayName);
+    m_layoutView->SetColorEdges(true);
+    m_layoutView->SetEdgeLabelArrayName(s_connWeightArrayName);
+    m_layoutView->SetEdgeLabelVisibility(true);
+    m_layoutView->SetLayoutStrategyToPassThrough();
+
+    m_interactorStyle = vtkInteractorStyleTrackballCamera::New();
+    m_interactor = vtkSmartPointer<QVTKInteractor>::New();
+    m_interactor->SetRenderWindow(m_layoutView->GetRenderWindow());
+    m_interactor->SetInteractorStyle(m_interactorStyle);
+    m_interactor->Initialize();
+    SetRenderWindow(m_layoutView->GetRenderWindow());
 }
 
 VtkWidget::~VtkWidget() {}
@@ -170,21 +167,35 @@ void VtkWidget::setModel(QAbstractItemModel *model)
         connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
             qWarning() << "MODEL RESET";
             m_inputHasChanged = true;
+            //updateGraph();
         });
-        connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this]() {
-            qWarning() << "ROW REMOVED";
+        connect(m_model,
+                &QAbstractItemModel::rowsRemoved,
+                this,
+                [this](const QModelIndex &parent, int first, int last) {
+                    qWarning() << "ROW REMOVED" << first << last;
+                    m_inputHasChanged = true;
+                    //updateGraph();
+                });
+        connect(m_model,
+                &QAbstractItemModel::rowsInserted,
+                this,
+                [this](const QModelIndex &parent, int first, int last) {
+                    qWarning() << "ROW INSERTED" << first << last;
+                    m_inputHasChanged = true;
+                    //updateGraph();
+                });
+        connect(m_model, &QAbstractItemModel::dataChanged, this, [this]() {
+            qWarning() << "DATA CHANGED";
             m_inputHasChanged = true;
-        });
-        connect(m_model, &QAbstractItemModel::rowsInserted, this, [this]() {
-            qWarning() << "ROW INSERTED";
-            m_inputHasChanged = true;
+            //updateGraph();
         });
     }
 }
 
 void VtkWidget::updateGraph()
 {
-    qWarning() << "UPDATE GRAPH";
+    qWarning() << "UPDATE GRAPH" << m_inputHasChanged << m_configHasChanged << m_done;
     if (!m_model)
         return;
 
@@ -194,24 +205,29 @@ void VtkWidget::updateGraph()
     if (!m_done)
         return;
 
+    qWarning() << "UPDATING GRAPH...";
+    m_done = false;
     m_dataTimer.start();
     m_fetchDuration = 0;
     setEnabled(false);
-    m_rowDone.clear();
     m_objectIds.clear();
     m_objects.clear();
     m_connections.clear();
+    m_connectionIds.clear();
     tryUpdateGraph();
 }
 
 bool VtkWidget::tryUpdateGraph()
 {
     updateSatus("Fetching data");
+    qWarning() << "FETCHING DATA...";
     if (!fetchData()) {
         QTimer::singleShot(250, this, [this]() { tryUpdateGraph(); });
         m_fetchDuration = m_dataTimer.elapsed();
+        qWarning() << "FETCHING RESCEDULED";
         return false;
     }
+    qWarning() << "FETCHING DONE";
 
     m_fetchDuration = m_dataTimer.elapsed();
     buildGraph();
@@ -233,8 +249,6 @@ bool VtkWidget::fetchData()
     // Collect unique and valid objects and their connection counters
     // Keep everything ordered for the graph data arrays
     for (int row = 0; row < m_model->rowCount(); ++row) {
-        if (m_rowDone.contains(row))
-            continue; // FIXME: Won't work if row added/removed
         auto senderObjectId = objectId(m_model, row, ConnectionModel::SenderColumn);
         auto senderThreadId = threadId(m_model, row, ConnectionModel::SenderColumn);
         auto senderLabel = objectLabel(m_model, row, ConnectionModel::SenderColumn);
@@ -246,16 +260,21 @@ bool VtkWidget::fetchData()
                           && receiverObjectId && receiverThreadId && !receiverLabel.isNull()
                           && edgeWeight;
         if (done) {
-            if (!m_objectIds.contains(senderObjectId))
+            if (!m_objectIds.contains(senderObjectId)) {
                 m_objects.append({senderObjectId, senderThreadId, senderLabel.toStdString()});
-            if (!m_objectIds.contains(receiverObjectId))
+                m_objectIds.insert(senderObjectId);
+            }
+            if (!m_objectIds.contains(receiverObjectId)) {
                 m_objects.append({receiverObjectId, receiverThreadId, receiverLabel.toStdString()});
-            m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
-            m_rowDone.insert(row);
+                m_objectIds.insert(receiverObjectId);
+            }
+            if (!m_connectionIds.contains({senderObjectId, receiverObjectId})) {
+                m_connections.append({senderObjectId, receiverObjectId, edgeWeight});
+                m_connectionIds.insert({senderObjectId, receiverObjectId});
+            }
         }
     }
-    qWarning() << __FUNCTION__ << m_rowDone.count() << m_model->rowCount();
-    return m_rowDone.count() == m_model->rowCount();
+    return m_connectionIds.count() == m_model->rowCount();
 }
 
 bool VtkWidget::buildGraph()

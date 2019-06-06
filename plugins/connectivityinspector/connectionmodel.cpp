@@ -147,11 +147,14 @@ void ConnectionModel::addConnection(QObject *sender,
     if (sender == receiver)
         return;
 
-    const bool update = m_senderMap.contains(sender) && m_senderMap[sender].contains(receiver);
+    const bool update = m_senderMap.contains(sender)
+                        && m_senderMap.value(sender).contains(receiver);
+    qWarning() << __FUNCTION__ << update;
     if (update) {
         auto &edge = m_senderMap[sender][receiver];
         edge->value++;
         const int row = m_items.indexOf(edge);
+        qWarning() << __FUNCTION__ << edge->value++;
         emit dataChanged(index(row, CountColumn), index(row, CountColumn));
     } else {
         const int row = m_items.count();
@@ -175,28 +178,28 @@ void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
     if (!m_senderMap.value(sender).contains(receiver))
         return;
     const auto edge = m_senderMap.value(sender).value(receiver);
+    Q_ASSERT(edge->sender == sender && edge->receiver == receiver);
     const int row = m_items.indexOf(edge);
     Q_ASSERT(row >= 0);
     beginRemoveRows(QModelIndex(), row, row);    
     m_items.removeAt(row);
     delete edge;
     m_senderMap[sender].remove(receiver);
+    if (m_senderMap.value(sender).isEmpty())
+        m_senderMap.remove(sender);
     endRemoveRows();
 }
 
 void ConnectionModel::removeSender(QObject *sender)
 {
     for (auto edge : m_senderMap.value(sender).values()) {
-        const auto row = m_items.indexOf(edge);
-        beginRemoveRows(QModelIndex(), row, row);
-        m_items.removeAt(row);
-        delete edge;
-        endRemoveRows();
+        Q_ASSERT(edge->sender == sender);
+        removeConnection(edge->sender, edge->receiver);
     }
     m_senderMap.remove(sender); // FIXME
 }
 
 bool ConnectionModel::hasSender(QObject *sender) const
 {
-    return m_senderMap.contains(sender);
+    return m_senderMap.contains(sender) && !m_senderMap.value(sender).isEmpty();
 }

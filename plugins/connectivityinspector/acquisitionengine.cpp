@@ -66,8 +66,7 @@ void AcquisitionEngine::increaseCountersForObject(QObject *object) {
         return;
     m_objectFilterModel->increaseUsageCount(object);
     m_classFilterModel->increaseUsageCount(object->metaObject());
-    if (m_probe->isValidObject(object->thread()))
-        m_threadFilterModel->increaseUsageCount(object->thread());
+    m_threadFilterModel->increaseUsageCount(object->thread());
     auto connections = OutboundConnectionsModel::outboundConnectionsForObject(object);
     for (const auto &connection : connections) {
         m_connectionFilterModel->increaseUsageCount(connection.type);
@@ -109,58 +108,67 @@ void AcquisitionEngine::pauseSampling() { DEBUG; }
 
 void AcquisitionEngine::resumeSampling() { DEBUG; }
 
-void AcquisitionEngine::takeSample() {
+bool AcquisitionEngine::isValidObject(QObject *object)
+{
+    if (!m_probe->isValidObject(object) || m_probe->filterObject(object)) {
+        return false;
+    }
+    auto senderThread = object->thread();
+    if (!m_probe->isValidObject(senderThread) || m_probe->filterObject(senderThread)) {
+        m_connectionModel->removeSender(senderThread);
+        return false;
+    }
+    return true;
+}
+
+void AcquisitionEngine::sampleObject(QObject *sender)
+{
+    auto senderThread = sender->thread();
+    const bool isRecordingObject = m_threadFilterModel->isAccepting(sender->thread())
+                                   && m_classFilterModel->isAccepting(sender->metaObject())
+                                   && m_objectFilterModel->isAccepting(sender);
+    if (m_connectionModel->hasSender(sender) && !isRecordingObject) {
+        m_connectionModel->removeSender(sender);
+        return;
+    }
+    const QString senderLabel = Util::shortDisplayString(sender);
+
+    auto connections = OutboundConnectionsModel::outboundConnectionsForObject(sender);
+    for (const auto &connection : connections) {
+        QObject *receiver = connection.endpoint.data();
+        const bool isRecordingConnection = m_connectionFilterModel->isAccepting(connection.type);
+        if (isRecordingConnection) {
+            if (!isValidObject(receiver)) {
+                // FIXME: remove receiver?
+                continue;
+            }
+            auto receiverThread = receiver->thread();
+            const QString receiverLabel = Util::shortDisplayString(receiver);
+
+            // FIXME: need to track signal/slot indexes
+            m_connectionModel->addConnection(sender,
+                                             senderThread,
+                                             senderLabel,
+                                             receiver,
+                                             receiverThread,
+                                             receiverLabel);
+        } else
+            m_connectionModel->removeConnection(sender, receiver);
+    }
+}
+
+void AcquisitionEngine::takeSample()
+{
     DEBUG;
     QElapsedTimer timer;
     timer.start();
     QMutexLocker locker(m_probe->objectLock());
     for (const auto sender : m_objectFilterModel->targets()) {
-        if (!m_probe->isValidObject(sender) || m_probe->filterObject(sender)) {
+        if (!isValidObject(sender)) {
             m_connectionModel->removeSender(sender);
             continue;
         }
-        auto senderThread = sender->thread();
-        if (!m_probe->isValidObject(senderThread) || m_probe->filterObject(senderThread)) {
-            m_connectionModel->removeSender(senderThread);
-            continue;
-        }
-        const bool isRecordingObject = m_threadFilterModel->isAccepting(sender->thread())
-                                       && m_classFilterModel->isAccepting(sender->metaObject())
-                                       && m_objectFilterModel->isAccepting(sender);
-        if (m_connectionModel->hasSender(sender) && !isRecordingObject) {
-            m_connectionModel->removeSender(sender);
-            continue;
-        }
-        const QString senderLabel = Util::shortDisplayString(sender);
-
-        auto connections = OutboundConnectionsModel::outboundConnectionsForObject(sender);
-        for (const auto &connection : connections) {
-            QObject *receiver = connection.endpoint.data();
-            const bool isRecordingConnection = m_connectionFilterModel->isAccepting(connection.type);
-            if (m_connectionModel->hasConnection(sender, receiver) == isRecordingConnection)
-                continue;
-            if (isRecordingConnection) {
-                if (!m_probe->isValidObject(receiver) || m_probe->filterObject(receiver)) {
-                    // FIXME: remove receiver?
-                    continue;
-                }
-                auto receiverThread = receiver->thread();
-                if (!m_probe->isValidObject(receiverThread)
-                    || m_probe->filterObject(receiverThread)) {
-                    // FIXME: remove receiver?
-                    continue;
-                }
-                const QString receiverLabel = Util::shortDisplayString(receiver);
-
-                m_connectionModel->addConnection(sender,
-                                                 senderThread,
-                                                 senderLabel,
-                                                 receiver,
-                                                 receiverThread,
-                                                 receiverLabel);
-            } else
-                m_connectionModel->removeConnection(sender, receiver);
-        }
+        sampleObject(sender);
     }
     emit samplingDone(timer.elapsed());
 }
@@ -180,7 +188,7 @@ void AcquisitionEngine::registerConnectionModel() {
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_connectionModel);
 
-    m_probe->registerModel(ObjectVisualizerConnectionModelId, m_connectionModel);
+    m_probe->registerModel(ConnectivityInspector::ConnectionModelId, m_connectionModel);
 }
 
 void AcquisitionEngine::registerConnectionFilterModel() {
@@ -191,7 +199,7 @@ void AcquisitionEngine::registerConnectionFilterModel() {
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_connectionFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerConnectionTypeModelId, proxy);
+    m_probe->registerModel(ConnectivityInspector::ConnectionTypeModelId, proxy);
     new DiscriminatorInterfaceBridge("Connection", m_connectionFilterModel, this);
 }
 
@@ -205,7 +213,7 @@ void AcquisitionEngine::registerThreadFilterModel() {
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_threadFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerThreadModelId, proxy);
+    m_probe->registerModel(ConnectivityInspector::ThreadModelId, proxy);
     new DiscriminatorInterfaceBridge("Thread", m_threadFilterModel, this);
 }
 
@@ -220,7 +228,7 @@ void AcquisitionEngine::registerClassFilterModel() {
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_classFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerClassModelId, proxy);
+    m_probe->registerModel(ConnectivityInspector::ClassModelId, proxy);
     new DiscriminatorInterfaceBridge("Class", m_classFilterModel, this);
 }
 
@@ -232,7 +240,7 @@ void AcquisitionEngine::registerObjectFilterModel() {
     auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(m_objectFilterModel);
 
-    m_probe->registerModel(ObjectVisualizerObjectModelId, proxy);
+    m_probe->registerModel(ConnectivityInspector::ObjectModelId, proxy);
     new DiscriminatorInterfaceBridge("Object", m_objectFilterModel, this);
 }
 

@@ -87,6 +87,8 @@ private:
 
     Probe *m_probe;
     ConnectionModel *m_connectionModel;
+    bool isValidObject(QObject *sender);
+    void sampleObject(QObject *sender);
 };
 
 } // namespace GammaRay

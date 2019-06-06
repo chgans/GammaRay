@@ -38,7 +38,7 @@ DiscriminatorInterface::DiscriminatorInterface(const QString &name, QObject *par
     , m_name(name)
 {
     const auto fqon = QStringLiteral("%1.%2.%3")
-                          .arg(ConnectivityInspectorBaseDomain, "DiscriminatorInterface", name);
+                          .arg(ConnectivityInspector::BaseDomain, "DiscriminatorInterface", name);
     ObjectBroker::registerObject(fqon, this);
 }
 

@@ -30,12 +30,14 @@
 #include <qnamespace.h>
 
 namespace GammaRay {
-extern const char *ObjectVisualizerConnectionModelId;
-extern const char *ObjectVisualizerConnectionTypeModelId;
-extern const char *ObjectVisualizerThreadModelId;
-extern const char *ObjectVisualizerClassModelId;
-extern const char *ObjectVisualizerObjectModelId;
-extern const char *ConnectivityInspectorBaseDomain;
+namespace ConnectivityInspector {
+extern const char *BaseDomain;
+extern const char *ConnectionModelId;
+extern const char *ConnectionTypeModelId;
+extern const char *ThreadModelId;
+extern const char *ClassModelId;
+extern const char *ObjectModelId;
+} // namespace ConnectivityInspector
 
 enum {
     MetricColumRole = Qt::UserRole + 100,

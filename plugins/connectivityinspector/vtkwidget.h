@@ -105,8 +105,8 @@ private:
     QAbstractItemModel *m_model = nullptr;
     QSet<quint64> m_objectIds;
     QVector<std::tuple<quint64, quint64, std::string>> m_objects;
+    QSet<QPair<quint64, quint64>> m_connectionIds;
     QVector<std::tuple<quint64, quint64, int>> m_connections;
-    QSet<int> m_rowDone;
 
     // Internal state and data
     bool m_showEdgeArrow = false;

@@ -27,12 +27,14 @@
 #include "connectivityinspectorcommon.h"
 
 namespace GammaRay {
-const char *ConnectivityInspectorBaseDomain = "com.kdab.GammaRay.ConnectivityInspector";
-const char *ObjectVisualizerConnectionModelId
-    = "com.kdab.GammaRay.ObjectVisualizer.ConnectivityModel";
-const char *ObjectVisualizerConnectionTypeModelId
-    = "com.kdab.GammaRay.ObjectVisualizer.ConnectionTypeModel";
-const char *ObjectVisualizerThreadModelId = "com.kdab.GammaRay.ObjectVisualizer.ThreadModel";
-const char *ObjectVisualizerClassModelId = "com.kdab.GammaRay.ObjectVisualizer.ClassModel";
-const char *ObjectVisualizerObjectModelId = "com.kdab.GammaRay.ObjectVisualizer.ObjectModel";
+namespace ConnectivityInspector {
+// clang-format off
+const char *BaseDomain            = "com.kdab.GammaRay.ConnectivityInspector";
+const char *ConnectionModelId     = "com.kdab.GammaRay.ConnectivityInspector.ConnectionModel";
+const char *ConnectionTypeModelId = "com.kdab.GammaRay.ConnectivityInspector.ConnectionTypeModel";
+const char *ThreadModelId         = "com.kdab.GammaRay.ConnectivityInspector.ThreadModel";
+const char *ClassModelId          = "com.kdab.GammaRay.ConnectivityInspector.ClassModel";
+const char *ObjectModelId         = "com.kdab.GammaRay.ConnectivityInspector.ObjectModel";
+// clang-format on
+} // namespace ConnectivityInspector
 } // namespace GammaRay

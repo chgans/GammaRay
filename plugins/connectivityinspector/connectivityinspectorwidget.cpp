@@ -62,23 +62,22 @@ void ConnectivityInspectorWidget::setupClient() {
 }
 
 void ConnectivityInspectorWidget::setupModels() {
-    m_connectionModel = ObjectBroker::model(ObjectVisualizerConnectionModelId);
+    m_connectionModel = ObjectBroker::model(ConnectivityInspector::ConnectionModelId);
     Q_ASSERT(m_connectionModel != nullptr);
 
-    m_connectionFilterModel =
-        ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
+    m_connectionFilterModel = ObjectBroker::model(ConnectivityInspector::ConnectionTypeModelId);
     Q_ASSERT(m_connectionFilterModel != nullptr);
     m_connectionFilterInterface = new FilterController("Connection", this);
 
-    m_threadRecordingModel = ObjectBroker::model(ObjectVisualizerThreadModelId);
+    m_threadRecordingModel = ObjectBroker::model(ConnectivityInspector::ThreadModelId);
     Q_ASSERT(m_threadRecordingModel != nullptr);
     m_threadFilterInterface = new FilterController("Thread", this);
 
-    m_classRecordingModel = ObjectBroker::model(ObjectVisualizerClassModelId);
+    m_classRecordingModel = ObjectBroker::model(ConnectivityInspector::ClassModelId);
     Q_ASSERT(m_classRecordingModel != nullptr);
     m_classFilterInterface = new FilterController("Class", this);
 
-    m_objectRecordingModel = ObjectBroker::model(ObjectVisualizerObjectModelId);
+    m_objectRecordingModel = ObjectBroker::model(ConnectivityInspector::ObjectModelId);
     Q_ASSERT(m_objectRecordingModel != nullptr);
     m_objectFilterInterface = new FilterController("Object", this);
 }
