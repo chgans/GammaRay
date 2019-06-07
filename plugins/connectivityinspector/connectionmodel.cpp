@@ -139,7 +139,7 @@ bool ConnectionModel::hasConnection(QObject *sender, QObject *receiver) const {
 
 void ConnectionModel::addConnection(QObject *sender,
                                     QObject *senderThread,
-                                    const QString senderLabel,
+                                    const QString &senderLabel,
                                     QObject *receiver,
                                     QObject *receiverThread,
                                     const QString &receiverLabel)

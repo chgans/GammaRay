@@ -90,7 +90,7 @@ public slots:
     bool hasConnection(QObject *sender, QObject *receiver) const;
     void addConnection(QObject *sender,
                        QObject *senderThread,
-                       const QString senderLabel,
+                       const QString &senderLabel,
                        QObject *receiver,
                        QObject *receiverThread,
                        const QString &receiverLabel);

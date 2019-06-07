@@ -4,6 +4,10 @@
 
 #include "acquisitioninterface.h"
 
+// For templates
+#include "discriminatorproxymodel.h"
+#include <3rdparty/kde/krecursivefilterproxymodel.h>
+
 // For role enums
 #include "connectiontypemodel.h"
 
@@ -20,8 +24,10 @@ namespace GammaRay {
 
 class Probe;
 class ConnectionModel;
-template<class T, int>
-class DiscriminatorProxyModel;
+using TypeDiscriminator = Discriminator<int, QSortFilterProxyModel>;
+using ObjectDiscriminator = Discriminator<QObject *, KRecursiveFilterProxyModel>;
+using ThreadDiscriminator = Discriminator<QThread *, KRecursiveFilterProxyModel>;
+using ClassDiscriminator = Discriminator<const QMetaObject *, KRecursiveFilterProxyModel>;
 
 class AcquisitionEngine : public AcquisitionInterface {
     Q_OBJECT
@@ -48,25 +54,21 @@ public slots:
     void setSamplingRate(qreal rate) override;
 
 private:
-    void registerConnectionFilterModel();
-    void registerThreadFilterModel();
-    void registerClassFilterModel();
-    void registerObjectFilterModel();
-    void registerConnectionModel();
+    void registerConnectionDiscriminator();
+    void registerThreadDiscriminator();
+    void registerClassDiscriminator();
+    void registerObjectDiscriminator();
+    void registerConnectivityModel();
 
+#if 0
     void increaseCountersForObject(QObject *object);
     void decreaseCountersForObject(QObject *object);
+#endif
 
-    // clang-format off
-    QAbstractItemModel *m_connectionInputModel;
-    DiscriminatorProxyModel<int, ConnectionTypeModel::TypeRole> *m_connectionFilterModel;
-    QAbstractItemModel *m_threadInputModel;
-    DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole> *m_threadFilterModel;
-    QAbstractItemModel *m_classInputModel;
-    DiscriminatorProxyModel<const QMetaObject *, QMetaObjectModel::MetaObjectRole> *m_classFilterModel;
-    QAbstractItemModel *m_objectInputModel;
-    DiscriminatorProxyModel<QObject *, ObjectModel::ObjectRole> *m_objectFilterModel;
-    // clang-format on
+    TypeDiscriminator *m_typeDiscriminator;
+    ClassDiscriminator *m_classDiscriminator;
+    ObjectDiscriminator *m_objectDiscriminator;
+    ThreadDiscriminator *m_threadDiscriminator;
 
     void startSampling();
     void stopSampling();

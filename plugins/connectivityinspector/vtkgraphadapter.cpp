@@ -23,6 +23,8 @@
 
 #include "connectivityinspectorcommon.h"
 
+#include "connectionmodel.h"
+
 #include "common/objectid.h"
 
 #include <vtkIntArray.h>
@@ -83,6 +85,8 @@ vtkGraphAdapter::vtkGraphAdapter(QObject *parent)
     m_connWeightArray = vtkIntArray::New();
     m_connWeightArray->SetName(s_ConnWeightArrayName);
 }
+
+vtkGraphAdapter::~vtkGraphAdapter() {}
 
 void GammaRay::vtkGraphAdapter::setSourceModel(const QAbstractItemModel *model)
 {

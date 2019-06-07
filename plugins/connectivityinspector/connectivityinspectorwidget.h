@@ -56,6 +56,7 @@ public:
 private:
     void setupClient();
     void setupModels();
+    void setupFilters();
     void setupUi();
     void setupConnectionView();
     void setupFilterWidget(FilterWidget *widget, DiscriminatorInterface *interface,

@@ -44,12 +44,14 @@ QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 } // namespace
 
 using namespace GammaRay;
+using namespace GammaRay::CI;
 
 ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
     : QWidget(parent), m_ui(new Ui::ObjectVisualizerWidget),
       m_stateManager(this) {
     setupClient();
     setupModels();
+    setupFilters();
     setupUi();
 }
 
@@ -62,24 +64,27 @@ void ConnectivityInspectorWidget::setupClient() {
 }
 
 void ConnectivityInspectorWidget::setupModels() {
-    m_connectionModel = ObjectBroker::model(ConnectivityInspector::ConnectionModelId);
+    m_connectionModel = ObjectBroker::model(modelId(connectivityModelName()));
     Q_ASSERT(m_connectionModel != nullptr);
+}
 
-    m_connectionFilterModel = ObjectBroker::model(ConnectivityInspector::ConnectionTypeModelId);
+void ConnectivityInspectorWidget::setupFilters()
+{
+    m_connectionFilterModel = ObjectBroker::model(modelId(typeFilterName()));
     Q_ASSERT(m_connectionFilterModel != nullptr);
-    m_connectionFilterInterface = new FilterController("Connection", this);
+    m_connectionFilterInterface = new FilterController(typeFilterName(), this);
 
-    m_threadRecordingModel = ObjectBroker::model(ConnectivityInspector::ThreadModelId);
+    m_threadRecordingModel = ObjectBroker::model(modelId(threadFilterName()));
     Q_ASSERT(m_threadRecordingModel != nullptr);
-    m_threadFilterInterface = new FilterController("Thread", this);
+    m_threadFilterInterface = new FilterController(threadFilterName(), this);
 
-    m_classRecordingModel = ObjectBroker::model(ConnectivityInspector::ClassModelId);
+    m_classRecordingModel = ObjectBroker::model(modelId(threadFilterName()));
     Q_ASSERT(m_classRecordingModel != nullptr);
-    m_classFilterInterface = new FilterController("Class", this);
+    m_classFilterInterface = new FilterController(classFilterName(), this);
 
-    m_objectRecordingModel = ObjectBroker::model(ConnectivityInspector::ObjectModelId);
+    m_objectRecordingModel = ObjectBroker::model(modelId(objectFilterName()));
     Q_ASSERT(m_objectRecordingModel != nullptr);
-    m_objectFilterInterface = new FilterController("Object", this);
+    m_objectFilterInterface = new FilterController(objectFilterName(), this);
 }
 
 void ConnectivityInspectorWidget::setupUi() {
@@ -96,8 +101,8 @@ void ConnectivityInspectorWidget::setupUi() {
 
     m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
 
-    m_ui->gvWidget->setModel(m_connectionModel);
-    m_ui->vtkWidget->setModel(m_connectionModel);
+    //m_ui->gvWidget->setModel(m_connectionModel);
+    //m_ui->vtkWidget->setModel(m_connectionModel);
 
     connect(m_interface, &AcquisitionInterface::samplingDone, this, [this]() {
         m_ui->vtkWidget->updateGraph();
@@ -108,7 +113,7 @@ void ConnectivityInspectorWidget::setupConnectionView() {
     auto view = m_ui->connectionTreeView;
     view->header()->setObjectName("connectionTreeViewHeader");
     new SearchLineController(m_ui->connectionSearchLine, m_connectionModel);
-    view->setModel(m_connectionModel);
+    //view->setModel(m_connectionModel);
     view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
     view->setDeferredResizeMode(1, QHeaderView::ResizeToContents);
     view->setDeferredResizeMode(2, QHeaderView::Stretch);

@@ -27,9 +27,16 @@
 #ifndef GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGPROXYMODEL_H
 #define GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGPROXYMODEL_H
 
-#include "3rdparty/kde/kextracolumnsproxymodel.h"
-
 #include "discriminatorinterface.h"
+
+#include "connectivityinspectorcommon.h"
+
+#include <3rdparty/kde/kextracolumnsproxymodel.h>
+#include <common/objectmodel.h>
+#include <core/probe.h>
+#include <core/remote/serverproxymodel.h>
+
+#include <QSortFilterProxyModel>
 
 namespace GammaRay {
 
@@ -42,25 +49,18 @@ namespace GammaRay {
 //  - Refine: Improve representation: clearer and visually engaging
 //  - Interact: Allow data manipulation, feature visibility
 //
-// TODO: Improve/fix filtering in AcquisitionEngine
 //
 //               +-------------------------------- DiscriminatorIface ---+
 //               v                                                       |
-//         +-> DiscriminatorProxy ---------------> ServerProxy ------> ClientFilterGui
-//         |     ^
-// Source -+     |
-//         |     v
-//         +-> FilterProxy -> AcquisitionEngine -> ServerProxy ------> ClientGraphGui
-//                              ^
-//                              +----------------- AcquisitionIface -- ClientAcquisitionGui
+//             +--------------------+
+//         +-> | DiscriminatorProxy |---------------> ServerProxy ------> ClientFilterGui
+//         |   |     ^              |
+// Source -+   |     |              |
+//         |   |     v              |
+//         +-> | FilterProxy        |-> AcquisitionEngine -> ServerProxy ------> ClientGraphGui
+//             +--------------------+    ^
+//                                       +----------------- AcquisitionIface -- ClientAcquisitionGui
 //
-// Tasks:
-//  - Rename FilterProxyModel to DiscriminatorProxyModel
-//  - Rename {record|show}{All|None} to {include|exclude}{All|None}
-//  - Rename is{Recording|Visible} to is{Including|Excluding}
-//  - Create a real FilterProxyModel that filters Source by querying Discriminator
-//  - The AcquisitionEngine should output filtered MetaObject, Object, Thread lists and an Connection list
-//  - The gui should consume the AcquisitionEngine output, and deal with isVisible itself
 
 class DiscriminatorProxyModelBase : public KExtraColumnsProxyModel
 {
@@ -72,12 +72,21 @@ public:
 
     enum ExtraColumn { CountColumn = 0, IsDiscrimatingColumn, IsFilteringColumn, ExtraColumnCount };
 
+    void setDiscriminationRole(int role) { m_role = role; }
+
     void setEnabled(bool enabled);
     void discriminateAll();
     void discriminateNone();
     void filterAll();
     void filterNone();
     void resetCounts();
+
+    void increaseConnectivity(const QModelIndex &index);
+    void decreaseConnectivity(const QModelIndex &index);
+    bool isAccepting(const QModelIndex &index) const
+    {
+        return !(m_enabled && isDiscriminating(index) && isFiltering(index));
+    }
 
     // QAbstractProxyModel interface
 public:
@@ -104,6 +113,8 @@ public:
     extraItemData(const QModelIndex &index) const override;
 
 protected:
+    int m_role = 0;
+
     struct ItemData
     {
         ItemData()
@@ -116,18 +127,8 @@ protected:
         quint64 isFiltering : 1;
     };
 
-    void increaseUsageCount(const QModelIndex &index);
-    void decreaseUsageCount(const QModelIndex &index);
-    quint64 usageCount(const QModelIndex &index) const;
     bool isDiscriminating(const QModelIndex &index) const;
-    void setIsDiscriminating(const QModelIndex &index, bool enabled);
     bool isFiltering(const QModelIndex &index) const;
-    void setIsFiltering(const QModelIndex &index, bool enabled);
-    bool isAccepting(const QModelIndex &index) const
-    {
-        return !(m_enabled && isDiscriminating(index) && isFiltering(index));
-    }
-
     virtual void addItemData(const QModelIndex &index) = 0;
     virtual void removeItemData(const QModelIndex &index) = 0;
     virtual void clearItemData() = 0;
@@ -138,13 +139,17 @@ private:
     quint64 m_maxCount = 0;
     bool m_enabled = false;
 
+    quint64 connectivityCount(const QModelIndex &index) const;
+    void setIsDiscriminating(const QModelIndex &index, bool enabled);
+    void setIsFiltering(const QModelIndex &index, bool enabled);
+
 private slots:
     void visitIndex(const QModelIndex &sourceIndex, IndexVisitor visitor);
     void initialiseDiscriminator();
     void finaliseDiscriminator();
 };
 
-template<typename T, int TargetRole>
+template<typename T>
 class DiscriminatorProxyModel : public DiscriminatorProxyModelBase
 {
 public:
@@ -153,40 +158,37 @@ public:
     {}
     ~DiscriminatorProxyModel() override = default;
 
-    void increaseUsageCount(const T &target)
+    void increaseConnectivity(const T &target)
     {
         if (!sourceModel())
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        DiscriminatorProxyModelBase::increaseUsageCount(m_indexes.value(target));
+        DiscriminatorProxyModelBase::increaseConnectivity(m_indexes.value(target));
     }
 
-    void decreaseUsageCount(const T &target)
+    void decreaseConnectivity(const T &target)
     {
         if (!sourceModel())
             return;
 
         Q_ASSERT(m_indexes.contains(target));
-        DiscriminatorProxyModelBase::decreaseUsageCount(m_indexes.value(target));
+        DiscriminatorProxyModelBase::decreaseConnectivity(m_indexes.value(target));
     }
 
-    quint64 usageCount(const T &target)
+    quint64 connectivityCount(const T &target)
     {
         if (!sourceModel())
             return 0;
 
         Q_ASSERT(m_indexes.contains(target));
-        return DiscriminatorProxyModelBase::usageCount(m_indexes.value(target));
+        return DiscriminatorProxyModelBase::connectivityCount(m_indexes.value(target));
     }
 
     bool isDiscriminating(const T &target) const
     {
         if (!sourceModel())
             return false;
-        if (!m_indexes.contains(target))
-            return false; // FIXME: from main update
-        // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
         return DiscriminatorProxyModelBase::isDiscriminating(m_indexes.value(target));
     }
@@ -195,10 +197,6 @@ public:
     {
         if (!sourceModel())
             return false;
-
-        if (!m_indexes.contains(target))
-            return false; // FIXME:  from main update
-        // FIXME: inheritance?
         Q_ASSERT(m_indexes.contains(target));
         return DiscriminatorProxyModelBase::isFiltering(m_indexes.value(target));
     }
@@ -207,9 +205,6 @@ public:
     {
         if (!sourceModel())
             return false;
-
-        if (!m_indexes.contains(target))
-            return false; // FIXME:  from main update
         Q_ASSERT(m_indexes.contains(target));
         return DiscriminatorProxyModelBase::isAccepting(m_indexes.value(target));
     }
@@ -221,7 +216,7 @@ public:
 protected:
     void addItemData(const QModelIndex &index) override
     {
-        auto target = index.data(TargetRole).value<T>();
+        auto target = index.data(m_role).template value<T>();
         // FIXME: not sure it's a one to one relationship here, due to invalid
         // objects...
         m_indexes.insert(target, index);
@@ -229,7 +224,7 @@ protected:
 
     void removeItemData(const QModelIndex &index) override
     {
-        auto target = index.data(TargetRole).value<T>();
+        auto target = index.data(m_role).template value<T>();
         // FIXME:
         // Q_ASSERT(m_indexes.contains(target));
         m_indexes.remove(target);
@@ -240,32 +235,74 @@ protected:
 private:
     // TODO: provide iterator/view interface?
     QHash<T, QPersistentModelIndex> m_indexes;
+    int role = 0;
 };
 
-class DiscriminatorInterfaceBridge : public DiscriminatorInterface
+class FilterProxyModel : public QSortFilterProxyModel
+{
+public:
+    FilterProxyModel(QObject *parent = nullptr);
+    ~FilterProxyModel();
+
+    void setDiscriminatorModel(DiscriminatorProxyModelBase *model);
+
+    // QSortFilterProxyModel interface
+protected:
+    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+
+private:
+    DiscriminatorProxyModelBase *m_discriminator = nullptr;
+};
+
+class DiscriminatorBase : public DiscriminatorInterface
 {
     Q_OBJECT
 public:
-    DiscriminatorInterfaceBridge(const QString &name,
-                                 DiscriminatorProxyModelBase *model,
-                                 QObject *parent = nullptr)
+    DiscriminatorBase(const QString &name, QObject *parent = nullptr)
         : DiscriminatorInterface(name, parent)
-        , m_model(model)
     {}
-    ~DiscriminatorInterfaceBridge() override = default;
+    ~DiscriminatorBase() override = default;
 
     // DiscriminatorInterface interface
 public slots:
-    void setEnabled(bool enabled) override { m_model->setEnabled(enabled); };
-    void discriminateAll() override { m_model->discriminateAll(); }
-    void discriminateNone() override { m_model->discriminateNone(); }
-    void filterAll() override { m_model->filterAll(); }
-    void filterNone() override { m_model->filterNone(); }
+    void setEnabled(bool enabled) override;
+    void discriminateAll() override;
+    void discriminateNone() override;
+    void filterAll() override;
+    void filterNone() override;
 
-private:
-    DiscriminatorProxyModelBase *m_model;
+    const QAbstractItemModel *filteredModel() const;
+
+protected:
+    DiscriminatorProxyModelBase *m_discriminatorProxyModel = nullptr;
+    QAbstractItemModel *m_sourceModel = nullptr;
+    FilterProxyModel *m_filterProxyModel = nullptr;
+    QAbstractProxyModel *m_serverProxyModel = nullptr;
 };
 
+template<class T, class B>
+class Discriminator : public DiscriminatorBase
+{
+public:
+    Discriminator(const QString &name, QObject *parent = nullptr)
+        : DiscriminatorBase(name, parent)
+    {
+        m_discriminatorProxyModel = new DiscriminatorProxyModel<T>(this);
+        m_filterProxyModel = new FilterProxyModel(this);
+        m_filterProxyModel->setDiscriminatorModel(m_discriminatorProxyModel);
+        m_serverProxyModel = new ServerProxyModel<B>(this);
+        m_serverProxyModel->setSourceModel(m_discriminatorProxyModel);
+    }
+
+    void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
+    void setSourceModel(QAbstractItemModel *model)
+    {
+        m_discriminatorProxyModel->setSourceModel(model);
+        m_filterProxyModel->setSourceModel(model);
+    }
+
+    void initialise(Probe *probe) { probe->registerModel(CI::modelId(name()), m_serverProxyModel); }
+};
 } // namespace GammaRay
 
 #endif // GAMMARAY_CONNECTIVITYINSPECTOR_RECORDINGPROXYMODEL_H

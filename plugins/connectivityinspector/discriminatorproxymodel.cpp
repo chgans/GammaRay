@@ -35,7 +35,7 @@ using namespace GammaRay;
 DiscriminatorProxyModelBase::DiscriminatorProxyModelBase(QObject *parent)
     : KExtraColumnsProxyModel(parent)
 {
-    appendColumn("Connections");
+    appendColumn("Connectivity");
     appendColumn("Enable");
     appendColumn("Filter");
 }
@@ -61,7 +61,7 @@ QVariant DiscriminatorProxyModelBase::extraColumnData(const QModelIndex &parent,
     } else if (role == Qt::DisplayRole) {
         switch (extraColumn) {
         case CountColumn:
-            return usageCount(srcIndex);
+            return connectivityCount(srcIndex);
         }
     } else if (role == Qt::CheckStateRole) {
         switch (extraColumn) {
@@ -146,7 +146,7 @@ void DiscriminatorProxyModelBase::resetCounts()
     endResetModel();
 }
 
-void DiscriminatorProxyModelBase::increaseUsageCount(const QModelIndex &index)
+void DiscriminatorProxyModelBase::increaseConnectivity(const QModelIndex &index)
 {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count++;
@@ -156,7 +156,7 @@ void DiscriminatorProxyModelBase::increaseUsageCount(const QModelIndex &index)
                            {Qt::DisplayRole});
 }
 
-void DiscriminatorProxyModelBase::decreaseUsageCount(const QModelIndex &index)
+void DiscriminatorProxyModelBase::decreaseConnectivity(const QModelIndex &index)
 {
     Q_ASSERT(m_data.contains(index));
     m_data[index].count--;
@@ -166,7 +166,7 @@ void DiscriminatorProxyModelBase::decreaseUsageCount(const QModelIndex &index)
                            {Qt::DisplayRole});
 }
 
-quint64 DiscriminatorProxyModelBase::usageCount(const QModelIndex &index) const
+quint64 DiscriminatorProxyModelBase::connectivityCount(const QModelIndex &index) const
 {
     Q_ASSERT(m_data.contains(index));
     return m_data.value(index).count;
@@ -288,8 +288,8 @@ void DiscriminatorProxyModelBase::initialiseDiscriminator()
                     removeItemData(index);
                 }
             });
-    connect(sourceModel(), &QAbstractItemModel::modelReset, this, [this]() {
-        m_data = QHash<QPersistentModelIndex, ItemData>();
+    connect(sourceModel(), &QAbstractItemModel::modelAboutToBeReset, this, [this]() {
+        m_data.clear();
         clearItemData();
     });
 }
@@ -297,5 +297,58 @@ void DiscriminatorProxyModelBase::initialiseDiscriminator()
 void DiscriminatorProxyModelBase::finaliseDiscriminator()
 {
     sourceModel()->disconnect(this);
+    m_data.clear();
     clearItemData();
+}
+
+FilterProxyModel::FilterProxyModel(QObject *parent)
+    : QSortFilterProxyModel(parent)
+{}
+
+void FilterProxyModel::setDiscriminatorModel(DiscriminatorProxyModelBase *model)
+{
+    m_discriminator = model;
+}
+
+bool FilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
+{
+    Q_ASSERT(m_discriminator);
+    return m_discriminator->isAccepting(source_parent.child(source_row, 0));
+}
+
+FilterProxyModel::~FilterProxyModel() = default;
+
+void DiscriminatorBase::setEnabled(bool enabled)
+{
+    Q_ASSERT(m_discriminatorProxyModel);
+    m_discriminatorProxyModel->setEnabled(enabled);
+}
+
+void DiscriminatorBase::discriminateAll()
+{
+    Q_ASSERT(m_discriminatorProxyModel);
+    m_discriminatorProxyModel->discriminateAll();
+}
+
+void DiscriminatorBase::discriminateNone()
+{
+    Q_ASSERT(m_discriminatorProxyModel);
+    m_discriminatorProxyModel->discriminateNone();
+}
+
+void DiscriminatorBase::filterAll()
+{
+    Q_ASSERT(m_discriminatorProxyModel);
+    m_discriminatorProxyModel->filterAll();
+}
+
+void DiscriminatorBase::filterNone()
+{
+    Q_ASSERT(m_discriminatorProxyModel);
+    m_discriminatorProxyModel->filterNone();
+}
+
+const QAbstractItemModel *DiscriminatorBase::filteredModel() const
+{
+    return m_filterProxyModel;
 }

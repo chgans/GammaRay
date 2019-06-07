@@ -26,15 +26,47 @@
 
 #include "connectivityinspectorcommon.h"
 
+#include <QString>
+
 namespace GammaRay {
-namespace ConnectivityInspector {
-// clang-format off
-const char *BaseDomain            = "com.kdab.GammaRay.ConnectivityInspector";
-const char *ConnectionModelId     = "com.kdab.GammaRay.ConnectivityInspector.ConnectionModel";
-const char *ConnectionTypeModelId = "com.kdab.GammaRay.ConnectivityInspector.ConnectionTypeModel";
-const char *ThreadModelId         = "com.kdab.GammaRay.ConnectivityInspector.ThreadModel";
-const char *ClassModelId          = "com.kdab.GammaRay.ConnectivityInspector.ClassModel";
-const char *ObjectModelId         = "com.kdab.GammaRay.ConnectivityInspector.ObjectModel";
-// clang-format on
-} // namespace ConnectivityInspector
+namespace CI { // FIXME
+
+static const char *BaseDomain = "com.kdab.GammaRay.ConnectivityInspector";
+
+QString modelId(const QString &name)
+{
+    return QStringLiteral("%1.%2.Model").arg(BaseDomain).arg(name);
+}
+
+QString filterId(const QString &name)
+{
+    return QStringLiteral("%1.%2.Filter").arg(BaseDomain).arg(name);
+}
+
+QString connectivityModelName()
+{
+    return QStringLiteral("Connectivity");
+}
+
+QString threadFilterName()
+{
+    return QStringLiteral("Thread");
+}
+
+QString objectFilterName()
+{
+    return QStringLiteral("Object");
+}
+
+QString classFilterName()
+{
+    return QStringLiteral("Class");
+}
+
+QString typeFilterName()
+{
+    return QStringLiteral("Type");
+}
+
+} // namespace CI
 } // namespace GammaRay

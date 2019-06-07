@@ -29,15 +29,20 @@
 
 #include <qnamespace.h>
 
+class QString;
+
 namespace GammaRay {
-namespace ConnectivityInspector {
-extern const char *BaseDomain;
-extern const char *ConnectionModelId;
-extern const char *ConnectionTypeModelId;
-extern const char *ThreadModelId;
-extern const char *ClassModelId;
-extern const char *ObjectModelId;
-} // namespace ConnectivityInspector
+namespace CI { // FIXME
+QString modelId(const QString &name);
+QString filterId(const QString &name);
+
+QString connectivityModelName();
+
+QString threadFilterName();
+QString objectFilterName();
+QString classFilterName();
+QString typeFilterName();
+} // namespace CI
 
 enum {
     MetricColumRole = Qt::UserRole + 100,

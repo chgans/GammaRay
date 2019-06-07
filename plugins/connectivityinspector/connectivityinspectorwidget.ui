@@ -48,11 +48,11 @@
        <item row="0" column="0">
         <widget class="QTabWidget" name="filterTabWidget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="GammaRay::FilterWidget" name="connectionFilterWidget">
           <attribute name="title">
-           <string>Connection</string>
+           <string>Type</string>
           </attribute>
          </widget>
          <widget class="GammaRay::FilterWidget" name="threadFilterWidget">
@@ -99,7 +99,7 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QWidget" name="">
+         <widget class="QWidget" name="layoutWidget">
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
             <widget class="QLineEdit" name="connectionSearchLine">

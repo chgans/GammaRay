@@ -31,15 +31,13 @@
 #include <common/objectbroker.h>
 
 using namespace GammaRay;
+using namespace GammaRay::CI;
 
-// TODO: Rename to ConnectivityInspector::FilterInterface ?
 DiscriminatorInterface::DiscriminatorInterface(const QString &name, QObject *parent)
     : QObject(parent)
     , m_name(name)
 {
-    const auto fqon = QStringLiteral("%1.%2.%3")
-                          .arg(ConnectivityInspector::BaseDomain, "DiscriminatorInterface", name);
-    ObjectBroker::registerObject(fqon, this);
+    ObjectBroker::registerObject(filterId(name), this);
 }
 
 DiscriminatorInterface::~DiscriminatorInterface() = default;
