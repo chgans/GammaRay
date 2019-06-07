@@ -87,6 +87,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
       vtkcontainer.cpp
       vtkpanel.cpp
       vtkwidget.cpp
+      vtkgraphadapter.cpp
   )
 
   gammaray_add_plugin(gammaray_connectivityinspector_ui_plugin
