@@ -206,9 +206,14 @@ void VtkWidget::buildGraph()
                 objects.append({receiverObjectId, receiverThreadId, receiverLabel});
             connections.append({senderObjectId, receiverObjectId, edgeWeight});
         } else {
-            qWarning() << __PRETTY_FUNCTION__ << "Got invalid records: " << senderObjectId
-                       << senderThreadId << QString::fromStdString(senderLabel) << receiverObjectId
-                       << receiverThreadId << QString::fromStdString(receiverLabel) << edgeWeight;
+            //            qWarning() << __PRETTY_FUNCTION__ << "Got invalid
+            //            records: " << senderObjectId
+            //                       << senderThreadId <<
+            //                       QString::fromStdString(senderLabel) <<
+            //                       receiverObjectId
+            //                       << receiverThreadId <<
+            //                       QString::fromStdString(receiverLabel) <<
+            //                       edgeWeight;
         }
     }
 

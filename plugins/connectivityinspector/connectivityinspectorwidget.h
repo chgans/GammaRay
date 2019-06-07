@@ -74,6 +74,10 @@ private:
     FilterInterface *m_classFilterInterface;
     QAbstractItemModel *m_objectRecordingModel;
     FilterInterface *m_objectFilterInterface;
+
+    // QObject interface
+public:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
 class ConnectivityInspectorUiFactory

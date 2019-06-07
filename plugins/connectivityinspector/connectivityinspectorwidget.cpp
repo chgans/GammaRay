@@ -36,6 +36,8 @@
 #include <common/objectbroker.h>
 #include <ui/searchlinecontroller.h>
 
+#include <QDebug>
+
 namespace {
 QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 {
@@ -64,6 +66,8 @@ void ConnectivityInspectorWidget::setupClient() {
 void ConnectivityInspectorWidget::setupModels() {
     m_connectionModel = ObjectBroker::model(ObjectVisualizerConnectionModelId);
     Q_ASSERT(m_connectionModel != nullptr);
+    m_connectionModel->installEventFilter(this);
+    qDebug() << Q_FUNC_INFO << thread() << m_connectionModel;
 
     m_connectionFilterModel =
         ObjectBroker::model(ObjectVisualizerConnectionTypeModelId);
@@ -81,6 +85,7 @@ void ConnectivityInspectorWidget::setupModels() {
     m_objectRecordingModel = ObjectBroker::model(ObjectVisualizerObjectModelId);
     Q_ASSERT(m_objectRecordingModel != nullptr);
     m_objectFilterInterface = new FilterController("Object", this);
+    m_objectRecordingModel->installEventFilter(this);
 }
 
 void ConnectivityInspectorWidget::setupUi() {
@@ -117,4 +122,22 @@ void ConnectivityInspectorWidget::setupFilterWidget(FilterWidget *widget,
     auto proxy = new CountDecoratorProxyModel(this);
     proxy->setSourceModel(model);
     widget->setup(interface, proxy);
+    qDebug() << thread();
+}
+
+bool ConnectivityInspectorWidget::eventFilter(QObject *watched, QEvent *event) {
+    qDebug() << Q_FUNC_INFO << watched << event;
+    //    if (watched != m_connectionModel)
+    //        return QWidget::eventFilter(watched, event);
+    if (event->type() < QEvent::User)
+        return false;
+    if (event->type() == QEvent::User + 2) {
+        qDebug() << Q_FUNC_INFO << "Synchronised";
+        return true;
+    }
+    if (event->type() == QEvent::User + 1) {
+        qDebug() << Q_FUNC_INFO << "Need sync";
+        return true;
+    }
+    return QWidget::eventFilter(watched, event);
 }

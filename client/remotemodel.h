@@ -97,7 +97,7 @@ private:
         void clearChildrenStructure();
 
         // resize the initialize the column vectors
-        void allocateColumns();
+        bool allocateColumns();
         // returns whether columns are allocated
         bool hasColumnData() const;
 
@@ -161,7 +161,8 @@ private slots:
 private:
     Node *m_root;
 
-    mutable QVector<QHash<int, QVariant> > m_horizontalHeaders; // section -> role -> data
+    mutable QVector<QHash<int, QVariant>>
+        m_horizontalHeaders; // section -> role -> data
     mutable QVector<QHash<int, QVariant> > m_verticalHeaders; // section -> role -> data
 
     enum RequestType {
@@ -192,6 +193,31 @@ private:
     void registerClient(const QString &serverObject);
     virtual void sendMessage(const Message &msg) const;
     friend class FakeRemoteModel;
+
+    // Node state tracking
+    struct NodeStateStats {
+        qint64 done = 0;
+        qint64 empty = 0;
+        qint64 loading = 0;
+        qint64 outdated = 0;
+        void clear() {
+            done = 0;
+            empty = 0;
+            loading = 0;
+            outdated = 0;
+        }
+    };
+    mutable NodeStateStats m_nodeStateStats;
+    void addNodeStateFlags(
+        const QVector<RemoteModelNodeState::NodeStates> &state) const;
+    void removeNodeStateFlags(
+        const QVector<RemoteModelNodeState::NodeStates> &state) const;
+    //    void setNodeStateFlags(Node *node, int index,
+    //                           RemoteModelNodeState::NodeStates flags) const;
+    void setNodeStateFlags(RemoteModelNodeState::NodeStates &state,
+                           RemoteModelNodeState::NodeStates flags) const;
+    void clearNodeStateFlags(RemoteModelNodeState::NodeStates &state,
+                             RemoteModelNodeState::NodeStates flags) const;
 };
 }
 

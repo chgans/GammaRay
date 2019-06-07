@@ -63,6 +63,8 @@ QVector<AbstractConnectionsModel::Connection> InboundConnectionsModel::inboundCo
     if (d->senders) {
         auto *senders = d->senders;
 #endif
+        // TODO: use QObjectPrivate::Connection pointer as an id, keep a map of
+        // all connections
         for (QObjectPrivate::Connection *s = senders; s; s = s->next) {
             if (!s->sender || Probe::instance()->filterObject(s->sender))
                 continue;

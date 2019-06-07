@@ -4,13 +4,15 @@
   This file is part of GammaRay, the Qt application inspection and
   manipulation tool.
 
-  Copyright (C) 2013-2019 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Volker Krause <volker.krause@kdab.com>
+  Copyright (C) 2013-2019 Klarälvdalens Datakonsult AB, a KDAB Group company,
+  info@kdab.com Author: Volker Krause <volker.krause@kdab.com>
 
   Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  accordance with GammaRay Commercial License Agreement provided with the
+  Software.
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
+  Contact info@kdab.com if any conditions of this licensing are not clear to
+  you.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +37,9 @@
 
 #include <QApplication>
 #include <QDataStream>
+#include <QDateTime>
 #include <QDebug>
+#include <QKeyEvent>
 #include <QStyle>
 #include <QStyleOptionViewItem>
 
@@ -57,7 +61,7 @@ void RemoteModel::Node::clearChildrenData()
         child->clearChildrenStructure();
         child->data.clear();
         child->flags.clear();
-        child->state.clear();
+        child->state.clear(); // FIXME
     }
 }
 
@@ -69,15 +73,15 @@ void RemoteModel::Node::clearChildrenStructure()
     columnCount = -1;
 }
 
-void RemoteModel::Node::allocateColumns()
-{
+bool RemoteModel::Node::allocateColumns() {
     if (hasColumnData() || !parent || parent->columnCount < 0)
-        return;
+        return false;
     data.resize(parent->columnCount);
     flags.resize(parent->columnCount);
     flags.fill(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-    state.resize(parent->columnCount);
+    state.resize(parent->columnCount); // FIXME
     state.fill(RemoteModelNodeState::Empty | RemoteModelNodeState::Outdated);
+    return true;
 }
 
 bool RemoteModel::Node::hasColumnData() const
@@ -366,11 +370,15 @@ void RemoteModel::newMessage(const GammaRay::Message &msg)
                 continue; // we didn't ask for this, probably outdated response for a moved cell
 
             if (node) {
-                node->allocateColumns();
+                if (node->allocateColumns())
+                    addNodeStateFlags(node->state);
                 Q_ASSERT(node->data.size() > column);
                 node->data[column] = itemData;
                 node->flags[column] = static_cast<Qt::ItemFlags>(flags);
-                node->state[column] = state & ~(RemoteModelNodeState::Loading | RemoteModelNodeState::Empty | RemoteModelNodeState::Outdated);
+                clearNodeStateFlags(node->state[column],
+                                    RemoteModelNodeState::Loading |
+                                        RemoteModelNodeState::Empty |
+                                        RemoteModelNodeState::Outdated);
 
                 if ((flags & Qt::ItemNeverHasChildren) && column == 0) {
                     node->rowCount = 0;
@@ -441,7 +449,8 @@ void RemoteModel::newMessage(const GammaRay::Message &msg)
                 const auto state = stateForColumn(currentRow, col);
                 if ((state & RemoteModelNodeState::Outdated) == 0) {
                     Q_ASSERT(currentRow->state.size() > col);
-                    currentRow->state[col] = state | RemoteModelNodeState::Outdated;
+                    setNodeStateFlags(currentRow->state[col],
+                                      RemoteModelNodeState::Outdated);
                 }
             }
         }
@@ -585,8 +594,9 @@ void RemoteModel::newMessage(const GammaRay::Message &msg)
                 changePersistentIndex(persistentIndex, QModelIndex());
             if (hint == 0)
                 m_root->clearChildrenStructure();
-            else
-                m_root->clearChildrenData();
+            else {
+                m_root->clearChildrenData(); // FIXME
+            }
             emit layoutChanged();
             break;
         }
@@ -617,8 +627,9 @@ void RemoteModel::newMessage(const GammaRay::Message &msg)
             if (hint == 0)
                 node->clearChildrenStructure();
             else
-                node->clearChildrenData();
+                node->clearChildrenData(); // FIXME
         }
+        m_nodeStateStats.clear();
         emit layoutChanged(); // TODO Qt5 support with exact sub-trees
         break;
     }
@@ -716,17 +727,18 @@ void RemoteModel::requestRowColumnCount(const QModelIndex &index) const
     }
 }
 
-void RemoteModel::requestDataAndFlags(const QModelIndex &index) const
-{
+void RemoteModel::requestDataAndFlags(const QModelIndex &index) const {
     Node *node = nodeForIndex(index);
     Q_ASSERT(node);
 
     const auto state = stateForColumn(node, index.column());
     Q_ASSERT((state & RemoteModelNodeState::Loading) == 0);
 
-    node->allocateColumns();
+    if (node->allocateColumns())
+        addNodeStateFlags(node->state);
     Q_ASSERT(node->state.size() > index.column());
-    node->state[index.column()] = state | RemoteModelNodeState::Loading; // mark pending request
+    setNodeStateFlags(node->state[index.column()],
+                      RemoteModelNodeState::Loading); // mark pending request
 
     auto &indexes = m_pendingRequests[DataAndFlags];
     indexes.push_back(Protocol::fromQModelIndex(index));
@@ -799,6 +811,7 @@ void RemoteModel::clear()
     m_root = new Node;
     m_horizontalHeaders.clear();
     m_verticalHeaders.clear();
+    m_nodeStateStats.clear();
     endResetModel();
 }
 
@@ -833,7 +846,7 @@ void RemoteModel::resetLoadingState(RemoteModel::Node *node, int startRow) const
         Node *child = node->children.at(row);
         for (auto it = child->state.begin(); it != child->state.end(); ++it) {
             if ((*it) & RemoteModelNodeState::Loading)
-                (*it) = (*it) & ~RemoteModelNodeState::Loading;
+                clearNodeStateFlags(*it, RemoteModelNodeState::Loading);
         }
         resetLoadingState(child, 0);
     }
@@ -1056,4 +1069,106 @@ void RemoteModel::setProxyFilterRegExp(const QRegExp &regExp)
         return;
     m_proxyFilterRegExp = regExp;
     emit proxyFilterRegExpChanged();
+}
+
+void RemoteModel::addNodeStateFlags(
+    const QVector<RemoteModelNodeState::NodeStates> &states) const {
+    if (states.isEmpty())
+        return;
+    const bool notify = (m_nodeStateStats.empty + m_nodeStateStats.loading +
+                         m_nodeStateStats.outdated) == 0;
+    const int count = states.count();
+    const auto state = states.at(0);
+    Q_ASSERT(state != RemoteModelNodeState::NoState);
+    if (state.testFlag(RemoteModelNodeState::Empty))
+        m_nodeStateStats.empty += count;
+    if (state.testFlag(RemoteModelNodeState::Loading))
+        m_nodeStateStats.loading += count;
+    if (state.testFlag(RemoteModelNodeState::Outdated))
+        m_nodeStateStats.outdated += count;
+    //    const auto todo =
+    //        std::max({m_nodeStateStats.empty, m_nodeStateStats.loading,
+    //                  m_nodeStateStats.outdated});
+    //    qDebug() << QDateTime::currentMSecsSinceEpoch() << objectName()
+    //             << m_nodeStateStats.empty << m_nodeStateStats.loading
+    //             << m_nodeStateStats.outdated << todo << m_nodeStateStats.done
+    //             << (todo ? 100. * qreal(m_nodeStateStats.done) / todo :
+    //             100.);
+    if (notify) {
+        qDebug() << Q_FUNC_INFO;
+        QEvent event(QEvent::Type(QEvent::User + 1));
+        // QKeyEvent event(QEvent::KeyPress, Qt::Key_MediaPlay, Qt::NoModifier);
+        qApp->sendEvent(const_cast<RemoteModel *>(this), &event);
+    }
+}
+
+void RemoteModel::setNodeStateFlags(
+    RemoteModelNodeState::NodeStates &state,
+    /*Node *node, int index, */ RemoteModelNodeState::NodeStates flags) const {
+    Q_ASSERT(flags != RemoteModelNodeState::NoState);
+    const bool notify = (m_nodeStateStats.empty + m_nodeStateStats.loading +
+                         m_nodeStateStats.outdated) == 0;
+    // const auto state = node->state.at(index);
+    if (!state.testFlag(RemoteModelNodeState::Empty) &&
+        flags.testFlag(RemoteModelNodeState::Empty))
+        m_nodeStateStats.empty++;
+    if (!state.testFlag(RemoteModelNodeState::Loading) &&
+        flags.testFlag(RemoteModelNodeState::Loading))
+        m_nodeStateStats.loading++;
+    if (!state.testFlag(RemoteModelNodeState::Outdated) &&
+        flags.testFlag(RemoteModelNodeState::Outdated))
+        m_nodeStateStats.outdated++;
+    // node->state[index] = state | flags;
+    state |= flags;
+    //    const auto todo =
+    //        std::max({m_nodeStateStats.empty, m_nodeStateStats.loading,
+    //                  m_nodeStateStats.outdated});
+    //    qDebug() << QDateTime::currentMSecsSinceEpoch() << objectName()
+    //             << m_nodeStateStats.empty << m_nodeStateStats.loading
+    //             << m_nodeStateStats.outdated << todo << m_nodeStateStats.done
+    //             << (todo ? 100. * qreal(m_nodeStateStats.done) / todo :
+    //             100.);
+    if (notify) {
+        qDebug() << Q_FUNC_INFO;
+        QEvent event(QEvent::Type(QEvent::User + 1));
+        // QKeyEvent event(QEvent::KeyPress, Qt::Key_MediaPlay, Qt::NoModifier);
+        qApp->sendEvent(const_cast<RemoteModel *>(this), &event);
+    }
+}
+
+void RemoteModel::clearNodeStateFlags(
+    RemoteModelNodeState::NodeStates &state,
+    RemoteModelNodeState::NodeStates flags) const {
+    Q_ASSERT(flags != RemoteModelNodeState::NoState);
+    if (state.testFlag(RemoteModelNodeState::Empty) &&
+        flags.testFlag(RemoteModelNodeState::Empty))
+        m_nodeStateStats.empty--;
+    if (state.testFlag(RemoteModelNodeState::Loading) &&
+        flags.testFlag(RemoteModelNodeState::Loading))
+        m_nodeStateStats.loading--;
+    if (state.testFlag(RemoteModelNodeState::Outdated) &&
+        flags.testFlag(RemoteModelNodeState::Outdated))
+        m_nodeStateStats.outdated--;
+    state &= ~flags;
+    if (state == RemoteModelNodeState::NoState)
+        m_nodeStateStats.done++;
+    Q_ASSERT(m_nodeStateStats.empty >= 0);
+    Q_ASSERT(m_nodeStateStats.loading >= 0);
+    Q_ASSERT(m_nodeStateStats.outdated >= 0);
+    const auto todo =
+        std::max({m_nodeStateStats.empty, m_nodeStateStats.loading,
+                  m_nodeStateStats.outdated});
+    //    qDebug() << QDateTime::currentMSecsSinceEpoch() << objectName()
+    //             << m_nodeStateStats.empty << m_nodeStateStats.loading
+    //             << m_nodeStateStats.outdated << todo << m_nodeStateStats.done
+    //             << (todo ? 100. * qreal(m_nodeStateStats.done) /
+    //                         (todo + m_nodeStateStats.done)
+    //                      : 100.);
+    if (todo == 0) {
+        qDebug() << Q_FUNC_INFO << this << thread();
+        QEvent event(QEvent::Type(QEvent::User + 2));
+        // QKeyEvent event(QEvent::KeyPress, Qt::Key_MediaStop, Qt::NoModifier);
+        qApp->sendEvent(const_cast<RemoteModel *>(this), &event);
+        m_nodeStateStats.clear();
+    }
 }
