@@ -24,6 +24,10 @@ gammaray_add_plugin(gammaray_connectivityinspector_plugin
   SOURCES ${gammaray_connectivityinspector_plugin_srcs}
 )
 
+target_include_directories(gammaray_connectivityinspector_plugin SYSTEM PRIVATE
+    ${Qt5Core_PRIVATE_INCLUDE_DIRS}
+)
+
 target_link_libraries(gammaray_connectivityinspector_plugin
   gammaray_kitemmodels
   gammaray_core
@@ -77,17 +81,17 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
       filterwidget.cpp
       filterwidget.ui
 
-      gvcontainer.cpp
-      gvgraphicsview.cpp
-      gvpanel.cpp
-      gvrenderer.cpp
-      gvwidget.cpp
+      gv/gvcontainer.cpp
+      gv/gvgraphicsview.cpp
+      gv/gvpanel.cpp
+      gv/gvrenderer.cpp
+      gv/gvwidget.cpp
 
-      vtkcommon.cpp
-      vtkcontainer.cpp
-      vtkpanel.cpp
-      vtkwidget.cpp
-      vtkgraphadapter.cpp
+      vtk/vtkcommon.cpp
+      vtk/vtkcontainer.cpp
+      vtk/vtkpanel.cpp
+      vtk/vtkwidget.cpp
+      vtk/vtkgraphadapter.cpp
   )
 
   gammaray_add_plugin(gammaray_connectivityinspector_ui_plugin
