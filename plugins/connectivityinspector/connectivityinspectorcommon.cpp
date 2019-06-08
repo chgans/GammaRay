@@ -33,19 +33,19 @@ namespace CI { // FIXME
 
 static const char *BaseDomain = "com.kdab.GammaRay.ConnectivityInspector";
 
-QString modelId(const QString &name)
+QString filterModelId(const QString &name)
 {
-    return QStringLiteral("%1.%2.Model").arg(BaseDomain).arg(name);
+    return QStringLiteral("%1.Filter.%2.Model").arg(BaseDomain).arg(name);
 }
 
-QString filterId(const QString &name)
+QString filterInterfaceId(const QString &name)
 {
-    return QStringLiteral("%1.%2.Filter").arg(BaseDomain).arg(name);
+    return QStringLiteral("%1.Filter.%2.Interface").arg(BaseDomain).arg(name);
 }
 
-QString connectivityModelName()
+QString filteredModelId(const QString &name)
 {
-    return QStringLiteral("Connectivity");
+    return QStringLiteral("%1.Filter.%2.Output").arg(BaseDomain).arg(name);
 }
 
 QString threadFilterName()
@@ -66,6 +66,11 @@ QString classFilterName()
 QString typeFilterName()
 {
     return QStringLiteral("Type");
+}
+
+QString connectionFilterName()
+{
+    return QStringLiteral("Connection");
 }
 
 } // namespace CI

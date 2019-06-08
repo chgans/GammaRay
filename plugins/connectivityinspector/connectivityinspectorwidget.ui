@@ -26,7 +26,7 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="filterTab">
       <attribute name="title">
@@ -50,9 +50,14 @@
          <property name="currentIndex">
           <number>0</number>
          </property>
-         <widget class="GammaRay::FilterWidget" name="connectionFilterWidget">
+         <widget class="GammaRay::FilterWidget" name="typeFilterWidget">
           <attribute name="title">
            <string>Type</string>
+          </attribute>
+         </widget>
+         <widget class="GammaRay::FilterWidget" name="connectionFilterWidget">
+          <attribute name="title">
+           <string>Connection</string>
           </attribute>
          </widget>
          <widget class="GammaRay::FilterWidget" name="threadFilterWidget">
@@ -102,14 +107,14 @@
          <widget class="QWidget" name="layoutWidget">
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
-            <widget class="QLineEdit" name="connectionSearchLine">
+            <widget class="QLineEdit" name="connectivitySearchLine">
              <property name="placeholderText">
               <string>Filter...</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="GammaRay::DeferredTreeView" name="connectionTreeView"/>
+            <widget class="GammaRay::DeferredTreeView" name="connectivityTreeView"/>
            </item>
           </layout>
          </widget>

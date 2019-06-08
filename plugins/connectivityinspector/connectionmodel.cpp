@@ -32,10 +32,22 @@
 
 #include <common/objectid.h>
 
+#include <private/qobject_p.h>
 #include <QMutexLocker>
 #include <QThread>
 
 #include <algorithm>
+
+namespace {
+int signalIndexToMethodIndex(QObject *object, int signalIndex)
+{
+    if (signalIndex < 0)
+        return signalIndex;
+    Q_ASSERT(object);
+
+    return GammaRay::Util::signalIndexToMethodIndex(object->metaObject(), signalIndex);
+}
+} // namespace
 
 using namespace GammaRay;
 
@@ -43,7 +55,7 @@ ConnectionModel::ConnectionModel(QObject *parent)
     : QAbstractTableModel(parent)
 {}
 
-ConnectionModel::~ConnectionModel() { qDeleteAll(m_items); }
+ConnectionModel::~ConnectionModel() = default;
 
 int ConnectionModel::rowCount(const QModelIndex &parent) const
 {
@@ -59,40 +71,31 @@ int ConnectionModel::columnCount(const QModelIndex & /*parent*/) const
 
 QVariant ConnectionModel::data(const QModelIndex &index, int role) const
 {
+    if (!index.isValid())
+        return QVariant();
+
+    Q_ASSERT(index.row() < m_items.count());
+    auto item = m_items.at(index.row());
     if (role == Qt::DisplayRole) {
-        auto edge = m_items.at(index.row());
         switch (index.column()) {
+        case ConnectionColumn:
+            return Util::addressToString(item.connection);
+        case TypeColumn:
+            return item.type;
         case SenderColumn:
-            return edge->senderLabel;
+            return Util::addressToString(item.sender);
+        case SignalColumn:
+            return item.signalIndex;
         case ReceiverColumn:
-            return edge->receiverLabel;
-        case CountColumn:
-            return edge->value;
+            return Util::addressToString(item.receiver);
+        case SlotColumn:
+            return item.slotIndex;
         default:
             return {};
         }
     }
-    if (role == ObjectIdRole) {
-        auto edge = m_items.at(index.row());
-        switch (index.column()) {
-        case SenderColumn:
-            return QVariant::fromValue(ObjectId(edge->sender));
-        case ReceiverColumn:
-            return QVariant::fromValue(ObjectId(edge->receiver));
-        default:
-            return {};
-        }
-    }
-    if (role == ThreadIdRole) {
-        auto edge = m_items.at(index.row());
-        switch (index.column()) {
-        case SenderColumn:
-            return QVariant::fromValue(ObjectId(edge->senderThread));
-        case ReceiverColumn:
-            return QVariant::fromValue(ObjectId(edge->receiverThread));
-        default:
-            return {};
-        }
+    if (role == ConnectionRole) {
+        return item.connection;
     }
     return {};
 }
@@ -104,102 +107,78 @@ QVariant ConnectionModel::headerData(int section, Qt::Orientation orientation, i
     if (orientation != Qt::Horizontal)
         return {};
     switch (section) {
+    case ConnectionColumn:
+        return tr("Connection");
+    case TypeColumn:
+        return tr("Type");
     case SenderColumn:
-        return "Sender";
+        return tr("Sender");
+    case SignalColumn:
+        return tr("Signal");
     case ReceiverColumn:
-        return "Receiver";
-    case CountColumn:
-        return "Connections";
+        return tr("Receiver");
+    case SlotColumn:
+        return tr("Slot");
     default:
         return {};
     }
 }
 
-QMap<int, QVariant> ConnectionModel::itemData(const QModelIndex &index) const
-{
-    QMap<int, QVariant> d = QAbstractItemModel::itemData(index);
-    d.insert(ObjectIdRole, data(index, ObjectIdRole));
-    d.insert(ThreadIdRole, data(index, ThreadIdRole));
-    return d;
-}
-
 void ConnectionModel::clear()
 {
     beginResetModel();
-    qDeleteAll(m_items);
     m_items.clear();
-    m_senderMap.clear();
     endResetModel();
 }
 
-bool ConnectionModel::hasConnection(QObject *sender, QObject *receiver) const {
-    return m_senderMap.contains(sender) &&
-        m_senderMap.value(sender).contains(receiver);
-}
-
-void ConnectionModel::addConnection(QObject *sender,
-                                    QObject *senderThread,
-                                    const QString &senderLabel,
-                                    QObject *receiver,
-                                    QObject *receiverThread,
-                                    const QString &receiverLabel)
+void ConnectionModel::addObject(QObject *object)
 {
-    if (sender == receiver)
-        return;
-
-    const bool update = m_senderMap.contains(sender)
-                        && m_senderMap.value(sender).contains(receiver);
-    qWarning() << __FUNCTION__ << update;
-    if (update) {
-        auto &edge = m_senderMap[sender][receiver];
-        edge->value++;
-        const int row = m_items.indexOf(edge);
-        qWarning() << __FUNCTION__ << edge->value++;
-        emit dataChanged(index(row, CountColumn), index(row, CountColumn));
-    } else {
-        const int row = m_items.count();
-        beginInsertRows(QModelIndex(), row, row);
-        auto edge = new ConnectionItem(sender,
-                                       senderThread,
-                                       senderLabel,
-                                       receiver,
-                                       receiverThread,
-                                       receiverLabel,
-                                       1);
-        m_items.append(edge);
-        m_senderMap[sender][receiver] = edge;
-        endInsertRows();
+    QObjectPrivate *d = QObjectPrivate::get(object);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    QObjectPrivate::ConnectionData *cd = d->connections.load();
+    if (cd) {
+        auto &cl = *(cd->signalVector.load());
+#else
+    if (d->connectionLists) {
+        // HACK: the declaration of d->connectionsLists is not accessible for us...
+        const auto &cl = *reinterpret_cast<QVector<QObjectPrivate::ConnectionList> *>(
+            d->connectionLists);
+#endif
+        for (int signalIndex = 0; signalIndex < cl.count(); ++signalIndex) {
+            const QObjectPrivate::Connection *c = cl.at(signalIndex).first;
+            while (c) {
+                if (!c->receiver || Probe::instance()->filterObject(c->receiver)) {
+                    c = c->nextConnectionList;
+                    continue;
+                }
+                Connection conn;
+                conn.connection = c;
+                conn.sender = object;
+                conn.receiver = c->receiver;
+                conn.signalIndex = signalIndexToMethodIndex(object, signalIndex);
+                if (c->isSlotObject)
+                    conn.slotIndex = -1;
+                else
+                    conn.slotIndex = c->method();
+                conn.type = c->connectionType;
+                c = c->nextConnectionList;
+                const int row = m_items.count();
+                beginInsertRows(QModelIndex(), row, row);
+                m_items.append(conn);
+                endInsertRows();
+            }
+        }
     }
 }
 
-void ConnectionModel::removeConnection(QObject *sender, QObject *receiver) {
-    if (!m_senderMap.contains(sender))
-        return;
-    if (!m_senderMap.value(sender).contains(receiver))
-        return;
-    const auto edge = m_senderMap.value(sender).value(receiver);
-    Q_ASSERT(edge->sender == sender && edge->receiver == receiver);
-    const int row = m_items.indexOf(edge);
-    Q_ASSERT(row >= 0);
-    beginRemoveRows(QModelIndex(), row, row);    
-    m_items.removeAt(row);
-    delete edge;
-    m_senderMap[sender].remove(receiver);
-    if (m_senderMap.value(sender).isEmpty())
-        m_senderMap.remove(sender);
-    endRemoveRows();
-}
-
-void ConnectionModel::removeSender(QObject *sender)
+void ConnectionModel::removeObject(QObject *object)
 {
-    for (auto edge : m_senderMap.value(sender).values()) {
-        Q_ASSERT(edge->sender == sender);
-        removeConnection(edge->sender, edge->receiver);
+    for (int row = 0; row < m_items.count(); ++row) {
+        const auto &connection = m_items.at(row);
+        if (connection.sender != object && connection.receiver != object)
+            continue;
+        beginRemoveRows(QModelIndex(), row, row);
+        m_items.removeAt(row);
+        endRemoveRows();
     }
-    m_senderMap.remove(sender); // FIXME
-}
-
-bool ConnectionModel::hasSender(QObject *sender) const
-{
-    return m_senderMap.contains(sender) && !m_senderMap.value(sender).isEmpty();
 }

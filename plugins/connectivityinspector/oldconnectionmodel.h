@@ -35,8 +35,6 @@
 #include <QHash>
 #include <QMetaMethod>
 
-class QObjectPrivate;
-
 namespace GammaRay {
 
 class Probe;
@@ -71,18 +69,10 @@ class ConnectionModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
+    enum { SenderColumn, ReceiverColumn, CountColumn, ColumnCount };
     enum {
-        ConnectionColumn,
-        TypeColumn,
-        SenderColumn,
-        SignalColumn,
-        ReceiverColumn,
-        SlotColumn,
-        ColumnCount
-    };
-
-    enum {
-        ConnectionRole = Qt::UserRole + 1,
+        ObjectIdRole = ObjectModel::ObjectIdRole,
+        ThreadIdRole = ObjectModel::UserRole + 1
     };
 
     explicit ConnectionModel(QObject *parent = nullptr);
@@ -91,27 +81,27 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
-    QVariant headerData(int section,
-                        Qt::Orientation orientation,
+    QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
 
 public slots:
     void clear();
-    void addObject(QObject *object);
-    void removeObject(QObject *object);
+    bool hasConnection(QObject *sender, QObject *receiver) const;
+    void addConnection(QObject *sender,
+                       QObject *senderThread,
+                       const QString &senderLabel,
+                       QObject *receiver,
+                       QObject *receiverThread,
+                       const QString &receiverLabel);
+    void removeConnection(QObject *sender, QObject *receiver);
+    bool hasSender(QObject *sender) const;
+    void removeSender(QObject *sender);
 
 private:
-    struct Connection
-    {
-        const void *connection;
-        QObject *sender;
-        int signalIndex;
-        QObject *receiver;
-        int slotIndex;
-        int type;
-        int count = 0;
-    };
-    QVector<Connection> m_items;
+    QVector<ConnectionItem *> m_items;
+    // map[sender][receiver] = {sender, receiver, count}
+    QHash<QObject *, QHash<QObject *, ConnectionItem *>> m_senderMap;
 };
 } // namespace GammaRay
 

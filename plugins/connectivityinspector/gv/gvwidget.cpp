@@ -122,29 +122,29 @@ void GvWidget::processRow(int row) {
     Graph receiverGraph;
     Node senderNode;
     Node receiverNode;
-    {
-        constexpr int ID = ConnectionModel::ThreadIdRole;
-        index = m_model->index(row, ConnectionModel::SenderColumn);
-        auto senderId = index.data(ID).value<ObjectId>().id();
-        auto senderName = QStringLiteral("cluster_%1").arg(senderId);
-        senderGraph = m_gvGraph.addSubgraph(senderName);
-        index = m_model->index(row, ConnectionModel::ReceiverColumn);
-        auto receiverId = index.data(ID).value<ObjectId>().id();
-        auto receiverName = QStringLiteral("cluster_%1").arg(receiverId);
-        receiverGraph = m_gvGraph.addSubgraph(receiverName);
-    }
-    {
-        constexpr int ID = ConnectionModel::ObjectIdRole;
-        index = m_model->index(row, ConnectionModel::SenderColumn);
-        auto senderId = index.data(ID).value<ObjectId>().id();
-        auto senderName = index.data().toString();
-        senderNode = senderGraph.addNode(senderName);
-        index = m_model->index(row, ConnectionModel::ReceiverColumn);
-        auto receiverId = index.data(ID).value<ObjectId>().id();
-        auto receiverName = index.data().toString();
-        receiverNode = receiverGraph.addNode(receiverName);
-    }
-    m_gvGraph.addEdge(senderNode, receiverNode);
+    //    {
+    //        constexpr int ID = ConnectionModel::ThreadIdRole;
+    //        index = m_model->index(row, ConnectionModel::SenderColumn);
+    //        auto senderId = index.data(ID).value<ObjectId>().id();
+    //        auto senderName = QStringLiteral("cluster_%1").arg(senderId);
+    //        senderGraph = m_gvGraph.addSubgraph(senderName);
+    //        index = m_model->index(row, ConnectionModel::ReceiverColumn);
+    //        auto receiverId = index.data(ID).value<ObjectId>().id();
+    //        auto receiverName = QStringLiteral("cluster_%1").arg(receiverId);
+    //        receiverGraph = m_gvGraph.addSubgraph(receiverName);
+    //    }
+    //    {
+    //        constexpr int ID = ConnectionModel::ObjectIdRole;
+    //        index = m_model->index(row, ConnectionModel::SenderColumn);
+    //        auto senderId = index.data(ID).value<ObjectId>().id();
+    //        auto senderName = index.data().toString();
+    //        senderNode = senderGraph.addNode(senderName);
+    //        index = m_model->index(row, ConnectionModel::ReceiverColumn);
+    //        auto receiverId = index.data(ID).value<ObjectId>().id();
+    //        auto receiverName = index.data().toString();
+    //        receiverNode = receiverGraph.addNode(receiverName);
+    //    }
+    //    m_gvGraph.addEdge(senderNode, receiverNode);
 }
 
 #define MISSING_GVQT_FIXES

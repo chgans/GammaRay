@@ -37,7 +37,7 @@ DiscriminatorInterface::DiscriminatorInterface(const QString &name, QObject *par
     : QObject(parent)
     , m_name(name)
 {
-    ObjectBroker::registerObject(filterId(name), this);
+    ObjectBroker::registerObject(filterInterfaceId(name), this);
 }
 
 DiscriminatorInterface::~DiscriminatorInterface() = default;

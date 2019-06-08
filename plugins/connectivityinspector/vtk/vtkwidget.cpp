@@ -87,14 +87,16 @@ const char *s_connWeightArrayName = "ConnWeight";
 
 inline quint64 objectId(QAbstractItemModel *model, int row, int col)
 {
-    constexpr int role = ConnectionModel::ObjectIdRole;
+    constexpr int role = 0;
+    //ConnectionModel::ObjectIdRole;
     const QModelIndex index = model->index(row, col);
     return index.data(role).value<ObjectId>().id();
 }
 
 inline quint64 threadId(QAbstractItemModel *model, int row, int col)
 {
-    constexpr int role = ConnectionModel::ThreadIdRole;
+    constexpr int role = 0;
+    // ConnectionModel::ThreadIdRole;
     const QModelIndex index = model->index(row, col);
     return index.data(role).value<ObjectId>().id();
 }
@@ -109,7 +111,8 @@ inline QString objectLabel(QAbstractItemModel *model, int row, int col)
 inline int weight(QAbstractItemModel *model, int row)
 {
     constexpr int role = Qt::DisplayRole;
-    constexpr int col = ConnectionModel::CountColumn;
+    constexpr int col = 0;
+    //ConnectionModel::CountColumn;
     const QModelIndex index = model->index(row, col);
     return index.data(role).toInt();
 }

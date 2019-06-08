@@ -46,85 +46,51 @@ QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 using namespace GammaRay;
 using namespace GammaRay::CI;
 
-ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
-    : QWidget(parent), m_ui(new Ui::ObjectVisualizerWidget),
-      m_stateManager(this) {
-    setupClient();
-    setupModels();
-    setupFilters();
-    setupUi();
+Filter::Filter(FilterWidget *widget, const QString &name, QObject *parent)
+{
+    outputModel = ObjectBroker::model(filteredModelId(name));
+    Q_ASSERT(outputModel);
+    filterModel = ObjectBroker::model(filterModelId(name));
+    Q_ASSERT(filterModel);
+    filterInterface = new FilterController(name, parent);
+    auto proxy = new CountDecoratorProxyModel(parent);
+    proxy->setSourceModel(filterModel);
+    widget->setup(filterInterface, proxy);
+    filterWidget = widget;
 }
 
-ConnectivityInspectorWidget::~ConnectivityInspectorWidget() = default;
+ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
+    : QWidget(parent)
+    , m_ui(new Ui::ObjectVisualizerWidget)
+    , m_stateManager(this)
+{
+    m_ui->setupUi(this);
 
-void ConnectivityInspectorWidget::setupClient() {
     ObjectBroker::registerClientObjectFactoryCallback<AcquisitionInterface *>(
         createObjectVisualizerClient);
     m_interface = ObjectBroker::object<AcquisitionInterface *>();
-}
-
-void ConnectivityInspectorWidget::setupModels() {
-    m_connectionModel = ObjectBroker::model(modelId(connectivityModelName()));
-    Q_ASSERT(m_connectionModel != nullptr);
-}
-
-void ConnectivityInspectorWidget::setupFilters()
-{
-    m_connectionFilterModel = ObjectBroker::model(modelId(typeFilterName()));
-    Q_ASSERT(m_connectionFilterModel != nullptr);
-    m_connectionFilterInterface = new FilterController(typeFilterName(), this);
-
-    m_threadRecordingModel = ObjectBroker::model(modelId(threadFilterName()));
-    Q_ASSERT(m_threadRecordingModel != nullptr);
-    m_threadFilterInterface = new FilterController(threadFilterName(), this);
-
-    m_classRecordingModel = ObjectBroker::model(modelId(threadFilterName()));
-    Q_ASSERT(m_classRecordingModel != nullptr);
-    m_classFilterInterface = new FilterController(classFilterName(), this);
-
-    m_objectRecordingModel = ObjectBroker::model(modelId(objectFilterName()));
-    Q_ASSERT(m_objectRecordingModel != nullptr);
-    m_objectFilterInterface = new FilterController(objectFilterName(), this);
-}
-
-void ConnectivityInspectorWidget::setupUi() {
-    m_ui->setupUi(this);
-    setupConnectionView();
-    setupFilterWidget(m_ui->connectionFilterWidget, m_connectionFilterInterface,
-                      m_connectionFilterModel);
-    setupFilterWidget(m_ui->threadFilterWidget, m_threadFilterInterface,
-                      m_threadRecordingModel);
-    setupFilterWidget(m_ui->classFilterWidget, m_classFilterInterface,
-                      m_classRecordingModel);
-    setupFilterWidget(m_ui->objectFilterWidget, m_objectFilterInterface,
-                      m_objectRecordingModel);
 
     m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
+
+    // clang-format off
+    m_filters.insert(typeFilterName(),
+                     Filter(m_ui->typeFilterWidget, typeFilterName(), this));
+    m_filters.insert(classFilterName(),
+                     Filter(m_ui->classFilterWidget, classFilterName(), this));
+    m_filters.insert(objectFilterName(),
+                     Filter(m_ui->objectFilterWidget, objectFilterName(), this));
+    m_filters.insert(connectionFilterName(),
+                     Filter(m_ui->connectionFilterWidget, connectionFilterName(), this));
+    m_filters.insert(threadFilterName(),
+                     Filter(m_ui->threadFilterWidget, threadFilterName(), this));
+    // clang-format on
 
     //m_ui->gvWidget->setModel(m_connectionModel);
     //m_ui->vtkWidget->setModel(m_connectionModel);
 
-    connect(m_interface, &AcquisitionInterface::samplingDone, this, [this]() {
-        m_ui->vtkWidget->updateGraph();
-    });
+    // connect(m_interface, &AcquisitionInterface::samplingDone, this, [this]() {
+    //     m_ui->vtkWidget->updateGraph();
+    // });
 }
 
-void ConnectivityInspectorWidget::setupConnectionView() {
-    auto view = m_ui->connectionTreeView;
-    view->header()->setObjectName("connectionTreeViewHeader");
-    new SearchLineController(m_ui->connectionSearchLine, m_connectionModel);
-    //view->setModel(m_connectionModel);
-    view->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
-    view->setDeferredResizeMode(1, QHeaderView::ResizeToContents);
-    view->setDeferredResizeMode(2, QHeaderView::Stretch);
-    view->setSortingEnabled(true);
-}
-
-void ConnectivityInspectorWidget::setupFilterWidget(FilterWidget *widget,
-                                                    DiscriminatorInterface *interface,
-                                                    QAbstractItemModel *model)
-{
-    auto proxy = new CountDecoratorProxyModel(this);
-    proxy->setSourceModel(model);
-    widget->setup(interface, proxy);
-}
+ConnectivityInspectorWidget::~ConnectivityInspectorWidget() = default;

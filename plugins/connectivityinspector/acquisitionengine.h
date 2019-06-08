@@ -25,6 +25,7 @@ namespace GammaRay {
 class Probe;
 class ConnectionModel;
 using TypeDiscriminator = Discriminator<int, QSortFilterProxyModel>;
+using ConnectionDiscriminator = Discriminator<const void *, QSortFilterProxyModel>;
 using ObjectDiscriminator = Discriminator<QObject *, KRecursiveFilterProxyModel>;
 using ThreadDiscriminator = Discriminator<QThread *, KRecursiveFilterProxyModel>;
 using ClassDiscriminator = Discriminator<const QMetaObject *, KRecursiveFilterProxyModel>;
@@ -54,11 +55,11 @@ public slots:
     void setSamplingRate(qreal rate) override;
 
 private:
+    void registerTypeDiscriminator();
     void registerConnectionDiscriminator();
     void registerThreadDiscriminator();
     void registerClassDiscriminator();
     void registerObjectDiscriminator();
-    void registerConnectivityModel();
 
 #if 0
     void increaseCountersForObject(QObject *object);
@@ -66,6 +67,7 @@ private:
 #endif
 
     TypeDiscriminator *m_typeDiscriminator;
+    ConnectionDiscriminator *m_connectionDiscriminator;
     ClassDiscriminator *m_classDiscriminator;
     ObjectDiscriminator *m_objectDiscriminator;
     ThreadDiscriminator *m_threadDiscriminator;

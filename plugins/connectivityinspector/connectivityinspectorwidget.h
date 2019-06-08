@@ -40,11 +40,20 @@ QT_END_NAMESPACE
 namespace GammaRay {
 namespace Ui {
     class ObjectVisualizerWidget;
-}
-class DeferredTreeView;
+    }
+
 class AcquisitionInterface;
 class DiscriminatorInterface;
 class FilterWidget;
+
+struct Filter
+{
+    Filter(FilterWidget *widget, const QString &name, QObject *parent);
+    QAbstractItemModel *outputModel;
+    QAbstractItemModel *filterModel;
+    DiscriminatorInterface *filterInterface;
+    FilterWidget *filterWidget;
+};
 
 class ConnectivityInspectorWidget : public QWidget {
     Q_OBJECT
@@ -54,27 +63,10 @@ public:
     ~ConnectivityInspectorWidget();
 
 private:
-    void setupClient();
-    void setupModels();
-    void setupFilters();
-    void setupUi();
-    void setupConnectionView();
-    void setupFilterWidget(FilterWidget *widget, DiscriminatorInterface *interface,
-                           QAbstractItemModel *model);
-
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
     AcquisitionInterface *m_interface;
     UIStateManager m_stateManager;
-    QAbstractItemModel *m_connectionModel;
-
-    QAbstractItemModel *m_connectionFilterModel;
-    DiscriminatorInterface *m_connectionFilterInterface;
-    QAbstractItemModel *m_threadRecordingModel;
-    DiscriminatorInterface *m_threadFilterInterface;
-    QAbstractItemModel *m_classRecordingModel;
-    DiscriminatorInterface *m_classFilterInterface;
-    QAbstractItemModel *m_objectRecordingModel;
-    DiscriminatorInterface *m_objectFilterInterface;
+    QHash<QString, Filter> m_filters;
 };
 
 class ConnectivityInspectorUiFactory

@@ -33,15 +33,15 @@ class QString;
 
 namespace GammaRay {
 namespace CI { // FIXME
-QString modelId(const QString &name);
-QString filterId(const QString &name);
-
-QString connectivityModelName();
+QString filterModelId(const QString &name);
+QString filterInterfaceId(const QString &name);
+QString filteredModelId(const QString &name);
 
 QString threadFilterName();
 QString objectFilterName();
 QString classFilterName();
 QString typeFilterName();
+QString connectionFilterName();
 } // namespace CI
 
 enum {

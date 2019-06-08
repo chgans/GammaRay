@@ -271,13 +271,18 @@ public slots:
     void filterAll() override;
     void filterNone() override;
 
+    //    void increaseConnectivity(const QModelIndex &sourceIndex);
+    //    void decreaseConnectivity(const QModelIndex &sourceIndex);
+    //    bool isAccepting(const QModelIndex &sourceIndex) const;
+
     const QAbstractItemModel *filteredModel() const;
 
 protected:
-    DiscriminatorProxyModelBase *m_discriminatorProxyModel = nullptr;
     QAbstractItemModel *m_sourceModel = nullptr;
+    DiscriminatorProxyModelBase *m_discriminatorProxyModel = nullptr;
+    QAbstractProxyModel *m_discriminatorServerProxyModel = nullptr;
     FilterProxyModel *m_filterProxyModel = nullptr;
-    QAbstractProxyModel *m_serverProxyModel = nullptr;
+    QAbstractProxyModel *m_filterServerProxyModel = nullptr;
 };
 
 template<class T, class B>
@@ -288,10 +293,12 @@ public:
         : DiscriminatorBase(name, parent)
     {
         m_discriminatorProxyModel = new DiscriminatorProxyModel<T>(this);
+        m_discriminatorServerProxyModel = new ServerProxyModel<B>(this);
+        m_discriminatorServerProxyModel->setSourceModel(m_discriminatorProxyModel);
         m_filterProxyModel = new FilterProxyModel(this);
         m_filterProxyModel->setDiscriminatorModel(m_discriminatorProxyModel);
-        m_serverProxyModel = new ServerProxyModel<B>(this);
-        m_serverProxyModel->setSourceModel(m_discriminatorProxyModel);
+        m_filterServerProxyModel = new ServerProxyModel<QIdentityProxyModel>(this);
+        m_filterServerProxyModel->setSourceModel(m_filterProxyModel);
     }
 
     void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
@@ -301,7 +308,11 @@ public:
         m_filterProxyModel->setSourceModel(model);
     }
 
-    void initialise(Probe *probe) { probe->registerModel(CI::modelId(name()), m_serverProxyModel); }
+    void initialise(Probe *probe)
+    {
+        probe->registerModel(CI::filterModelId(name()), m_discriminatorServerProxyModel);
+        probe->registerModel(CI::filteredModelId(name()), m_filterServerProxyModel);
+    }
 };
 } // namespace GammaRay
 

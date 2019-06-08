@@ -26,6 +26,7 @@
 Q_DECLARE_METATYPE(QObject *)
 Q_DECLARE_METATYPE(QThread *)
 Q_DECLARE_METATYPE(const QMetaObject *)
+Q_DECLARE_METATYPE(const void *)
 
 #define DEBUG qDebug() << __FUNCTION__ << __LINE__
 
@@ -50,12 +51,11 @@ AcquisitionEngine::AcquisitionEngine(Probe *probe, QObject *parent)
     setBufferSize(100);
     setSamplingRate(5);
 
-    registerClassDiscriminator();
+    registerTypeDiscriminator();
     registerConnectionDiscriminator();
+    registerClassDiscriminator();
     registerObjectDiscriminator();
     registerThreadDiscriminator();
-
-    registerConnectivityModel();
 
     connect(m_timer, &QTimer::timeout, this, &AcquisitionEngine::takeSample);
 
@@ -104,9 +104,10 @@ bool AcquisitionEngine::isValidObject(QObject *object)
 void AcquisitionEngine::sampleObject(QObject *sender)
 {
     //    auto senderThread = sender->thread();
-    //    const bool isRecordingObject = m_threadFilterModel->isAccepting(sender->thread())
-    //                                   && m_classFilterModel->isAccepting(sender->metaObject())
-    //                                   && m_objectFilterModel->isAccepting(sender);
+    //    const bool isRecordingObject
+    //        = m_threadFilterModel->isAccepting(sender->thread())
+    //          && m_classFilterModel->isAccepting(sender->metaObject())
+    //          && m_objectFilterModel->isAccepting(sender);
     //    if (m_connectionModel->hasSender(sender) && !isRecordingObject) {
     //        m_connectionModel->removeSender(sender);
     //        return;
@@ -146,11 +147,10 @@ void AcquisitionEngine::takeSample()
     const auto model = m_objectDiscriminator->filteredModel();
     visitModelIndex(model, QModelIndex(), [this](const QModelIndex &index) {
         auto sender = index.data(ObjectModel::ObjectRole).value<QObject *>();
-        if (!isValidObject(sender)) {
-            m_connectionModel->removeSender(sender);
-            return;
-        }
-        sampleObject(sender);
+        if (isValidObject(sender))
+            sampleObject(sender);
+        //        else
+        //            m_connectionModel->removeSender(sender);
     });
     emit samplingDone(timer.elapsed());
 }
@@ -163,20 +163,23 @@ void AcquisitionEngine::clearSamples() {
 /*
  * Dimensional filter models
  */
-void AcquisitionEngine::registerConnectivityModel()
-{
-    m_connectionModel = new ConnectionModel(this);
-    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    proxy->setSourceModel(m_connectionModel);
-    m_probe->registerModel(modelId(connectivityModelName()), m_connectionModel);
-}
-
-void AcquisitionEngine::registerConnectionDiscriminator()
+void AcquisitionEngine::registerTypeDiscriminator()
 {
     auto typeDiscriminator = new TypeDiscriminator(typeFilterName(), this);
     typeDiscriminator->setDiscriminationRole(ConnectionTypeModel::TypeRole);
     typeDiscriminator->setSourceModel(new ConnectionTypeModel(this));
     typeDiscriminator->initialise(m_probe);
+}
+
+void AcquisitionEngine::registerConnectionDiscriminator()
+{
+    auto connectionDiscriminator = new ConnectionDiscriminator(connectionFilterName(), this);
+    connectionDiscriminator->setDiscriminationRole(ConnectionModel::ConnectionRole);
+    auto input = new ConnectionModel(this);
+    connect(m_probe, &Probe::objectCreated, input, &ConnectionModel::addObject);
+    connect(m_probe, &Probe::objectDestroyed, input, &ConnectionModel::removeObject);
+    connectionDiscriminator->setSourceModel(input);
+    connectionDiscriminator->initialise(m_probe);
 }
 
 void AcquisitionEngine::registerThreadDiscriminator()
