@@ -160,6 +160,9 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 
+    /// @reimp
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
+
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
     QStringList mimeTypes() const override;
 

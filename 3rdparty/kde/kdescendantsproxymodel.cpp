@@ -523,6 +523,21 @@ QVariant KDescendantsProxyModel::headerData(int section, Qt::Orientation orienta
     return QAbstractProxyModel::headerData(section, orientation, role);
 }
 
+QMap<int, QVariant> KDescendantsProxyModel::itemData(const QModelIndex &index) const
+{
+    if (!sourceModel()) {
+        return {};
+    }
+
+    if (!index.isValid()) {
+        return sourceModel()->itemData(index);
+    }
+
+    QModelIndex sourceIndex = mapToSource(index);
+    Q_ASSERT(sourceIndex.isValid());
+    return sourceModel()->itemData(sourceIndex);
+}
+
 Qt::ItemFlags KDescendantsProxyModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid() || !sourceModel()) {
