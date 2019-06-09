@@ -80,6 +80,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
       filtercontroller.cpp
       filterwidget.cpp
       filterwidget.ui
+      synchonousproxymodel.cpp
 
       gv/gvcontainer.cpp
       gv/gvgraphicsview.cpp
@@ -91,7 +92,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
       vtk/vtkcontainer.cpp
       vtk/vtkpanel.cpp
       vtk/vtkwidget.cpp
-      # vtk/vtkgraphadapter.cpp
+      vtk/vtkgraphadapter.cpp
   )
 
   gammaray_add_plugin(gammaray_connectivityinspector_ui_plugin
@@ -101,6 +102,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
   target_include_directories(gammaray_connectivityinspector_ui_plugin SYSTEM PUBLIC ${VTK_INCLUDE_DIRS})
   target_link_libraries(gammaray_connectivityinspector_ui_plugin
     ${VTK_LIBS}
+    gammaray_kitemmodels
     gammaray_common
     gammaray_ui
     gammaray_connectivityinspector_shared
