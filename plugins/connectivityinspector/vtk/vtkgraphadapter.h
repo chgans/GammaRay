@@ -33,8 +33,7 @@ QT_END_NAMESPACE
 class vtkGraph;
 class vtkMutableDirectedGraph;
 class vtkStringArray;
-class vtkUnsignedLongLongArray;
-class vtkIntArray;
+class vtkTypeUInt64Array;
 
 namespace GammaRay {
 
@@ -45,22 +44,50 @@ public:
     explicit vtkGraphAdapter(QObject *parent = nullptr);
     ~vtkGraphAdapter() override;
 
-    void setSourceModel(const QAbstractItemModel *model);
-    vtkGraph *graph();
+    void setVertexModel(const QAbstractItemModel *model);
+    void setVertexIdQuery(int column, int role);
+    void setVertexLabelQuery(int column, int role);
+    void setEdgeModel(const QAbstractItemModel *model);
+    void setEdgeIdQuery(int column, int role);
+    void setEdgeLabelQuery(int column, int role);
+    void setEdgeSourceIdQuery(int column, int role);
+    void setEdgeTargetIdQuery(int column, int role);
 
-    void update();
+    void setup();
+
+    vtkGraph *graph();
 
 signals:
 
 public slots:
 
 private:
-    const QAbstractItemModel *m_input;
-    vtkSmartPointer<vtkMutableDirectedGraph> m_output;
-    vtkStringArray *m_objectLabelArray;
-    vtkUnsignedLongLongArray *m_objectIdArray;
-    vtkUnsignedLongLongArray *m_threadIdArray;
-    vtkIntArray *m_connWeightArray;
+    const QAbstractItemModel *m_vertexModel = nullptr;
+    vtkStringArray *m_vertexLabels = nullptr;
+    vtkTypeUInt64Array *m_vertexIds = nullptr;
+    const QAbstractItemModel *m_edgeModel = nullptr;
+    vtkStringArray *m_edgeLabels = nullptr;
+    vtkTypeUInt64Array *m_edgeIds = nullptr;
+    vtkSmartPointer<vtkMutableDirectedGraph> m_graph;
+    int m_vertexIdColumn = 0;
+    int m_vertexIdRole = 0;
+    int m_vertexLabelColumn = 0;
+    int m_vertexLabelRole = 0;
+    int m_edgeIdColumn = 0;
+    int m_edgeIdRole = 0;
+    int m_edgeLabelColumn = 0;
+    int m_edgeLabelRole = 0;
+    int m_edgeSourceColumn = 0;
+    int m_edgeSourceRole = 0;
+    int m_edgeTargetColumn = 0;
+    int m_edgeTargetRole = 0;
+
+    quint64 vertexId(int index);
+    std::string vertexLabel(int index);
+    quint64 edgeId(int index);
+    std::string edgeLabel(int index);
+    quint64 edgeSourceId(int index);
+    quint64 edgeTargetId(int index);
 };
 
 } // namespace GammaRay

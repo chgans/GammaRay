@@ -73,11 +73,10 @@ VtkContainer::VtkContainer(QWidget *parent) : QWidget(parent) {
 
 VtkContainer::~VtkContainer() {}
 
-void VtkContainer::setModel(QAbstractItemModel *model)
+void VtkContainer::setGraph(vtkGraph *graph)
 {
-    m_vtkWidget->setModel(model);
+    m_vtkWidget->setGraph(graph);
 }
-
 void VtkContainer::updateGraph()
 {
     m_vtkWidget->updateGraph();

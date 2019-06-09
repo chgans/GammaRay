@@ -46,6 +46,7 @@ QT_END_NAMESPACE
 class QVTKInteractor;
 class vtkActor;
 class vtkAlgorithmOutput;
+class vtkGraph;
 class vtkGraphLayout;
 class vtkGraphLayoutStrategy;
 class vtkGraphLayoutView;
@@ -66,7 +67,7 @@ public:
     explicit VtkWidget(QWidget *parent = nullptr);
     virtual ~VtkWidget();
 
-    void setModel(QAbstractItemModel *model);
+    void setGraph(vtkGraph *graph);
     void updateGraph();
 
 signals:
@@ -82,12 +83,7 @@ public slots:
 
 private:
     // vtkDataObject: input of the pipeline
-    vtkSmartPointer<vtkMutableDirectedGraph> m_graph;
-    // vtkAbstractArray (vertex and edge data)
-    vtkStringArray *m_objectLabelArray;
-    vtkUnsignedLongLongArray *m_objectIdArray;
-    vtkUnsignedLongLongArray *m_threadIdArray;
-    vtkIntArray *m_connWeightArray;
+    vtkGraph *m_graph = nullptr;
     // vtkAlgorithm: Layout it's input graph using a strategy
     vtkSmartPointer<vtkGraphLayout> m_layout;
     // vtkObject
@@ -102,25 +98,11 @@ private:
     // vtkInteractorObserver
     vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
 
-    QAbstractItemModel *m_model = nullptr;
-    QSet<quint64> m_objectIds;
-    QVector<std::tuple<quint64, quint64, std::string>> m_objects;
-    QSet<QPair<quint64, quint64>> m_connectionIds;
-    QVector<std::tuple<quint64, quint64, int>> m_connections;
-
     // Internal state and data
     bool m_showEdgeArrow = false;
     bool m_inputHasChanged = true;
     bool m_configHasChanged = true;
-    qint64 m_fetchDuration = 0;
-    qint64 m_graphDuration = 0;
     qint64 m_renderDuration = 0;
-    QElapsedTimer m_dataTimer;
-    bool m_done = true;
-
-    bool tryUpdateGraph();
-    bool fetchData();
-    bool buildGraph();
     void renderGraph();
     void createArrowDecorator(vtkAlgorithmOutput *input);
     void updateSatus(const QString &state);

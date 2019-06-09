@@ -21,81 +21,167 @@
 
 #include "vtkgraphadapter.h"
 
-#include "connectivityinspectorcommon.h"
+#include <common/objectid.h>
 
-#include "connectionmodel.h"
-
-#include "common/objectid.h"
-
-#include <vtkIntArray.h>
+#include <vtkDataSetAttributes.h>
 #include <vtkMutableDirectedGraph.h>
 #include <vtkStringArray.h>
-#include <vtkUnsignedLongLongArray.h>
+#include <vtkTypeUInt64Array.h>
 
-#include <QAbstractItemModel>
+#include <QAbstractTableModel>
 
 using namespace GammaRay;
-
-namespace {
-const char *s_ObjectIdArrayName = "ObjectId";
-const char *s_ThreadIdArrayName = "ThreadId";
-const char *s_ObjectLabelArrayName = "ObjectLabel";
-const char *s_ConnWeightArrayName = "ConnWeight";
-
-inline quint64 objectId(QAbstractItemModel *model, int row, int col)
-{
-    constexpr int role = ConnectionModel::ObjectIdRole;
-    const QModelIndex index = model->index(row, col);
-    return index.data(role).value<ObjectId>().id();
-}
-
-inline quint64 threadId(QAbstractItemModel *model, int row, int col)
-{
-    constexpr int role = ConnectionModel::ThreadIdRole;
-    const QModelIndex index = model->index(row, col);
-    return index.data(role).value<ObjectId>().id();
-}
-
-inline QString objectLabel(QAbstractItemModel *model, int row, int col)
-{
-    constexpr int role = Qt::DisplayRole;
-    const QModelIndex index = model->index(row, col);
-    return index.data(role).toString();
-}
-
-inline int weight(QAbstractItemModel *model, int row)
-{
-    constexpr int role = Qt::DisplayRole;
-    constexpr int col = ConnectionModel::CountColumn;
-    const QModelIndex index = model->index(row, col);
-    return index.data(role).toInt();
-}
-
-} // namespace
 
 vtkGraphAdapter::vtkGraphAdapter(QObject *parent)
     : QObject(parent)
 {
-    m_objectIdArray = vtkUnsignedLongLongArray::New();
-    m_objectIdArray->SetName(s_ObjectIdArrayName);
-    m_threadIdArray = vtkUnsignedLongLongArray::New();
-    m_threadIdArray->SetName(s_ThreadIdArrayName);
-    m_objectLabelArray = vtkStringArray::New();
-    m_objectLabelArray->SetName(s_ObjectLabelArrayName);
-    m_connWeightArray = vtkIntArray::New();
-    m_connWeightArray->SetName(s_ConnWeightArrayName);
+    m_vertexIds = vtkTypeUInt64Array::New();
+    m_vertexIds->SetName("NodeId");
+    m_vertexLabels = vtkStringArray::New();
+    m_vertexLabels->SetName("NodeLabel");
+    m_edgeIds = vtkTypeUInt64Array::New();
+    m_edgeIds->SetName("EdgeId");
+    m_edgeLabels = vtkStringArray::New();
+    m_edgeLabels->SetName("EdgeLabel");
+    m_graph = vtkMutableDirectedGraph::New();
 }
 
 vtkGraphAdapter::~vtkGraphAdapter() {}
 
-void GammaRay::vtkGraphAdapter::setSourceModel(const QAbstractItemModel *model)
+void vtkGraphAdapter::setVertexModel(const QAbstractItemModel *model)
 {
-    m_input = model;
+    Q_ASSERT(m_vertexModel == nullptr);
+    m_vertexModel = model;
+}
+
+void vtkGraphAdapter::setVertexIdQuery(int column, int role)
+{
+    m_vertexIdColumn = column;
+    m_vertexIdRole = role;
+}
+
+void vtkGraphAdapter::setVertexLabelQuery(int column, int role)
+{
+    m_vertexLabelColumn = column;
+    m_vertexLabelRole = role;
+}
+
+void vtkGraphAdapter::setEdgeModel(const QAbstractItemModel *model)
+{
+    Q_ASSERT(m_edgeModel == nullptr);
+    m_edgeModel = model;
+}
+
+void vtkGraphAdapter::setEdgeIdQuery(int column, int role)
+{
+    m_edgeIdColumn = column;
+    m_edgeIdRole = role;
+}
+
+void vtkGraphAdapter::setEdgeLabelQuery(int column, int role)
+{
+    m_edgeLabelColumn = column;
+    m_edgeLabelRole = role;
+}
+
+void vtkGraphAdapter::setEdgeSourceIdQuery(int column, int role)
+{
+    m_edgeSourceColumn = column;
+    m_edgeSourceRole = role;
+}
+
+void vtkGraphAdapter::setEdgeTargetIdQuery(int column, int role)
+{
+    m_edgeTargetColumn = column;
+    m_edgeTargetRole = role;
+}
+
+void vtkGraphAdapter::setup()
+{
+    m_graph->Initialize();
+
+    const int vertexCount = m_vertexModel->rowCount();
+    m_vertexIds->SetNumberOfValues(vertexCount);
+    m_graph->GetVertexData()->AddArray(m_vertexIds);
+    m_vertexLabels->SetNumberOfValues(vertexCount);
+    m_graph->GetVertexData()->AddArray(m_vertexLabels);
+    m_graph->GetVertexData()->SetPedigreeIds(m_vertexIds);
+    for (int index = 0; index < vertexCount; index++) {
+        m_vertexIds->SetValue(index, vertexId(index));
+        m_vertexLabels->SetValue(index, vertexLabel(index));
+        qDebug() << Q_FUNC_INFO << "Vertex" << vertexId(index)
+                 << QString::fromStdString(vertexLabel(index));
+    }
+    m_graph->SetNumberOfVertices(vertexCount);
+
+    const int edgeCount = m_edgeModel->rowCount();
+    m_edgeIds->SetNumberOfValues(edgeCount);
+    m_graph->GetEdgeData()->AddArray(m_edgeIds);
+    m_edgeLabels->SetNumberOfValues(edgeCount);
+    m_graph->GetEdgeData()->AddArray(m_edgeLabels);
+    m_graph->GetEdgeData()->SetPedigreeIds(m_edgeIds);
+    for (int index = 0; index < edgeCount; index++) {
+        m_edgeIds->SetValue(index, edgeId(index));
+        m_edgeLabels->SetValue(index, edgeLabel(index));
+        const auto sourceId = edgeSourceId(index);
+        const auto targetId = edgeTargetId(index);
+        if (m_graph->FindVertex(sourceId) == -1) {
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge source:" << edgeId(index) << sourceId
+                       << targetId;
+            continue;
+        }
+        if (m_graph->FindVertex(targetId) == -1) {
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge target:" << edgeId(index) << targetId
+                       << targetId;
+            continue;
+        }
+        if (!sourceId || !targetId) {
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge:" << edgeId(index) << sourceId
+                       << targetId;
+            continue;
+        }
+        m_graph->AddEdge(vtkVariant(sourceId), vtkVariant(targetId));
+    }
+    qDebug() << Q_FUNC_INFO << m_graph->GetNumberOfVertices() << m_graph->GetNumberOfEdges();
 }
 
 vtkGraph *vtkGraphAdapter::graph()
 {
-    return m_output;
+    return m_graph;
 }
 
-void vtkGraphAdapter::update() {}
+quint64 vtkGraphAdapter::vertexId(int index)
+{
+    const QModelIndex modelIndex = m_vertexModel->index(index, m_vertexIdColumn);
+    return modelIndex.data(m_vertexIdRole).value<ObjectId>().id();
+}
+
+std::string vtkGraphAdapter::vertexLabel(int index)
+{
+    const QModelIndex modelIndex = m_vertexModel->index(index, m_vertexLabelColumn);
+    return modelIndex.data(m_vertexLabelRole).toString().toStdString();
+}
+
+quint64 vtkGraphAdapter::edgeId(int index)
+{
+    const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeIdColumn);
+    return modelIndex.data(m_edgeIdRole).value<ObjectId>().id();
+}
+
+std::string vtkGraphAdapter::edgeLabel(int index)
+{
+    const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeLabelColumn);
+    return modelIndex.data(m_edgeLabelRole).toString().toStdString();
+}
+
+quint64 vtkGraphAdapter::edgeSourceId(int index)
+{
+    const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeSourceColumn);
+    return modelIndex.data(m_edgeSourceRole).value<ObjectId>().id();
+}
+
+quint64 vtkGraphAdapter::edgeTargetId(int index)
+{
+    const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeTargetColumn);
+    return modelIndex.data(m_edgeTargetRole).value<ObjectId>().id();
+}

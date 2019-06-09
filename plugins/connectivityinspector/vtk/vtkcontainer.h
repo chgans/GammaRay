@@ -34,6 +34,8 @@ class QAbstractItemModel;
 class QLabel;
 QT_END_NAMESPACE
 
+class vtkGraph;
+
 namespace GammaRay {
 class VtkPanel;
 class VtkWidget;
@@ -45,7 +47,7 @@ public:
     explicit VtkContainer(QWidget *parent = nullptr);
     virtual ~VtkContainer();
 
-    void setModel(QAbstractItemModel *model);
+    void setGraph(vtkGraph *graph);
     void updateGraph();
 
 private:
