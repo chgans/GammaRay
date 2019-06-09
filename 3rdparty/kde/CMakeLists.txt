@@ -1,4 +1,5 @@
 set(gammaray_kitemmodels_srcs
+  kdescendantsproxymodel.cpp
   kextracolumnsproxymodel.cpp
   klinkitemselectionmodel.cpp
   kmodelindexproxymapper.cpp
