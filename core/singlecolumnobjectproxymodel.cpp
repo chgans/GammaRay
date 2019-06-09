@@ -53,3 +53,12 @@ QVariant SingleColumnObjectProxyModel::data(const QModelIndex &proxyIndex, int r
 
     return QIdentityProxyModel::data(proxyIndex, role);
 }
+
+QMap<int, QVariant> SingleColumnObjectProxyModel::itemData(const QModelIndex &proxyIndex) const
+{
+    if (proxyIndex.isValid() && proxyIndex.column() == 0) {
+        return sourceModel()->itemData(mapToSource(proxyIndex));
+    }
+
+    return QIdentityProxyModel::itemData(proxyIndex);
+}

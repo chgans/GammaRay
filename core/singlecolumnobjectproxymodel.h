@@ -67,6 +67,9 @@ public:
      *         QVariant() if some anamoly occurs.
      */
     QVariant data(const QModelIndex &proxyIndex, int role = Qt::DisplayRole) const override;
+
+    /// @reimp
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
 };
 }
 
