@@ -39,33 +39,6 @@ class QObjectPrivate;
 
 namespace GammaRay {
 
-class Probe;
-
-struct ConnectionItem {
-    ConnectionItem(QObject *sender,
-                   QObject *senderThread,
-                   const QString &senderLabel,
-                   QObject *receiver,
-                   QObject *receiverThread,
-                   const QString &receiverLabel,
-                   int value = 0)
-        : sender(sender)
-        , senderThread(senderThread)
-        , senderLabel(senderLabel)
-        , receiver(receiver)
-        , receiverThread(receiverThread)
-        , receiverLabel(receiverLabel)
-        , value(value)
-    {}
-    QObject *sender = nullptr;
-    QObject *senderThread = nullptr;
-    const QString senderLabel = nullptr;
-    QObject *receiver = nullptr;
-    QObject *receiverThread = nullptr;
-    const QString receiverLabel = nullptr;
-    int value = 0;
-};
-
 class ConnectionModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -82,23 +55,28 @@ public:
     };
 
     enum {
-        ConnectionRole = Qt::UserRole + 1,
+        ConnectionIdRole = Qt::UserRole + 1,
+        SenderObjectIdRole,
+        ReceiverObjectIdRole,
     };
 
     explicit ConnectionModel(QObject *parent = nullptr);
     ~ConnectionModel() override;
 
+public slots:
+    void clear();
+    void addObject(QObject *object);
+    void removeObject(QObject *object);
+
+    // QAbstractItemModel interface
+public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QVariant headerData(int section,
                         Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
-
-public slots:
-    void clear();
-    void addObject(QObject *object);
-    void removeObject(QObject *object);
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
 
 private:
     struct Connection

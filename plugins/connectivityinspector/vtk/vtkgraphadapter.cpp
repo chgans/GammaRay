@@ -32,6 +32,13 @@
 
 using namespace GammaRay;
 
+namespace {
+
+QString address(quint64 id)
+{
+    return QStringLiteral("0x%1").arg(id, 8, 16);
+}
+} // namespace
 vtkGraphAdapter::vtkGraphAdapter(QObject *parent)
     : QObject(parent)
 {
@@ -126,18 +133,18 @@ void vtkGraphAdapter::setup()
         const auto sourceId = edgeSourceId(index);
         const auto targetId = edgeTargetId(index);
         if (m_graph->FindVertex(sourceId) == -1) {
-            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge source:" << edgeId(index) << sourceId
-                       << targetId;
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge source:" << address(edgeId(index))
+                       << address(sourceId) << targetId;
             continue;
         }
         if (m_graph->FindVertex(targetId) == -1) {
-            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge target:" << edgeId(index) << targetId
-                       << targetId;
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge target:" << address(edgeId(index))
+                       << address(targetId) << targetId;
             continue;
         }
         if (!sourceId || !targetId) {
-            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge:" << edgeId(index) << sourceId
-                       << targetId;
+            qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge:" << address(edgeId(index))
+                       << address(sourceId) << targetId;
             continue;
         }
         m_graph->AddEdge(vtkVariant(sourceId), vtkVariant(targetId));

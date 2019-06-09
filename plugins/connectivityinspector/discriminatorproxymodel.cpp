@@ -352,3 +352,8 @@ const QAbstractItemModel *DiscriminatorBase::filteredModel() const
 {
     return m_filterProxyModel;
 }
+
+QMap<int, QVariant> GammaRay::FilterProxyModel::itemData(const QModelIndex &index) const
+{
+    return sourceModel()->itemData(mapToSource(index));
+}

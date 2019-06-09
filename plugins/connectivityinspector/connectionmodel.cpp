@@ -94,8 +94,15 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
             return {};
         }
     }
-    if (role == ConnectionRole) {
-        return item.connection;
+    if (role == ConnectionIdRole) {
+        auto id = reinterpret_cast<QObject *>(const_cast<void *>(item.connection));
+        return QVariant::fromValue(ObjectId(id));
+    }
+    if (role == SenderObjectIdRole) {
+        return QVariant::fromValue(ObjectId(item.sender));
+    }
+    if (role == ReceiverObjectIdRole) {
+        return QVariant::fromValue(ObjectId(item.receiver));
     }
     return {};
 }
@@ -124,6 +131,17 @@ QVariant ConnectionModel::headerData(int section, Qt::Orientation orientation, i
     }
 }
 
+QMap<int, QVariant> ConnectionModel::itemData(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return {};
+    QMap<int, QVariant> map = QAbstractTableModel::itemData(index);
+    map.insert(ConnectionIdRole, this->data(index, ConnectionIdRole));
+    map.insert(SenderObjectIdRole, this->data(index, SenderObjectIdRole));
+    map.insert(ReceiverObjectIdRole, this->data(index, ReceiverObjectIdRole));
+    return map;
+}
+
 void ConnectionModel::clear()
 {
     beginResetModel();
@@ -133,6 +151,8 @@ void ConnectionModel::clear()
 
 void ConnectionModel::addObject(QObject *object)
 {
+    if (Probe::instance()->filterObject(object))
+        return;
     QObjectPrivate *d = QObjectPrivate::get(object);
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     QObjectPrivate::ConnectionData *cd = d->connections.load();

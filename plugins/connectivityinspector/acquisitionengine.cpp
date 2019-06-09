@@ -51,11 +51,11 @@ AcquisitionEngine::AcquisitionEngine(Probe *probe, QObject *parent)
     setBufferSize(100);
     setSamplingRate(5);
 
-    registerTypeDiscriminator();
+    //registerTypeDiscriminator();
     registerConnectionDiscriminator();
-    registerClassDiscriminator();
+    //registerClassDiscriminator();
     registerObjectDiscriminator();
-    registerThreadDiscriminator();
+    //registerThreadDiscriminator();
 
     connect(m_timer, &QTimer::timeout, this, &AcquisitionEngine::takeSample);
 
@@ -174,7 +174,7 @@ void AcquisitionEngine::registerTypeDiscriminator()
 void AcquisitionEngine::registerConnectionDiscriminator()
 {
     auto connectionDiscriminator = new ConnectionDiscriminator(connectionFilterName(), this);
-    connectionDiscriminator->setDiscriminationRole(ConnectionModel::ConnectionRole);
+    connectionDiscriminator->setDiscriminationRole(ConnectionModel::ConnectionIdRole);
     auto input = new ConnectionModel(this);
     connect(m_probe, &Probe::objectCreated, input, &ConnectionModel::addObject);
     connect(m_probe, &Probe::objectDestroyed, input, &ConnectionModel::removeObject);

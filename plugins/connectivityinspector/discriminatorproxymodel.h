@@ -246,6 +246,10 @@ public:
 
     void setDiscriminatorModel(DiscriminatorProxyModelBase *model);
 
+    // QAbstractItemModel interface
+public:
+    QMap<int, QVariant> itemData(const QModelIndex &index) const override;
+
     // QSortFilterProxyModel interface
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
@@ -299,6 +303,10 @@ public:
         m_filterProxyModel->setDiscriminatorModel(m_discriminatorProxyModel);
         m_filterServerProxyModel = new ServerProxyModel<QIdentityProxyModel>(this);
         m_filterServerProxyModel->setSourceModel(m_filterProxyModel);
+        connect(m_discriminatorProxyModel,
+                &QAbstractItemModel::dataChanged,
+                m_filterProxyModel,
+                &QSortFilterProxyModel::invalidate);
     }
 
     void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
@@ -311,7 +319,7 @@ public:
     void initialise(Probe *probe)
     {
         probe->registerModel(CI::filterModelId(name()), m_discriminatorServerProxyModel);
-        probe->registerModel(CI::filteredModelId(name()), m_filterServerProxyModel);
+        probe->registerModel(CI::filteredModelId(name()), m_filterProxyModel);
     }
 };
 } // namespace GammaRay

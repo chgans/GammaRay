@@ -1,7 +1,7 @@
 {
     "id": "gammaray_connectivityinspector",
-    "name": "Connectivity Inspector",
-    "name[fr]": "Inspecteur de connectivité",
+    "name": "Connectivity",
+    "name[fr]": "Connectivité",
     "types": [
         "QObject"
     ]

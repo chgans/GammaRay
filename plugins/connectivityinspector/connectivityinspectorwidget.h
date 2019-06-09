@@ -35,6 +35,9 @@
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
 class QModelIndex;
+class QSortFilterProxyModel;
+class QLineEdit;
+class QAbstractItemView;
 QT_END_NAMESPACE
 
 namespace GammaRay {
@@ -45,14 +48,21 @@ namespace Ui {
 class AcquisitionInterface;
 class DiscriminatorInterface;
 class FilterWidget;
+class SynchonousProxyModel;
 
 struct Filter
 {
-    Filter(FilterWidget *widget, const QString &name, QObject *parent);
-    QAbstractItemModel *outputModel;
-    QAbstractItemModel *filterModel;
-    DiscriminatorInterface *filterInterface;
-    FilterWidget *filterWidget;
+    Filter(FilterWidget *filterWidget,
+           QLineEdit *searchWidget,
+           QAbstractItemView *searchableView,
+           const QString &name,
+           QObject *parent);
+    Filter() {}
+    SynchonousProxyModel *outputModel = nullptr;
+    QSortFilterProxyModel *searchableModel = nullptr;
+    QAbstractItemModel *filterModel = nullptr;
+    DiscriminatorInterface *filterInterface = nullptr;
+    FilterWidget *filterWidget = nullptr;
 };
 
 class ConnectivityInspectorWidget : public QWidget {
