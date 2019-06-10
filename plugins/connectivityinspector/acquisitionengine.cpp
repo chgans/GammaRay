@@ -205,7 +205,7 @@ void AcquisitionEngine::registerClassDiscriminator()
 void AcquisitionEngine::registerObjectDiscriminator()
 {
     m_objectDiscriminator = new ObjectDiscriminator(objectFilterName(), this);
-    m_objectDiscriminator->setDiscriminationRole(QMetaObjectModel::MetaObjectRole);
+    m_objectDiscriminator->setDiscriminationRole(ObjectModel::ObjectIdRole);
     auto input = new SingleColumnObjectProxyModel(this);
     input->setSourceModel(m_probe->objectTreeModel());
     m_objectDiscriminator->setSourceModel(input);

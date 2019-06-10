@@ -48,13 +48,14 @@ void SynchonousProxyModel::setSourceModel(QAbstractItemModel *model)
 
     QSortFilterProxyModel::setSourceModel(model);
 
-    // trigger fetching required data
+    // trigger fetching required data now
     if (sourceModel()->rowCount() > 0)
-        fetchRequiredData({}, 0, sourceModel()->rowCount() - 1);
-    connect(model,
-            &QAbstractItemModel::rowsInserted,
-            this,
-            &SynchonousProxyModel::fetchRequiredData);
+        fetchRequiredData({}, 0, sourceModel()->rowCount() - 1, true);
+    // and later
+    connect(model, &QAbstractItemModel::rowsInserted, this,
+            [this](const QModelIndex &parent, int first, int last) {
+                fetchRequiredData(parent, first, last);
+            });
 }
 
 bool SynchonousProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -71,15 +72,22 @@ bool SynchonousProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &so
     return accepted;
 }
 
-void SynchonousProxyModel::fetchRequiredData(const QModelIndex &parent, int first, int last) const
-{
+void SynchonousProxyModel::fetchRequiredData(const QModelIndex &parent,
+                                             int first, int last,
+                                             bool recurse) const {
 #if 1
     for (int row = first; row < last; ++row) {
         for (int column : m_requirements.keys())
             for (int role : m_requirements.value(column)) {
                 const auto index = sourceModel()->index(row, column, parent);
                 index.data(role);
+                index.flags();
             }
+        const auto index = sourceModel()->index(row, 0, parent);
+        const auto rowCount = sourceModel()->rowCount(index);
+        if (recurse && rowCount) {
+            fetchRequiredData(index, 0, rowCount, recurse);
+        }
     }
 #else
     for (int row = first; row < last; ++row) {

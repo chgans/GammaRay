@@ -39,6 +39,8 @@ namespace GammaRay {
 class DiscriminatorInterface : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(
+        bool enabled READ isEnabled WRITE setEnabled NOTIFY enabledChanged)
 
 public:
     explicit DiscriminatorInterface(const QString &name, QObject *parent = nullptr);
@@ -46,12 +48,17 @@ public:
 
     QString name() const;
 
+    virtual bool isEnabled() const = 0;
+
 public slots:
     virtual void setEnabled(bool enabled) = 0;
     virtual void discriminateAll() = 0;
     virtual void discriminateNone() = 0;
     virtual void filterAll() = 0;
     virtual void filterNone() = 0;
+
+signals:
+    void enabledChanged(bool enabled);
 
 private:
     const QString m_name;
