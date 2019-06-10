@@ -267,13 +267,10 @@ public:
                 &DiscriminatorBase::enabledChanged);
         connect(this, &DiscriminatorBase::setEnabled, m_discriminatorProxyModel,
                 &DiscriminatorProxyModelBase::setEnabled);
-        connect(m_discriminatorProxyModel, &QAbstractItemModel::dataChanged,
-                m_filterProxyModel, &QSortFilterProxyModel::invalidate);
     }
 
     void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
-    void setSourceModel(QAbstractItemModel *model)
-    {
+    void setSourceModel(QAbstractItemModel *model) {
         m_discriminatorProxyModel->setSourceModel(model);
         m_filterProxyModel->setSourceModel(model);
     }
@@ -281,7 +278,8 @@ public:
     void initialise(Probe *probe)
     {
         probe->registerModel(CI::filterModelId(name()), m_discriminatorServerProxyModel);
-        probe->registerModel(CI::filteredModelId(name()), m_filterProxyModel);
+        probe->registerModel(CI::filteredModelId(name()),
+                             m_filterServerProxyModel);
     }
 };
 } // namespace GammaRay

@@ -280,9 +280,11 @@ void DiscriminatorProxyModelBase::initialiseDiscriminator()
 
 void DiscriminatorProxyModelBase::finaliseDiscriminator()
 {
+    beginResetModel();
     sourceModel()->disconnect(this);
     m_data.clear();
     clearItemData();
+    endResetModel();
 }
 
 /*****************************************************************************
@@ -316,6 +318,8 @@ void FilterProxyModel::setDiscriminatorModel(
                 &QSortFilterProxyModel::invalidate);
         connect(m_discriminator, &QAbstractItemModel::modelReset, this,
                 &QSortFilterProxyModel::invalidate);
+        connect(m_discriminator, &DiscriminatorProxyModelBase::layoutChanged,
+                this, &QSortFilterProxyModel::invalidate);
         connect(m_discriminator, &DiscriminatorProxyModelBase::enabledChanged,
                 this, &QSortFilterProxyModel::invalidate);
         qDebug() << Q_FUNC_INFO << "Invalidated";
@@ -343,14 +347,10 @@ bool FilterProxyModel::filterAcceptsRow(int sourceRow,
     Q_ASSERT(sourceModel());
     Q_ASSERT(m_indexMapper);
 
-    qDebug() << Q_FUNC_INFO << sourceRow << sourceParent;
     const auto sourceIndex = sourceModel()->index(sourceRow, 0, sourceParent);
-    qDebug() << Q_FUNC_INFO << sourceIndex;
     const auto discriminatorIndex = m_indexMapper->mapLeftToRight(sourceIndex);
-    qDebug() << Q_FUNC_INFO << discriminatorIndex;
     const auto discriminatorSourceIndex =
         m_discriminator->mapToSource(discriminatorIndex);
-    qDebug() << Q_FUNC_INFO << discriminatorSourceIndex;
     return m_discriminator->isAccepting(discriminatorSourceIndex);
 }
 
