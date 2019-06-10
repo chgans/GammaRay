@@ -37,13 +37,15 @@ public:
     explicit FilterController(const QString &name, QObject *parent = nullptr);
     ~FilterController() override;
 
+    bool isEnabled() const override;
+
     // DiscriminatorInterface interface
 public slots:
     void setEnabled(bool enabled) override;
     void discriminateAll() override;
     void discriminateNone() override;
     void filterAll() override;
-    void filterNone() override;
+    void filterNone() override;    
 };
 } // namespace GammaRay
 

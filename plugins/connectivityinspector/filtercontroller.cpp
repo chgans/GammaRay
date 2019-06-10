@@ -31,8 +31,9 @@
 using namespace GammaRay;
 
 FilterController::FilterController(const QString &name, QObject *parent)
-    : DiscriminatorInterface(name, parent)
-{}
+    : DiscriminatorInterface(name, parent) {}
+
+bool FilterController::isEnabled() const { Q_ASSERT(false); }
 
 FilterController::~FilterController() = default;
 

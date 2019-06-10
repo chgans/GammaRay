@@ -32,6 +32,10 @@
 
 using namespace GammaRay;
 
+/*****************************************************************************
+ * DiscriminatorProxyModelBase
+ ****************************************************************************/
+
 DiscriminatorProxyModelBase::DiscriminatorProxyModelBase(QObject *parent)
     : KExtraColumnsProxyModel(parent)
 {
@@ -50,6 +54,7 @@ QVariant DiscriminatorProxyModelBase::extraColumnData(const QModelIndex &parent,
     if (!sourceModel())
         return {};
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
+    Q_ASSERT(m_data.contains(srcIndex));
     if (role == MetricColumRole) {
         return proxyColumnForExtraColumn(CountColumn);
     }
@@ -61,14 +66,14 @@ QVariant DiscriminatorProxyModelBase::extraColumnData(const QModelIndex &parent,
     } else if (role == Qt::DisplayRole) {
         switch (extraColumn) {
         case CountColumn:
-            return connectivityCount(srcIndex);
+            return m_data[srcIndex].count;
         }
     } else if (role == Qt::CheckStateRole) {
         switch (extraColumn) {
         case IsDiscrimatingColumn:
-            return m_data[srcIndex].isDiscriminating;
+            return m_data[srcIndex].discriminatingCheckState;
         case IsFilteringColumn:
-            return m_data[srcIndex].isFiltering;
+            return m_data[srcIndex].filteringCheckState;
         }
     }
 
@@ -83,9 +88,10 @@ bool DiscriminatorProxyModelBase::setExtraColumnData(
 
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
     if (extraColumn == IsDiscrimatingColumn) {
-        m_data[srcIndex].isDiscriminating = value.value<Qt::CheckState>();
+        m_data[srcIndex].discriminatingCheckState =
+            value.value<Qt::CheckState>();
     } else if (extraColumn == IsFilteringColumn) {
-        m_data[srcIndex].isFiltering = value.value<Qt::CheckState>();
+        m_data[srcIndex].filteringCheckState = value.value<Qt::CheckState>();
     } else
         return false;
     extraColumnDataChanged(parent, row, IsDiscrimatingColumn, {role});
@@ -100,16 +106,16 @@ Qt::ItemFlags DiscriminatorProxyModelBase::extraColumnFlags(const QModelIndex &p
     constexpr auto checkFlags =
         Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate;
 
+    const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
     switch (extraColumn) {
     case CountColumn:
-        return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+        return (Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     case IsDiscrimatingColumn:
-        return Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags;
+        return (Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags);
     case IsFilteringColumn: {
-        const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
-        if (isDiscriminating(srcIndex))
-            return Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags;
-        return Qt::ItemIsSelectable | checkFlags;
+        if (m_data[srcIndex].discriminatingCheckState != Qt::Unchecked)
+            return (Qt::ItemIsEnabled | Qt::ItemIsSelectable | checkFlags);
+        return (Qt::ItemIsSelectable | checkFlags);
     }
     }
     Q_ASSERT(false);
@@ -165,10 +171,16 @@ void DiscriminatorProxyModelBase::decreaseConnectivity(const QModelIndex &index)
                            {Qt::DisplayRole});
 }
 
-quint64 DiscriminatorProxyModelBase::connectivityCount(const QModelIndex &index) const
-{
+bool DiscriminatorProxyModelBase::isAccepting(const QModelIndex &index) const {
     Q_ASSERT(m_data.contains(index));
-    return m_data.value(index).count;
+    const auto &item = m_data[index];
+    if (!m_enabled)
+        return true;
+    if (item.discriminatingCheckState == Qt::Unchecked)
+        return true;
+    if (item.filteringCheckState == Qt::Unchecked)
+        return true;
+    return false;
 }
 
 void DiscriminatorProxyModelBase::setEnabled(bool enabled)
@@ -176,32 +188,7 @@ void DiscriminatorProxyModelBase::setEnabled(bool enabled)
     if (m_enabled == enabled)
         return;
     m_enabled = enabled;
-    // TODO: ?
-    // emit isEnabledChanged(m_enabled);
-}
-
-bool DiscriminatorProxyModelBase::isDiscriminating(const QModelIndex &index) const
-{
-    Q_ASSERT(m_data.contains(index));
-    return m_data.value(index).isDiscriminating;
-}
-
-void DiscriminatorProxyModelBase::setIsDiscriminating(const QModelIndex &index, bool enabled)
-{
-    Q_ASSERT(m_data.contains(index));
-    m_data[index].isDiscriminating = enabled ? Qt::Checked : Qt::Unchecked;
-}
-
-bool DiscriminatorProxyModelBase::isFiltering(const QModelIndex &index) const
-{
-    Q_ASSERT(m_data.contains(index));
-    return m_data.value(index).isFiltering;
-}
-
-void DiscriminatorProxyModelBase::setIsFiltering(const QModelIndex &index, bool enabled)
-{
-    Q_ASSERT(m_data.contains(index));
-    m_data[index].isFiltering = enabled ? Qt::Checked : Qt::Unchecked;
+    enabledChanged(m_enabled);
 }
 
 void DiscriminatorProxyModelBase::discriminateAll()
@@ -211,7 +198,7 @@ void DiscriminatorProxyModelBase::discriminateAll()
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isDiscriminating = Qt::Checked;
+        data.discriminatingCheckState = Qt::Checked;
     endResetModel();
 }
 
@@ -222,7 +209,7 @@ void DiscriminatorProxyModelBase::discriminateNone()
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isDiscriminating = Qt::Unchecked;
+        data.discriminatingCheckState = Qt::Unchecked;
     endResetModel();
 }
 
@@ -233,8 +220,7 @@ void DiscriminatorProxyModelBase::filterAll()
 
     beginResetModel();
     for (auto &data : m_data) {
-        if (data.isDiscriminating)
-            data.isFiltering = Qt::Checked;
+        data.filteringCheckState = Qt::Checked;
     }
     endResetModel();
 }
@@ -246,8 +232,7 @@ void DiscriminatorProxyModelBase::filterNone()
 
     beginResetModel();
     for (auto &data : m_data)
-        if (data.isDiscriminating)
-            data.isFiltering = Qt::Unchecked;
+        data.filteringCheckState = Qt::Unchecked;
     endResetModel();
 }
 
@@ -300,25 +285,95 @@ void DiscriminatorProxyModelBase::finaliseDiscriminator()
     clearItemData();
 }
 
+/*****************************************************************************
+ * FilterProxyModel
+ ****************************************************************************/
+
+#include <3rdparty/kde/kmodelindexproxymapper.h>
+
+#include <QDebug>
+
 FilterProxyModel::FilterProxyModel(QObject *parent)
-    : QSortFilterProxyModel(parent)
-{}
-
-void FilterProxyModel::setDiscriminatorModel(DiscriminatorProxyModelBase *model)
-{
-    m_discriminator = model;
-}
-
-bool FilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
-{
-    Q_ASSERT(m_discriminator);
-    return m_discriminator->isAccepting(source_parent.child(source_row, 0));
-}
+    : QSortFilterProxyModel(parent) {}
 
 FilterProxyModel::~FilterProxyModel() = default;
 
-void DiscriminatorBase::setEnabled(bool enabled)
-{
+void FilterProxyModel::setDiscriminatorModel(
+    DiscriminatorProxyModelBase *model) {
+
+    if (m_discriminator == model)
+        return;
+    if (m_discriminator) {
+        m_discriminator->disconnect(this);
+    }
+    if (m_indexMapper)
+        delete m_indexMapper;
+
+    m_discriminator = model;
+
+    if (m_discriminator) {
+        connect(m_discriminator, &QAbstractItemModel::dataChanged, this,
+                &QSortFilterProxyModel::invalidate);
+        connect(m_discriminator, &QAbstractItemModel::modelReset, this,
+                &QSortFilterProxyModel::invalidate);
+        connect(m_discriminator, &DiscriminatorProxyModelBase::enabledChanged,
+                this, &QSortFilterProxyModel::invalidate);
+        qDebug() << Q_FUNC_INFO << "Invalidated";
+        if (sourceModel())
+            m_indexMapper = new KModelIndexProxyMapper(sourceModel(),
+                                                       m_discriminator, this);
+    }
+}
+
+void GammaRay::FilterProxyModel::setSourceModel(QAbstractItemModel *model) {
+
+    if (sourceModel() == model)
+        return;
+    if (sourceModel())
+        delete m_indexMapper;
+    QSortFilterProxyModel::setSourceModel(model);
+    if (sourceModel() && m_discriminator)
+        m_indexMapper =
+            new KModelIndexProxyMapper(sourceModel(), m_discriminator, this);
+}
+
+bool FilterProxyModel::filterAcceptsRow(int sourceRow,
+                                        const QModelIndex &sourceParent) const {
+    Q_ASSERT(m_discriminator);
+    Q_ASSERT(sourceModel());
+    Q_ASSERT(m_indexMapper);
+
+    qDebug() << Q_FUNC_INFO << sourceRow << sourceParent;
+    const auto sourceIndex = sourceModel()->index(sourceRow, 0, sourceParent);
+    qDebug() << Q_FUNC_INFO << sourceIndex;
+    const auto discriminatorIndex = m_indexMapper->mapLeftToRight(sourceIndex);
+    qDebug() << Q_FUNC_INFO << discriminatorIndex;
+    const auto discriminatorSourceIndex =
+        m_discriminator->mapToSource(discriminatorIndex);
+    qDebug() << Q_FUNC_INFO << discriminatorSourceIndex;
+    return m_discriminator->isAccepting(discriminatorSourceIndex);
+}
+
+QMap<int, QVariant>
+GammaRay::FilterProxyModel::itemData(const QModelIndex &index) const {
+    return sourceModel()->itemData(mapToSource(index));
+}
+
+/*****************************************************************************
+ * DiscriminatorBase
+ ****************************************************************************/
+
+DiscriminatorBase::DiscriminatorBase(const QString &name, QObject *parent)
+    : DiscriminatorInterface(name, parent) {}
+
+DiscriminatorBase::~DiscriminatorBase() = default;
+
+bool DiscriminatorBase::isEnabled() const {
+    Q_ASSERT(m_discriminatorProxyModel);
+    return m_discriminatorProxyModel->isEnabled();
+}
+
+void DiscriminatorBase::setEnabled(bool enabled) {
     Q_ASSERT(m_discriminatorProxyModel);
     m_discriminatorProxyModel->setEnabled(enabled);
 }
@@ -350,9 +405,4 @@ void DiscriminatorBase::filterNone()
 const QAbstractItemModel *DiscriminatorBase::filteredModel() const
 {
     return m_filterProxyModel;
-}
-
-QMap<int, QVariant> GammaRay::FilterProxyModel::itemData(const QModelIndex &index) const
-{
-    return sourceModel()->itemData(mapToSource(index));
 }
