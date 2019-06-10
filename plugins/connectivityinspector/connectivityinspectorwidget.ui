@@ -52,7 +52,7 @@
         <item row="0" column="0">
          <widget class="QTabWidget" name="filterTabWidget">
           <property name="currentIndex">
-           <number>0</number>
+           <number>3</number>
           </property>
           <widget class="GammaRay::FilterWidget" name="typeFilterWidget">
            <attribute name="title">
@@ -147,7 +147,7 @@
              <number>0</number>
             </property>
             <property name="topMargin">
-             <number>4</number>
+             <number>0</number>
             </property>
             <property name="rightMargin">
              <number>0</number>
@@ -206,6 +206,9 @@
    <class>GammaRay::DeferredTreeView</class>
    <extends>QTreeView</extends>
    <header location="global">ui/deferredtreeview.h</header>
+   <slots>
+    <slot>setEnabled()</slot>
+   </slots>
   </customwidget>
   <customwidget>
    <class>GvContainer</class>
@@ -220,15 +223,15 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>GammaRay::FilterWidget</class>
-   <extends>QWidget</extends>
-   <header>filterwidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>GammaRay::AcquisitionWidget</class>
    <extends>QWidget</extends>
    <header>acquisitionwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>GammaRay::FilterWidget</class>
+   <extends>QWidget</extends>
+   <header>filterwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
