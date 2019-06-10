@@ -66,9 +66,9 @@ QVariant DiscriminatorProxyModelBase::extraColumnData(const QModelIndex &parent,
     } else if (role == Qt::CheckStateRole) {
         switch (extraColumn) {
         case IsDiscrimatingColumn:
-            return isDiscriminating(srcIndex) ? Qt::Checked : Qt::Unchecked;
+            return m_data[srcIndex].isDiscriminating;
         case IsFilteringColumn:
-            return isFiltering(srcIndex) ? Qt::Checked : Qt::Unchecked;
+            return m_data[srcIndex].isFiltering;
         }
     }
 
@@ -82,12 +82,10 @@ bool DiscriminatorProxyModelBase::setExtraColumnData(
         return false;
 
     const auto srcIndex = sourceModel()->index(row, 0, mapToSource(parent));
-    const bool enabled = value.toInt() == Qt::Checked;
     if (extraColumn == IsDiscrimatingColumn) {
-        setIsDiscriminating(srcIndex, enabled);
+        m_data[srcIndex].isDiscriminating = value.value<Qt::CheckState>();
     } else if (extraColumn == IsFilteringColumn) {
-        if (isDiscriminating(srcIndex))
-            setIsFiltering(srcIndex, enabled);
+        m_data[srcIndex].isFiltering = value.value<Qt::CheckState>();
     } else
         return false;
     extraColumnDataChanged(parent, row, IsDiscrimatingColumn, {role});
@@ -99,7 +97,8 @@ Qt::ItemFlags DiscriminatorProxyModelBase::extraColumnFlags(const QModelIndex &p
                                                             int row,
                                                             int extraColumn) const
 {
-    constexpr auto checkFlags = Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate;
+    constexpr auto checkFlags =
+        Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate;
 
     switch (extraColumn) {
     case CountColumn:
@@ -190,7 +189,7 @@ bool DiscriminatorProxyModelBase::isDiscriminating(const QModelIndex &index) con
 void DiscriminatorProxyModelBase::setIsDiscriminating(const QModelIndex &index, bool enabled)
 {
     Q_ASSERT(m_data.contains(index));
-    m_data[index].isDiscriminating = enabled;
+    m_data[index].isDiscriminating = enabled ? Qt::Checked : Qt::Unchecked;
 }
 
 bool DiscriminatorProxyModelBase::isFiltering(const QModelIndex &index) const
@@ -202,7 +201,7 @@ bool DiscriminatorProxyModelBase::isFiltering(const QModelIndex &index) const
 void DiscriminatorProxyModelBase::setIsFiltering(const QModelIndex &index, bool enabled)
 {
     Q_ASSERT(m_data.contains(index));
-    m_data[index].isFiltering = enabled;
+    m_data[index].isFiltering = enabled ? Qt::Checked : Qt::Unchecked;
 }
 
 void DiscriminatorProxyModelBase::discriminateAll()
@@ -212,7 +211,7 @@ void DiscriminatorProxyModelBase::discriminateAll()
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isDiscriminating = true;
+        data.isDiscriminating = Qt::Checked;
     endResetModel();
 }
 
@@ -223,7 +222,7 @@ void DiscriminatorProxyModelBase::discriminateNone()
 
     beginResetModel();
     for (auto &data : m_data)
-        data.isDiscriminating = false;
+        data.isDiscriminating = Qt::Unchecked;
     endResetModel();
 }
 
@@ -235,7 +234,7 @@ void DiscriminatorProxyModelBase::filterAll()
     beginResetModel();
     for (auto &data : m_data) {
         if (data.isDiscriminating)
-            data.isFiltering = true;
+            data.isFiltering = Qt::Checked;
     }
     endResetModel();
 }
@@ -248,7 +247,7 @@ void DiscriminatorProxyModelBase::filterNone()
     beginResetModel();
     for (auto &data : m_data)
         if (data.isDiscriminating)
-            data.isFiltering = false;
+            data.isFiltering = Qt::Unchecked;
     endResetModel();
 }
 

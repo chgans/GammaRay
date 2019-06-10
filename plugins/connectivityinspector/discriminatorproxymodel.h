@@ -118,13 +118,11 @@ protected:
     struct ItemData
     {
         ItemData()
-            : count(0)
-            , isDiscriminating(1)
-            , isFiltering(1)
-        {}
+            : count(0), isDiscriminating(Qt::Checked),
+              isFiltering(Qt::Checked) {}
         quint64 count : 62;
-        quint64 isDiscriminating : 1;
-        quint64 isFiltering : 1;
+        Qt::CheckState isDiscriminating;
+        Qt::CheckState isFiltering;
     };
 
     bool isDiscriminating(const QModelIndex &index) const;
@@ -303,10 +301,8 @@ public:
         m_filterProxyModel->setDiscriminatorModel(m_discriminatorProxyModel);
         m_filterServerProxyModel = new ServerProxyModel<QIdentityProxyModel>(this);
         m_filterServerProxyModel->setSourceModel(m_filterProxyModel);
-        connect(m_discriminatorProxyModel,
-                &QAbstractItemModel::dataChanged,
-                m_filterProxyModel,
-                &QSortFilterProxyModel::invalidate);
+        connect(m_discriminatorProxyModel, &QAbstractItemModel::dataChanged,
+                m_filterProxyModel, &QSortFilterProxyModel::invalidate);
     }
 
     void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
