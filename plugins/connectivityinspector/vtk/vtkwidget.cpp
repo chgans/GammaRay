@@ -110,8 +110,19 @@ void VtkWidget::setGraph(vtkGraph *graph)
     m_layout->SetInputDataObject(m_graph);
     m_layoutView->SetVertexLabelArrayName("NodeLabel"); // FIXME
     m_layoutView->SetEdgeLabelArrayName("EdgeLabel");   // FIXME
+
     m_layoutView->SetEdgeColorArrayName("centrality");
     m_layoutView->SetVertexColorArrayName("VertexDegree"); // magic value
+
+    // SetEnabledEdgesArrayName, SetEnableEdgesByArray
+    // SetEnabledVerticesArrayName, SetEnableVerticesByArray
+
+    // m_layoutView->SetVertexScalarBarVisibility(true);
+    // m_layoutView->SetEdgeScalarBarVisibility(true);
+
+    // SetScalingArrayName, SetScaledGlyphs
+    // SetIconArrayName, AddIconType, SetIconVisibility
+    //
     m_inputHasChanged = true;
 }
 void VtkWidget::updateGraph()
@@ -120,8 +131,8 @@ void VtkWidget::updateGraph()
     if (!m_graph)
         return;
 
-    if (!(m_inputHasChanged || m_configHasChanged))
-        return;
+    //    if (!(m_inputHasChanged || m_configHasChanged))
+    //        return;
 
     qWarning() << "UPDATING GRAPH...";
     renderGraph();

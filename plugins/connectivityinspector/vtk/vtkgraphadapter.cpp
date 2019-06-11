@@ -33,12 +33,22 @@
 using namespace GammaRay;
 
 namespace {
-
 QString address(quint64 id)
 {
     return QStringLiteral("0x%1").arg(id, 8, 16);
 }
 } // namespace
+
+struct vtkGraphAdapter::DataSource {
+    int column;
+    int role;
+    const QAbstractItemModel *model = nullptr;
+
+    template <class T> T query(int index) const {
+        return model->data(model->index(index, column), role).value<T>();
+    }
+};
+
 vtkGraphAdapter::vtkGraphAdapter(QObject *parent)
     : QObject(parent)
 {

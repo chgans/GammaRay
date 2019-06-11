@@ -53,6 +53,10 @@ public:
     void setEdgeSourceIdQuery(int column, int role);
     void setEdgeTargetIdQuery(int column, int role);
 
+    void setVertexAffinityQuery(const QAbstractItemModel *model, int column,
+                                int role);
+    void setEdgeWeightQuery(const QAbstractItemModel *model, int column,
+                            int role);
     void setup();
 
     vtkGraph *graph();
@@ -62,6 +66,8 @@ signals:
 public slots:
 
 private:
+    struct DataSource;
+
     const QAbstractItemModel *m_vertexModel = nullptr;
     vtkStringArray *m_vertexLabels = nullptr;
     vtkTypeUInt64Array *m_vertexIds = nullptr;
