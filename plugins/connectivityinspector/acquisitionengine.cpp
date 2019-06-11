@@ -206,9 +206,9 @@ void AcquisitionEngine::registerObjectDiscriminator()
 {
     m_objectDiscriminator = new ObjectDiscriminator(objectFilterName(), this);
     m_objectDiscriminator->setDiscriminationRole(ObjectModel::ObjectIdRole);
-    // auto input = new SingleColumnObjectProxyModel(this);
-    // input->setSourceModel(m_probe->objectTreeModel());
-    m_objectDiscriminator->setSourceModel(m_probe->objectTreeModel() /*input*/);
+    auto input = new SingleColumnObjectProxyModel(this);
+    input->setSourceModel(m_probe->objectListModel());
+    m_objectDiscriminator->setSourceModel(input);
     m_objectDiscriminator->initialise(m_probe);
 }
 

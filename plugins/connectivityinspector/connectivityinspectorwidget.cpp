@@ -59,14 +59,14 @@ Filter::Filter(FilterWidget *filterWidget,
 {
     auto filteredModel = ObjectBroker::model(filteredModelId(name));
     Q_ASSERT(filteredModel);
-    auto descendantsModel = new KDescendantsProxyModel(parent);
-    descendantsModel->setSourceModel(filteredModel);
+    // auto descendantsModel = new KDescendantsProxyModel(parent);
+    // descendantsModel->setSourceModel(filteredModel);
     outputModel = new SynchonousProxyModel(parent);
-    outputModel->setSourceModel(descendantsModel);
+    outputModel->setSourceModel(filteredModel);
     searchableModel = new QSortFilterProxyModel(parent);
-    searchableModel->setSourceModel(filteredModel);
+    searchableModel->setSourceModel(outputModel);
     new SearchLineController(searchWidget, searchableModel);
-    searchableView->setModel(searchableModel);
+    searchableView->setModel(outputModel);
 
     filterModel = ObjectBroker::model(filterModelId(name));
     Q_ASSERT(filterModel);
