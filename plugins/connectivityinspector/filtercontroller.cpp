@@ -33,7 +33,10 @@ using namespace GammaRay;
 FilterController::FilterController(const QString &name, QObject *parent)
     : DiscriminatorInterface(name, parent) {}
 
-bool FilterController::isEnabled() const { Q_ASSERT(false); }
+bool FilterController::isEnabled() const {
+    Q_ASSERT(false);
+    return false;
+}
 
 FilterController::~FilterController() = default;
 
