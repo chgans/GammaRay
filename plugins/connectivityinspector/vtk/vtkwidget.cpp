@@ -33,9 +33,14 @@
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QHash>
+#include <QMouseEvent>
 #include <QTimer>
 
+#include <vtkAnnotationLink.h>
 #include <vtkArrowSource.h>
+#include <vtkCamera.h>
+#include <vtkCellPicker.h>
+#include <vtkDataRepresentation.h>
 #include <vtkDataSetAttributes.h>
 #include <vtkGlyph3D.h>
 #include <vtkGlyphSource2D.h>
@@ -43,11 +48,19 @@
 #include <vtkGraphLayoutView.h>
 #include <vtkGraphToGlyphs.h>
 #include <vtkGraphToPolyData.h>
-#include <vtkInteractorStyleTrackballCamera.h>
+#include <vtkInteractorStyleRubberBand2D.h>
+#include <vtkInteractorStyleRubberBand3D.h>
+#include <vtkInteractorStyleRubberBandZoom.h>
 #include <vtkMutableDirectedGraph.h>
+#include <vtkPickingManager.h>
 #include <vtkPolyDataMapper.h>
+#include <vtkPropPicker.h>
+#include <vtkProperty.h>
 #include <vtkRenderWindow.h>
+#include <vtkRenderedGraphRepresentation.h>
 #include <vtkRenderer.h>
+#include <vtkSelection.h>
+#include <vtkSelectionNode.h>
 #include <vtkSmartPointer.h>
 #include <vtkStringArray.h>
 #include <vtkUnsignedLongLongArray.h>
@@ -94,11 +107,20 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_layoutView->SetEdgeLabelVisibility(true);
     m_layoutView->SetLayoutStrategyToPassThrough();
 
-    m_interactorStyle = vtkInteractorStyleTrackballCamera::New();
-    m_interactor = vtkSmartPointer<QVTKInteractor>::New();
-    m_interactor->SetRenderWindow(m_layoutView->GetRenderWindow());
-    m_interactor->SetInteractorStyle(m_interactorStyle);
-    m_interactor->Initialize();
+    auto representation = m_layoutView->GetRepresentation(0);
+    representation->SetSelectionType(vtkSelectionNode::PEDIGREEIDS);
+    m_annotationLink = vtkSmartPointer<vtkAnnotationLink>::New();
+    m_annotationLink->AddObserver(vtkCommand::AnnotationChangedEvent,
+                                  this,
+                                  &VtkWidget::annotationChangedEvent);
+    representation->SetAnnotationLink(m_annotationLink);
+
+    // 2D/3D not needed: m_layoutView->SetInteractionModeTo[2,3]D();
+    // We wight still want to switch to box zoom
+    m_interactor3dStyle = vtkSmartPointer<vtkInteractorStyleRubberBand3D>::New();
+    m_interactor2dStyle = vtkSmartPointer<vtkInteractorStyleRubberBand2D>::New();
+    m_interactorZoomStyle = vtkSmartPointer<vtkInteractorStyleRubberBandZoom>::New();
+    m_layoutView->SetInteractor(GetInteractor());
     SetRenderWindow(m_layoutView->GetRenderWindow());
 }
 
@@ -114,6 +136,7 @@ void VtkWidget::setGraph(vtkGraph *graph)
     m_layoutView->SetVertexColorArrayName("VertexDegree"); // magic value
     m_inputHasChanged = true;
 }
+
 void VtkWidget::updateGraph()
 {
     qWarning() << "UPDATE GRAPH" << m_inputHasChanged << m_configHasChanged;
@@ -124,11 +147,67 @@ void VtkWidget::updateGraph()
         return;
 
     qWarning() << "UPDATING GRAPH...";
+#if 0
     renderGraph();
     m_layoutView->ResetCamera();
+    auto camera = m_layoutView->GetRenderer()->GetActiveCamera();
+    double bounds[6]; // xmin,xmax, ymin,ymax, zmin,zmax
+    //m_graph->ComputeBounds();
+    //m_graph->GetBounds(bounds);
+    auto represenation = vtkRenderedGraphRepresentation::SafeDownCast(
+        m_layoutView->GetRepresentation(0));
+    represenation->ComputeSelectedGraphBounds(bounds);
+    qDebug() << "Graph bounds" << QStringLiteral("[%1, %2]").arg(bounds[0]).arg(bounds[1])
+             << QStringLiteral("[%1, %2]").arg(bounds[2]).arg(bounds[3])
+             << QStringLiteral("[%1, %2]").arg(bounds[4]).arg(bounds[5]);
+    if (m_is3dLayout) {
+        m_layoutView->SetInteractorStyle(m_interactor3dStyle);
+        camera->SetFocalPoint(bounds[0], bounds[2], bounds[4]);
+        camera->SetPosition(2 * bounds[1], 2 * bounds[3], 2 * bounds[5]);
+        camera->SetViewAngle(60);
+    } else {
+        m_layoutView->SetInteractorStyle(m_interactor2dStyle);
+        camera->SetFocalPoint(bounds[0], bounds[2], bounds[4]);
+        camera->SetPosition((bounds[1] - bounds[0]) / 2, (bounds[3] - bounds[2]) / 2, 0);
+    }
+#else
+    renderGraph();
+    if (m_is3dLayout) {
+        m_layoutView->SetInteractionModeTo3D();
+    } else {
+        m_layoutView->SetInteractionModeTo2D();
+    }
+    m_layoutView->ResetCamera();
+#endif
     updateSatus("Done");
     m_inputHasChanged = false;
     m_configHasChanged = false;
+}
+
+void VtkWidget::annotationChangedEvent()
+{
+    qDebug() << Q_FUNC_INFO;
+    auto selection = m_annotationLink->GetCurrentSelection();
+    Q_ASSERT(selection->GetNumberOfNodes() == 2);
+    auto node0 = selection->GetNode(0);
+    auto node1 = selection->GetNode(1);
+    if (node0->GetFieldType() == vtkSelectionNode::EDGE)
+        std::swap(node0, node1);
+    Q_ASSERT(node0->GetFieldType() == vtkSelectionNode::VERTEX);
+    Q_ASSERT(node0->GetContentType() == vtkSelectionNode::PEDIGREEIDS);
+    auto vertexList = node0->GetSelectionList();
+    Q_ASSERT(node1->GetFieldType() == vtkSelectionNode::EDGE);
+    Q_ASSERT(node1->GetContentType() == vtkSelectionNode::PEDIGREEIDS);
+    auto edgeList = node1->GetSelectionList();
+
+    for (int i = 0; i < vertexList->GetNumberOfValues(); ++i) {
+        qDebug() << "Vertex selected: "
+                 << QString::number(vertexList->GetVariantValue(i).ToTypeUInt64(), 16);
+    }
+    for (int i = 0; i < edgeList->GetNumberOfValues(); ++i) {
+        qDebug() << "Edge selected: "
+                 << QString::number(edgeList->GetVariantValue(i).ToTypeUInt64(), 16);
+    }
 }
 
 // FIXME: Arrow size need to scale with graph representation size.
@@ -180,6 +259,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetCompactness(1.0);
         // strategy->SetCompression(1);
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     case Vtk::LayoutStrategy::Tree: {
@@ -192,6 +272,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetAngle(360);
         strategy->SetLogSpacingValue(1);
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     case Vtk::LayoutStrategy::Fast2D: {
@@ -200,6 +281,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetJitter(true);
         // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::Random: {
@@ -209,11 +291,13 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetThreeDimensionalLayout(1);
         // strategy->SetAutomaticBoundsComputation(1);
         m_layoutStrategy = strategy;
+        m_is3dLayout = false; // FIXME: can choose
         break;
     }
     case Vtk::LayoutStrategy::Circular: {
         auto *strategy = vtkCircularLayoutStrategy::New();
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::Simple2D: {
@@ -222,12 +306,14 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetJitter(true);
         // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::SpanTree: {
         auto *strategy = vtkSpanTreeLayoutStrategy::New();
         // strategy->SetDepthFirstSpanningTree(true);
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     case Vtk::LayoutStrategy::Community2D: {
@@ -237,6 +323,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetCommunityStrength(1.0);
         //strategy->SetCommunityArrayName(s_ThreadIdArrayName); // FIXME
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::Clustering2D: {
@@ -244,6 +331,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRandomSeed(0);
         // strategy->SetRestDistance(1.0);
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::ForceDirected2D: {
@@ -254,6 +342,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetThreeDimensionalLayout(1);
         // strategy->SetAutomaticBoundsComputation(1);
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::ForceDirected3D: {
@@ -261,6 +350,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         auto *strategy = vtkForceDirectedLayoutStrategy::New();
         strategy->SetThreeDimensionalLayout(true);
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     case Vtk::LayoutStrategy::AssignCoordinates: {
@@ -269,6 +359,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetYCoordArrayName();
         // strategy->SetZCoordArrayName();
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     case Vtk::LayoutStrategy::AttributeClustering2D: {
@@ -277,6 +368,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetRestDistance();
         // strategy->SetVertexAttribute(s_ThreadIdArrayName); // FIXME
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::Constrained2D: {
@@ -284,6 +376,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRandomSeed(0);
         //strategy->SetInputArrayName(s_connWeightArrayName); // FIXME
         m_layoutStrategy = strategy;
+        m_is3dLayout = false;
 
         break;
     }
@@ -303,6 +396,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetMarkedStartVertices();
         // strategy->SetForceToUseUniversalStartPointsFinder();
         m_layoutStrategy = strategy;
+        m_is3dLayout = true;
         break;
     }
     }
@@ -340,7 +434,15 @@ void VtkWidget::setThemeType(Vtk::ThemeType themeType)
     Q_ASSERT(viewTheme != nullptr);
     viewTheme->SetLineWidth(1.0);
     viewTheme->SetPointSize(15);
-    viewTheme->SetCellOpacity(0.3);
+    // viewTheme->SetOutlineColor();
+
+    //viewTheme->SetCellOpacity(0.3);
+
+    //viewTheme->SetSelectedPointOpacity(0.3);
+    //viewTheme->SetSelectedPointColor(0.0, 0.5, 1.0);
+    // viewTheme->SetSelectedCellOpacity();
+    // viewTheme->SetSelectedCellColor();
+
     m_layoutView->ApplyViewTheme(viewTheme);
     viewTheme->Delete();
     m_configHasChanged = true;
@@ -385,4 +487,53 @@ void VtkWidget::setShowEdgeArrow(bool show)
     }
     m_configHasChanged = true;
     updateGraph();
+}
+
+#include <vtkPropAssembly.h>
+
+// https://vtk.org/Wiki/VTK/Examples/Python/Graphs/SelectedVerticesAndEdges
+// https://itk.org/Wiki/VTK/Examples/Python/Infovis/SelectedGraphIDs
+// https://vtk.org/Wiki/VTK/Examples/Cxx/Graphs/SelectedVerticesAndEdges
+// https://vtk.org/gitweb?p=VTK.git;a=blob;f=Examples/Modelling/Python/SpherePuzzle.py
+// https://vtk.org/Wiki/VTK/Examples/Cxx/Picking/CellPicking
+void GammaRay::VtkWidget::mousePressEvent(QMouseEvent *event)
+{
+#if 0
+    m_layoutView->GetRepresentation(0)->SetSelectionType(vtkSelectionNode::PEDIGREEIDS);
+
+    int *pos = m_interactor->GetEventPosition();
+    vtkSmartPointer<vtkCellPicker> picker = vtkCellPicker::New();
+    picker->Pick(pos[0], pos[1], 0, m_layoutView->GetRenderer());
+    qDebug() << "Node" << picker->GetPointId() << "Cell" << picker->GetCellId();
+    auto actor = picker->GetActor();
+    if (actor) {
+        //        qDebug() << "Actor picking";
+        //        actor->GetProperty()->SetPointSize(30);
+        //        actor->GetProperty()->SetColor(0, 0, 1);
+        //        actor->PrintSelf(std::cout, vtkIndent(0));
+        //        m_layoutView->GetRenderWindow()->Render();
+    } else {
+        qDebug() << "No actor picking";
+    }
+    if (picker->GetProp3D()) {
+        qDebug() << "Prop3D picking";
+        //        auto prop3D = picker->GetProp3D();
+        //        prop3D->PrintSelf(std::cout, vtkIndent(0));
+        //        prop3D->SetVisibility(0);
+        //        m_layoutView->GetRenderWindow()->Render();
+    }
+    if (picker->GetVolume())
+        qDebug() << "Volume picking";
+    if (picker->GetAssembly())
+        qDebug() << "Assy picking";
+    if (picker->GetPropAssembly())
+        qDebug() << "Prop Assy picking";
+
+    //    vtkPropAssembly *assy = picker->GetPropAssembly();
+    //    int num = assy->GetNumberOfPaths();
+    //    for (int i = 0; i < num; i++) {
+    //        var prop = collection.GetNextProp3D();
+    //    }
+#endif
+    QVTKWidget::mousePressEvent(event);
 }

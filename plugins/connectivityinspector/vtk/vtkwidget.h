@@ -55,6 +55,7 @@ class vtkInteractorStyle;
 class vtkMutableDirectedGraph;
 class vtkStringArray;
 class vtkUnsignedLongLongArray;
+class vtkAnnotationLink;
 
 namespace GammaRay {
 
@@ -88,6 +89,7 @@ private:
     vtkSmartPointer<vtkGraphLayout> m_layout;
     // vtkObject
     vtkSmartPointer<vtkGraphLayoutStrategy> m_layoutStrategy;
+    bool m_is3dLayout = false;
     // vtkActor: takes the graph and an arrow source as input, decorate edges
     vtkSmartPointer<vtkActor> m_arrowDecorator;
 
@@ -96,7 +98,12 @@ private:
     // RenderWindowInteractor
     vtkSmartPointer<QVTKInteractor> m_interactor;
     // vtkInteractorObserver
-    vtkSmartPointer<vtkInteractorStyle> m_interactorStyle;
+    vtkSmartPointer<vtkInteractorStyle> m_interactor3dStyle;
+    vtkSmartPointer<vtkInteractorStyle> m_interactor2dStyle;
+    vtkSmartPointer<vtkInteractorStyle> m_interactorZoomStyle;
+
+    vtkSmartPointer<vtkAnnotationLink> m_annotationLink;
+    void annotationChangedEvent();
 
     // Internal state and data
     bool m_showEdgeArrow = false;
@@ -106,6 +113,10 @@ private:
     void renderGraph();
     void createArrowDecorator(vtkAlgorithmOutput *input);
     void updateSatus(const QString &state);
+
+    // QWidget interface
+protected:
+    void mousePressEvent(QMouseEvent *event) override;
 };
 } // namespace GammaRay
 
