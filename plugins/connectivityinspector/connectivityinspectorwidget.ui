@@ -105,6 +105,39 @@
           <property name="currentIndex">
            <number>0</number>
           </property>
+          <widget class="QWidget" name="clusterTab">
+           <attribute name="title">
+            <string>Cluster</string>
+           </attribute>
+           <layout class="QGridLayout" name="gridLayout_5">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item row="0" column="0">
+             <layout class="QVBoxLayout" name="verticalLayout_4">
+              <item>
+               <widget class="QLineEdit" name="clusterSearchLine">
+                <property name="placeholderText">
+                 <string>Filter...</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="GammaRay::DeferredTreeView" name="clusterListView"/>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
           <widget class="QWidget" name="vertexTab">
            <attribute name="title">
             <string>Vertex</string>

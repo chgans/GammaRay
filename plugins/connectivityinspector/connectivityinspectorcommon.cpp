@@ -29,7 +29,7 @@
 #include <QString>
 
 namespace GammaRay {
-namespace CI { // FIXME
+namespace Connectivity { // FIXME
 
 static const char *BaseDomain = "com.kdab.GammaRay.ConnectivityInspector";
 
@@ -46,6 +46,21 @@ QString filterInterfaceId(const QString &name)
 QString filteredModelId(const QString &name)
 {
     return QStringLiteral("%1.Filter.%2.Output").arg(BaseDomain).arg(name);
+}
+
+QString vertexModelId()
+{
+    return QStringLiteral("%1.VertexModel").arg(BaseDomain);
+}
+
+QString clusterModelId()
+{
+    return QStringLiteral("%1.ClusterModel").arg(BaseDomain);
+}
+
+QString edgeModelId()
+{
+    return QStringLiteral("%1.EdgeModel").arg(BaseDomain);
 }
 
 QString threadFilterName()
@@ -73,5 +88,5 @@ QString connectionFilterName()
     return QStringLiteral("Connection");
 }
 
-} // namespace CI
+} // namespace Connectivity
 } // namespace GammaRay

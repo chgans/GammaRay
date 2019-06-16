@@ -94,6 +94,8 @@ signals:
     void graphChanged();
 
 private:
+    void connectModel(QAbstractItemModel *model);
+
     vtkSmartPointer<vtkMutableDirectedGraph> m_graph;
     vtkSmartPointer<vtkAnnotationLink> m_annotationLink;
     void annotationChangedEvent();

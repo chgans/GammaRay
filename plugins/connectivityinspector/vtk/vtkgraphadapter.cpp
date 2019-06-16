@@ -40,6 +40,11 @@ using namespace GammaRay;
 
 namespace {
 
+const char *sNodeLabelArrayName{"NodeLabel"};
+const char *sEdgeLabelArrayName{"EdgeLabel"};
+const char *sNodeIdArrayName{"NodeId"};
+const char *sEdgeIdArrayName{"EdgeId"};
+
 QString address(quint64 id)
 {
     return QStringLiteral("0x%1").arg(id, 8, 16);
@@ -77,6 +82,7 @@ void vtkGraphAdapter::setVertexModel(QAbstractItemModel *model)
 {
     Q_ASSERT(m_vertexModel == nullptr);
     m_vertexModel = model;
+    connectModel(m_vertexModel);
 }
 
 void vtkGraphAdapter::setVertexSelectionModel(QItemSelectionModel *model)
@@ -109,8 +115,9 @@ void vtkGraphAdapter::setVertexClusterIdQuery(int column, int role)
 
 void vtkGraphAdapter::setClusterModel(QAbstractItemModel *model)
 {
-    Q_ASSERT(m_edgeModel == nullptr);
-    m_edgeModel = model;
+    Q_ASSERT(m_clusterModel == nullptr);
+    m_clusterModel = model;
+    connectModel(m_clusterModel);
 }
 
 void vtkGraphAdapter::setClusterSelectionModel(QItemSelectionModel *model)
@@ -135,6 +142,7 @@ void vtkGraphAdapter::setEdgeModel(QAbstractItemModel *model)
 {
     Q_ASSERT(m_edgeModel == nullptr);
     m_edgeModel = model;
+    connectModel(m_edgeModel);
 }
 
 void vtkGraphAdapter::setEdgeSelectionModel(QItemSelectionModel *model)
@@ -195,15 +203,15 @@ void vtkGraphAdapter::recompute()
     m_graph->GetVertexData()->AddArray(m_vertexIds);
     m_vertexLabels->SetNumberOfValues(vertexCount);
     m_graph->GetVertexData()->AddArray(m_vertexLabels);
-    // m_vertexClusterIds->SetNumberOfValues(vertexCount);
-    // m_graph->GetVertexData()->AddArray(m_vertexClusterIds);
+    m_vertexClusterIds->SetNumberOfValues(vertexCount);
+    m_graph->GetVertexData()->AddArray(m_vertexClusterIds);
     m_graph->GetVertexData()->SetPedigreeIds(m_vertexIds);
     for (int index = 0; index < vertexCount; index++) {
         m_vertexIds->SetValue(index, vertexId(index));
         m_vertexLabels->SetValue(index, vertexLabel(index));
-        // m_vertexClusterIds->SetValue(index, vertexClusterId(index));
-        qDebug() << Q_FUNC_INFO << "Vertex" << index << vertexId(index)
-                 << QString::fromStdString(vertexLabel(index));
+        m_vertexClusterIds->SetValue(index, vertexClusterId(index));
+        //qDebug() << Q_FUNC_INFO << "Vertex" << index << vertexId(index)
+        //         << QString::fromStdString(vertexLabel(index));
     }
     m_graph->SetNumberOfVertices(vertexCount);
 
@@ -212,21 +220,28 @@ void vtkGraphAdapter::recompute()
     m_graph->GetEdgeData()->AddArray(m_edgeIds);
     m_edgeLabels->SetNumberOfValues(edgeCount);
     m_graph->GetEdgeData()->AddArray(m_edgeLabels);
-    // m_edgeWeights->SetNumberOfValues(edgeCount);
-    // m_graph->GetEdgeData()->AddArray(m_edgeWeights);
+    m_edgeWeights->SetNumberOfValues(edgeCount);
+    m_graph->GetEdgeData()->AddArray(m_edgeWeights);
     m_graph->GetEdgeData()->SetPedigreeIds(m_edgeIds);
+    int ignored = 0;
     for (int index = 0; index < edgeCount; index++) {
         m_edgeIds->SetValue(index, edgeId(index));
         m_edgeLabels->SetValue(index, edgeLabel(index));
-        // m_edgeWeights->SetValue(index, edgeWeight(index));
+        m_edgeWeights->SetValue(index, edgeWeight(index));
         const auto sourceId = m_graph->FindVertex(edgeSourceId(index));
         const auto targetId = m_graph->FindVertex(edgeTargetId(index));
         if (sourceId <= 0 || targetId <= 0) {
             qWarning() << Q_FUNC_INFO << "Ignoring dodgy edge:" << address(edgeId(index));
+            ignored++;
             continue;
         }
         m_graph->AddEdge(sourceId, targetId);
+        //qDebug() << Q_FUNC_INFO << "Edge" << index << edgeId(index) << sourceId << targetId;
     }
+    m_edgeIds->SetNumberOfValues(edgeCount - ignored);
+    m_edgeLabels->SetNumberOfValues(edgeCount - ignored);
+    m_edgeWeights->SetNumberOfValues(edgeCount - ignored);
+
     qDebug() << Q_FUNC_INFO << m_graph->GetNumberOfVertices() << m_graph->GetNumberOfEdges();
 
     emit graphChanged();
@@ -334,7 +349,10 @@ quint64 vtkGraphAdapter::vertexId(int index)
     Q_ASSERT(m_vertexIdColumn >= 0);
     Q_ASSERT(m_vertexIdRole >= 0);
     const QModelIndex modelIndex = m_vertexModel->index(index, m_vertexIdColumn);
-    return modelIndex.data(m_vertexIdRole).value<ObjectId>().id();
+    const auto variant = modelIndex.data(m_vertexIdRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<quint64>());
+    return variant.value<quint64>();
 }
 
 std::string vtkGraphAdapter::vertexLabel(int index)
@@ -343,7 +361,10 @@ std::string vtkGraphAdapter::vertexLabel(int index)
     Q_ASSERT(m_vertexLabelColumn >= 0);
     Q_ASSERT(m_vertexLabelRole >= 0);
     const QModelIndex modelIndex = m_vertexModel->index(index, m_vertexLabelColumn);
-    return modelIndex.data(m_vertexLabelRole).toString().toStdString();
+    const auto variant = modelIndex.data(m_vertexLabelRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<QString>());
+    return variant.toString().toStdString();
 }
 
 quint64 vtkGraphAdapter::vertexClusterId(int index)
@@ -352,7 +373,10 @@ quint64 vtkGraphAdapter::vertexClusterId(int index)
     Q_ASSERT(m_vertexClusterIdColumn >= 0);
     Q_ASSERT(m_vertexClusterIdRole >= 0);
     const QModelIndex modelIndex = m_vertexModel->index(index, m_vertexClusterIdColumn);
-    return modelIndex.data(m_vertexClusterIdRole).value<ObjectId>().id();
+    const auto variant = modelIndex.data(m_vertexClusterIdRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<quint64>());
+    return variant.value<quint64>();
 }
 
 quint64 vtkGraphAdapter::edgeId(int index)
@@ -361,7 +385,10 @@ quint64 vtkGraphAdapter::edgeId(int index)
     Q_ASSERT(m_edgeIdColumn >= 0);
     Q_ASSERT(m_edgeIdRole >= 0);
     const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeIdColumn);
-    return modelIndex.data(m_edgeIdRole).value<ObjectId>().id();
+    const auto variant = modelIndex.data(m_edgeIdRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<quint64>());
+    return variant.value<quint64>();
 }
 
 std::string vtkGraphAdapter::edgeLabel(int index)
@@ -370,7 +397,10 @@ std::string vtkGraphAdapter::edgeLabel(int index)
     Q_ASSERT(m_edgeLabelColumn >= 0);
     Q_ASSERT(m_edgeLabelRole >= 0);
     const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeLabelColumn);
-    return modelIndex.data(m_edgeLabelRole).toString().toStdString();
+    const auto variant = modelIndex.data(m_edgeLabelRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<QString>());
+    return variant.toString().toStdString();
 }
 
 quint64 vtkGraphAdapter::edgeSourceId(int index)
@@ -379,7 +409,10 @@ quint64 vtkGraphAdapter::edgeSourceId(int index)
     Q_ASSERT(m_edgeSourceColumn >= 0);
     Q_ASSERT(m_edgeSourceRole >= 0);
     const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeSourceColumn);
-    return modelIndex.data(m_edgeSourceRole).value<ObjectId>().id();
+    const auto variant = modelIndex.data(m_edgeSourceRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<quint64>());
+    return variant.value<quint64>();
 }
 
 quint64 vtkGraphAdapter::edgeTargetId(int index)
@@ -388,7 +421,10 @@ quint64 vtkGraphAdapter::edgeTargetId(int index)
     Q_ASSERT(m_edgeTargetColumn >= 0);
     Q_ASSERT(m_edgeTargetRole >= 0);
     const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeTargetColumn);
-    return modelIndex.data(m_edgeTargetRole).value<ObjectId>().id();
+    const auto variant = modelIndex.data(m_edgeTargetRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<quint64>());
+    return variant.value<quint64>();
 }
 
 double vtkGraphAdapter::edgeWeight(int index)
@@ -397,5 +433,16 @@ double vtkGraphAdapter::edgeWeight(int index)
     Q_ASSERT(m_edgeWeightColumn >= 0);
     Q_ASSERT(m_edgeWeightRole >= 0);
     const QModelIndex modelIndex = m_edgeModel->index(index, m_edgeWeightColumn);
-    return modelIndex.data(m_edgeWeightRole).toDouble();
+    const auto variant = modelIndex.data(m_edgeWeightRole);
+    Q_ASSERT(variant.isValid());
+    Q_ASSERT(variant.canConvert<double>());
+    return variant.value<double>();
+}
+
+void vtkGraphAdapter::connectModel(QAbstractItemModel *model)
+{
+    //    connect(model, &QAbstractItemModel::rowsInserted, this, &vtkGraphAdapter::recompute);
+    //    connect(model, &QAbstractItemModel::rowsRemoved, this, &vtkGraphAdapter::recompute);
+    //    connect(model, &QAbstractItemModel::dataChanged, this, &vtkGraphAdapter::recompute);
+    //    connect(model, &QAbstractItemModel::modelReset, this, &vtkGraphAdapter::recompute);
 }

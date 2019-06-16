@@ -96,7 +96,7 @@ QVariant ConnectionModel::data(const QModelIndex &index, int role) const
     }
     if (role == ConnectionIdRole) {
         auto id = reinterpret_cast<QObject *>(const_cast<void *>(item.connection));
-        return QVariant::fromValue(ObjectId(id));
+        return QVariant::fromValue(ObjectId(id)); // FIXME: quint64
     }
     if (role == SenderObjectIdRole) {
         return QVariant::fromValue(ObjectId(item.sender));

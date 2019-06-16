@@ -41,6 +41,8 @@
 #include <common/objectmodel.h>
 #include <ui/searchlinecontroller.h>
 
+#include <QTimer>
+
 namespace {
 QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 {
@@ -49,34 +51,7 @@ QObject *createObjectVisualizerClient(const QString & /*name*/, QObject *parent)
 } // namespace
 
 using namespace GammaRay;
-using namespace GammaRay::CI;
-
-Filter::Filter(FilterWidget *filterWidget,
-               QLineEdit *searchWidget,
-               QAbstractItemView *searchableView,
-               const QString &name,
-               QObject *parent)
-{
-    auto filteredModel = ObjectBroker::model(filteredModelId(name));
-    Q_ASSERT(filteredModel);
-    // auto descendantsModel = new KDescendantsProxyModel(parent);
-    // descendantsModel->setSourceModel(filteredModel);
-    outputModel = new SynchonousProxyModel(parent);
-    outputModel->setSourceModel(filteredModel);
-    searchableModel = new QSortFilterProxyModel(parent);
-    searchableModel->setSourceModel(outputModel);
-    new SearchLineController(searchWidget, searchableModel);
-    searchableView->setModel(outputModel);
-
-    filterModel = ObjectBroker::model(filterModelId(name));
-    Q_ASSERT(filterModel);
-
-    filterInterface = new FilterController(name, parent);
-
-    auto proxy = new CountDecoratorProxyModel(parent);
-    proxy->setSourceModel(filterModel);
-    filterWidget->setup(filterInterface, proxy);
-}
+using namespace GammaRay::Connectivity;
 
 ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
     : QWidget(parent)
@@ -91,71 +66,76 @@ ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
 
     m_ui->acquisitionWidget->setAcquisitionInterface(m_interface);
 
-#if 0
-    m_filters.insert(typeFilterName(),
-                     Filter(m_ui->typeFilterWidget, typeFilterName(), this));
-
-    m_filters.insert(classFilterName(),
-                     Filter(m_ui->classFilterWidget, classFilterName(), this));
-#endif
-    m_filters.insert(objectFilterName(),
-                     Filter(m_ui->objectFilterWidget,
-                            m_ui->vertexSearchLine,
-                            m_ui->vertexListView,
-                            objectFilterName(),
-                            this));
-    auto syncModel = m_filters[objectFilterName()].outputModel;
-    syncModel->addSynchronousRequirement(0, ObjectModel::ObjectIdRole);
-
-    m_filters.insert(connectionFilterName(),
-                     Filter(m_ui->connectionFilterWidget,
-                            m_ui->edgeSearchLine,
-                            m_ui->edgeListView,
-                            connectionFilterName(),
-                            this));
-    syncModel = m_filters[connectionFilterName()].outputModel;
-    syncModel->addSynchronousRequirement(ConnectionModel::ConnectionColumn, ConnectionModel::ConnectionIdRole);
-    syncModel->addSynchronousRequirement(ConnectionModel::SenderColumn, ConnectionModel::SenderObjectIdRole);
-    syncModel->addSynchronousRequirement(ConnectionModel::ReceiverColumn, ConnectionModel::ReceiverObjectIdRole);
-
-#if 0
-    m_filters.insert(threadFilterName(),
-                     Filter(m_ui->threadFilterWidget, threadFilterName(), this));
-#endif
+    addFilter(typeFilterName(), m_ui->typeFilterWidget);
+    addFilter(classFilterName(), m_ui->classFilterWidget);
+    addFilter(objectFilterName(), m_ui->objectFilterWidget);
+    addFilter(connectionFilterName(), m_ui->connectionFilterWidget);
+    addFilter(threadFilterName(), m_ui->threadFilterWidget);
 
     auto graphAdapter = m_ui->vtkWidget->graphAdapater();
 
-    auto vertexModel = m_filters.value(objectFilterName()).outputModel;
+    auto vertexAsyncModel = ObjectBroker::model(vertexModelId());
+    auto vertexModel = new SynchonousProxyModel(this);
+    vertexModel->addSynchronousRequirement(0, Connectivity::VertexIdRole);
+    vertexModel->addSynchronousRequirement(0, Connectivity::LabelRole);
+    vertexModel->addSynchronousRequirement(0, Connectivity::ClusterIdRole);
+    vertexModel->setSourceModel(vertexAsyncModel);
     auto vertexSelectionModel = new QItemSelectionModel(vertexModel, this);
-    graphAdapter->setVertexModel(vertexModel);
-    graphAdapter->setVertexSelectionModel(vertexSelectionModel);
-
-    graphAdapter->setVertexIdQuery(0, ObjectModel::ObjectIdRole);
-    graphAdapter->setVertexLabelQuery(0, Qt::DisplayRole);
-
+    new SearchLineController(m_ui->vertexSearchLine, vertexModel);
     m_ui->vertexListView->setModel(vertexModel);
     m_ui->vertexListView->setSelectionModel(vertexSelectionModel);
+    graphAdapter->setVertexModel(vertexModel);
+    graphAdapter->setVertexSelectionModel(vertexSelectionModel);
+    graphAdapter->setVertexIdQuery(0, Connectivity::VertexIdRole);
+    graphAdapter->setVertexLabelQuery(0, Connectivity::LabelRole);
+    graphAdapter->setVertexClusterIdQuery(0, Connectivity::ClusterIdRole);
 
-    auto edgeModel = m_filters.value(connectionFilterName()).outputModel;
+    auto clusterAsyncModel = ObjectBroker::model(clusterModelId());
+    auto clusterModel = new SynchonousProxyModel(this);
+    clusterModel->addSynchronousRequirement(0, Connectivity::ClusterIdRole);
+    clusterModel->addSynchronousRequirement(0, Connectivity::LabelRole);
+    clusterModel->setSourceModel(clusterAsyncModel);
+    auto clusterSelectionModel = new QItemSelectionModel(clusterModel, this);
+    new SearchLineController(m_ui->clusterSearchLine, clusterModel);
+    m_ui->clusterListView->setModel(clusterModel);
+    m_ui->clusterListView->setSelectionModel(clusterSelectionModel);
+    graphAdapter->setClusterModel(clusterModel);
+    graphAdapter->setClusterSelectionModel(clusterSelectionModel);
+    graphAdapter->setClusterIdQuery(0, Connectivity::ClusterIdRole);
+    graphAdapter->setClusterLabelQuery(0, Connectivity::LabelRole);
+
+    auto edgeAsyncModel = ObjectBroker::model(edgeModelId());
+    auto edgeModel = new SynchonousProxyModel(this);
+    edgeModel->addSynchronousRequirement(0, Connectivity::EdgeIdRole);
+    edgeModel->addSynchronousRequirement(0, Connectivity::LabelRole);
+    edgeModel->addSynchronousRequirement(0, Connectivity::SourceIdRole);
+    edgeModel->addSynchronousRequirement(0, Connectivity::TargetIdRole);
+    edgeModel->addSynchronousRequirement(0, Connectivity::WeightRole);
+    edgeModel->setSourceModel(edgeAsyncModel);
     auto edgeSelectionModel = new QItemSelectionModel(edgeModel, this);
-    graphAdapter->setEdgeModel(edgeModel);
-    graphAdapter->setEdgeSelectionModel(edgeSelectionModel);
-
-    graphAdapter->setEdgeIdQuery(ConnectionModel::ConnectionColumn,
-                                 ConnectionModel::ConnectionIdRole);
-    graphAdapter->setEdgeLabelQuery(ConnectionModel::ConnectionColumn, Qt::DisplayRole);
-    graphAdapter->setEdgeSourceIdQuery(ConnectionModel::SenderColumn,
-                                       ConnectionModel::SenderObjectIdRole);
-    graphAdapter->setEdgeTargetIdQuery(ConnectionModel::ReceiverColumn,
-                                       ConnectionModel::ReceiverObjectIdRole);
-
+    new SearchLineController(m_ui->edgeSearchLine, edgeModel);
     m_ui->edgeListView->setModel(edgeModel);
     m_ui->edgeListView->setSelectionModel(edgeSelectionModel);
+    graphAdapter->setEdgeModel(edgeModel);
+    graphAdapter->setEdgeSelectionModel(edgeSelectionModel);
+    graphAdapter->setEdgeIdQuery(0, Connectivity::EdgeIdRole);
+    graphAdapter->setEdgeLabelQuery(0, Connectivity::LabelRole);
+    graphAdapter->setEdgeSourceIdQuery(0, Connectivity::SourceIdRole);
+    graphAdapter->setEdgeTargetIdQuery(0, Connectivity::TargetIdRole);
+    graphAdapter->setEdgeWeightQuery(0, Connectivity::WeightRole);
 
-    connect(m_interface,
-            &AcquisitionInterface::samplingDone,
-            graphAdapter,
-            &vtkGraphAdapter::recompute);
+    auto timer = new QTimer(this);
+    timer->setInterval(2000);
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, graphAdapter, &vtkGraphAdapter::recompute);
+    connect(m_interface, &AcquisitionInterface::samplingDone, this, [timer]() { timer->start(); });
+}
+
+void ConnectivityInspectorWidget::addFilter(const QString name, FilterWidget *widget)
+{
+    auto model = ObjectBroker::model(filterModelId(name));
+    auto interface = new FilterController(name, this);
+    widget->setup(interface, model);
 }
 
 ConnectivityInspectorWidget::~ConnectivityInspectorWidget() = default;

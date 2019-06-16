@@ -43,6 +43,7 @@
 #include <vtkCellPicker.h>
 #include <vtkDataRepresentation.h>
 #include <vtkDataSetAttributes.h>
+#include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkGlyph3D.h>
 #include <vtkGlyphSource2D.h>
 #include <vtkGraphLayout.h>
@@ -100,6 +101,7 @@
 using namespace GammaRay;
 
 VtkWidget::VtkWidget(QWidget *parent)
+    // : QVTKWidget2(new QGLContext(QGLFormat()), parent)
     : QVTKWidget(parent)
 {
     m_graphAdapter = new vtkGraphAdapter(this);
@@ -109,14 +111,17 @@ VtkWidget::VtkWidget(QWidget *parent)
     });
 
     m_layout = vtkSmartPointer<vtkGraphLayout>::New();
+    m_layoutStrategy->GlobalWarningDisplayOn();
     m_layout->SetInputDataObject(m_graphAdapter->graph());
     m_inputHasChanged = true;
 
-    auto updater = vtkViewUpdater::New();
+    m_updater = vtkSmartPointer<vtkViewUpdater>::New();
+    m_updater->GlobalWarningDisplayOn();
     m_layoutView = vtkSmartPointer<vtkGraphLayoutView>::New();
+    m_layoutView->GlobalWarningDisplayOn();
     m_layoutView->AddRepresentationFromInputConnection(m_layout->GetOutputPort());
     //createArrowDecorator(m_layout->GetOutputPort());
-    updater->AddView(m_layoutView);
+    m_updater->AddView(m_layoutView);
 
     m_layoutView->SetVertexLabelArrayName("VertexLabel"); // FIXME: graph adapter
     m_layoutView->SetEdgeLabelArrayName("EdgeLabel");     // FIXME: graph adapter
@@ -128,21 +133,34 @@ VtkWidget::VtkWidget(QWidget *parent)
     m_layoutView->SetGlyphType(vtkGraphToGlyphs::SPHERE);
     m_layoutView->SetColorEdges(true);
     m_layoutView->SetEdgeLabelVisibility(true);
+    //m_layoutView->SetEdgeVisibility(false);
     m_layoutView->SetLayoutStrategyToPassThrough();
+    m_layoutView->SetHideVertexLabelsOnInteraction(true);
+    m_layoutView->SetHideEdgeLabelsOnInteraction(true);
 
     auto representation = m_layoutView->GetRepresentation(0);
     representation->SetSelectionType(vtkSelectionNode::PEDIGREEIDS);
     m_annotationLink = vtkSmartPointer<vtkAnnotationLink>::New();
+    m_annotationLink->GlobalWarningDisplayOn();
     representation->SetAnnotationLink(m_annotationLink);
     m_graphAdapter->setAnnotationLink(m_annotationLink);
-    updater->AddAnnotationLink(m_annotationLink);
+    m_updater->AddAnnotationLink(m_annotationLink);
 
     // 2D/3D: m_layoutView->SetInteractionModeTo[2,3]D();
     // We wight still want to switch to box zoom
     m_interactorZoomStyle = vtkSmartPointer<vtkInteractorStyleRubberBandZoom>::New();
 
     m_layoutView->SetInteractor(GetInteractor());
-    SetRenderWindow(m_layoutView->GetRenderWindow());
+    GetRenderWindow()->AddRenderer(m_layoutView->GetRenderer());
+    //SetRenderWindow(m_layoutView->GetRenderWindow());
+
+    //    auto timer = new QTimer(this);
+    //    timer->start(1000);
+    //    connect(timer, &QTimer::timeout, this, [this]() {
+    //        m_inputHasChanged = true;
+    //        m_graphAdapter->recompute();
+    //        updateGraph();
+    //    });
 }
 
 VtkWidget::~VtkWidget() {}
@@ -163,6 +181,7 @@ void VtkWidget::updateGraph()
     } else {
         m_layoutView->SetInteractionModeTo2D();
     }
+    m_layout->Update();
     m_layoutView->Render(); // can get The BB from renderer
     m_layoutView->ResetCamera();
 
@@ -209,7 +228,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetSpacing(1.0);
         // strategy->SetCompactness(1.0);
         // strategy->SetCompression(1);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }
@@ -222,7 +241,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRadial(true);
         strategy->SetAngle(360);
         strategy->SetLogSpacingValue(1);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }
@@ -231,7 +250,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRandomSeed(0);
         // strategy->SetJitter(true);
         // strategy->SetRestDistance(1.0);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -241,13 +260,13 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetGraphBounds(...);
         // strategy->SetThreeDimensionalLayout(1);
         // strategy->SetAutomaticBoundsComputation(1);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false; // FIXME: can choose
         break;
     }
     case Vtk::LayoutStrategy::Circular: {
         auto *strategy = vtkCircularLayoutStrategy::New();
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -256,14 +275,14 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRandomSeed(0);
         // strategy->SetJitter(true);
         // strategy->SetRestDistance(1.0);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
     case Vtk::LayoutStrategy::SpanTree: {
         auto *strategy = vtkSpanTreeLayoutStrategy::New();
         // strategy->SetDepthFirstSpanningTree(true);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }
@@ -273,7 +292,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetRestDistance(1.0);
         // strategy->SetCommunityStrength(1.0);
         strategy->SetCommunityArrayName("VertexClusterId");
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -281,7 +300,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         auto *strategy = vtkClustering2DLayoutStrategy::New();
         strategy->SetRandomSeed(0);
         // strategy->SetRestDistance(1.0);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -292,7 +311,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetGraphBounds(...);
         // strategy->SetThreeDimensionalLayout(1);
         // strategy->SetAutomaticBoundsComputation(1);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -300,7 +319,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // same as above
         auto *strategy = vtkForceDirectedLayoutStrategy::New();
         strategy->SetThreeDimensionalLayout(true);
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }
@@ -309,7 +328,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetXCoordArrayName();
         // strategy->SetYCoordArrayName();
         // strategy->SetZCoordArrayName();
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }
@@ -318,7 +337,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         strategy->SetRandomSeed(0);
         // strategy->SetRestDistance();
         strategy->SetVertexAttribute("VertexClusterId"); // FIXME
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
         break;
     }
@@ -326,7 +345,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         auto *strategy = vtkConstrained2DLayoutStrategy::New();
         strategy->SetRandomSeed(0);
         //strategy->SetInputArrayName(s_connWeightArrayName); // FIXME [0:1]
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = false;
 
         break;
@@ -346,7 +365,7 @@ void VtkWidget::setLayoutStrategy(Vtk::LayoutStrategy strategy)
         // strategy->SetHierarchicalLayers();
         // strategy->SetMarkedStartVertices();
         // strategy->SetForceToUseUniversalStartPointsFinder();
-        m_layoutStrategy = strategy;
+        m_layoutStrategy.TakeReference(strategy);
         m_is3dLayout = true;
         break;
     }

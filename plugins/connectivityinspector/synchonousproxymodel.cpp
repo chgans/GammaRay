@@ -50,12 +50,16 @@ void SynchonousProxyModel::setSourceModel(QAbstractItemModel *model)
 
     // trigger fetching required data now
     if (sourceModel()->rowCount() > 0)
-        fetchRequiredData({}, 0, sourceModel()->rowCount() - 1, true);
+        fetchAllRequiredData();
     // and later
-    connect(model, &QAbstractItemModel::rowsInserted, this,
+    connect(model,
+            &QAbstractItemModel::rowsInserted,
+            this,
             [this](const QModelIndex &parent, int first, int last) {
                 fetchRequiredData(parent, first, last);
             });
+    //connect(model, &QAbstractItemModel::dataChanged, this, [this]() { fetchAllRequiredData(); });
+    connect(model, &QAbstractItemModel::modelReset, this, [this]() { fetchAllRequiredData(); });
 }
 
 bool SynchonousProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -73,9 +77,10 @@ bool SynchonousProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &so
 }
 
 void SynchonousProxyModel::fetchRequiredData(const QModelIndex &parent,
-                                             int first, int last,
-                                             bool recurse) const {
-#if 1
+                                             int first,
+                                             int last,
+                                             bool recurse) const
+{
     for (int row = first; row < last; ++row) {
         for (int column : m_requirements.keys())
             for (int role : m_requirements.value(column)) {
@@ -89,19 +94,9 @@ void SynchonousProxyModel::fetchRequiredData(const QModelIndex &parent,
             fetchRequiredData(index, 0, rowCount, recurse);
         }
     }
-#else
-    for (int row = first; row < last; ++row) {
-        for (int column = 0; column < sourceModel()->columnCount(parent); ++column)
-            for (int role = 255; role < 265; ++role) {
-                const auto index = sourceModel()->index(row, column, parent);
-                index.data(role);
-            }
-    }
-#endif
 }
 
-void SynchonousProxyModel::fetchAllRequiredData(const QModelIndex &parent) const
+void SynchonousProxyModel::fetchAllRequiredData() const
 {
-    qDebug() << Q_FUNC_INFO;
-    // TODO
+    fetchRequiredData({}, 0, sourceModel()->rowCount() - 1, true);
 }

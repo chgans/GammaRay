@@ -49,7 +49,7 @@ private:
     QHash<int, QSet<int>> m_requirements;
     void fetchRequiredData(const QModelIndex &parent, int first, int last,
                            bool recurse = false) const;
-    void fetchAllRequiredData(const QModelIndex &parent) const;
+    void fetchAllRequiredData() const;
 };
 
 } // namespace GammaRay

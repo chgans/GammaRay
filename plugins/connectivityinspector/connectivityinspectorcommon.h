@@ -32,17 +32,32 @@
 class QString;
 
 namespace GammaRay {
-namespace CI { // FIXME
+namespace Connectivity {
+
+enum Role {
+    LabelRole = Qt::DisplayRole,
+    VertexIdRole = Qt::UserRole + 1,
+    EdgeIdRole,
+    ClusterIdRole,
+    SourceIdRole,
+    TargetIdRole,
+    WeightRole
+};
+
 QString filterModelId(const QString &name);
 QString filterInterfaceId(const QString &name);
-QString filteredModelId(const QString &name);
+QString filteredModelId(const QString &name); // TODO: remove
+
+QString vertexModelId();
+QString clusterModelId();
+QString edgeModelId();
 
 QString threadFilterName();
 QString objectFilterName();
 QString classFilterName();
 QString typeFilterName();
 QString connectionFilterName();
-} // namespace CI
+} // namespace Connectivity
 
 enum {
     MetricColumRole = Qt::UserRole + 100,

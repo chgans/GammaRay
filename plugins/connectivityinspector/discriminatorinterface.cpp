@@ -31,7 +31,7 @@
 #include <common/objectbroker.h>
 
 using namespace GammaRay;
-using namespace GammaRay::CI;
+using namespace GammaRay::Connectivity;
 
 DiscriminatorInterface::DiscriminatorInterface(const QString &name, QObject *parent)
     : QObject(parent)

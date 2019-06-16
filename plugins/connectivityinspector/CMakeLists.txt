@@ -17,6 +17,9 @@ set(gammaray_connectivityinspector_plugin_srcs
   connectiontypemodel.cpp
   connectionmodel.cpp
   discriminatorproxymodel.cpp
+  vertexmodel.cpp
+  edgemodel.cpp
+  clustermodel.cpp
 )
 
 gammaray_add_plugin(gammaray_connectivityinspector_plugin
@@ -42,7 +45,9 @@ target_link_libraries(gammaray_connectivityinspector_plugin
 find_path(VTK_DIR VTKConfig.cmake
   /usr/lib64/vtk /usr/lib/vtk /usr/local/lib64/vtk /usr/local/lib/vtk
 )
-set(VTK_LIBS vtkGUISupportQt
+set(VTK_LIBS
+  vtkGUISupportQt
+  vtkGUISupportQtOpenGL
   vtkViewsInfovis
   vtkInfovisLayout
   vtkRenderingFreeType
@@ -106,6 +111,7 @@ if(VTK_FOUND AND VTK_QT_VERSION EQUAL 5 AND GAMMARAY_BUILD_UI)
     gammaray_common
     gammaray_ui
     gammaray_connectivityinspector_shared
+    Qt5::OpenGL
   )
 endif()
 

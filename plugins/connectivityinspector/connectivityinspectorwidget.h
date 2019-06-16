@@ -42,30 +42,14 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 namespace Ui {
-    class ObjectVisualizerWidget;
-    }
+class ObjectVisualizerWidget;
+}
 
 class AcquisitionInterface;
-class DiscriminatorInterface;
 class FilterWidget;
-class SynchonousProxyModel;
 
-struct Filter
+class ConnectivityInspectorWidget : public QWidget
 {
-    Filter(FilterWidget *filterWidget,
-           QLineEdit *searchWidget,
-           QAbstractItemView *searchableView,
-           const QString &name,
-           QObject *parent);
-    Filter() {}
-    SynchonousProxyModel *outputModel = nullptr;
-    QSortFilterProxyModel *searchableModel = nullptr;
-    QAbstractItemModel *filterModel = nullptr;
-    DiscriminatorInterface *filterInterface = nullptr;
-    FilterWidget *filterWidget = nullptr;
-};
-
-class ConnectivityInspectorWidget : public QWidget {
     Q_OBJECT
 
 public:
@@ -76,7 +60,7 @@ private:
     QScopedPointer<Ui::ObjectVisualizerWidget> m_ui;
     AcquisitionInterface *m_interface;
     UIStateManager m_stateManager;
-    QHash<QString, Filter> m_filters;
+    void addFilter(const QString name, FilterWidget *widget);
 };
 
 class ConnectivityInspectorUiFactory

@@ -35,6 +35,7 @@ class QLabel;
 QT_END_NAMESPACE
 
 class vtkGraph;
+class vtkDataRepresentation;
 
 namespace GammaRay {
 class VtkPanel;

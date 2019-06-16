@@ -29,6 +29,7 @@
 #define GAMMARAY_CONNECTIVITYINSPECTOR_VTKWIDGET_H
 
 #include <QVTKWidget.h>
+#include <QVTKWidget2.h>
 
 #include <vtkSmartPointer.h>
 
@@ -56,13 +57,16 @@ class vtkMutableDirectedGraph;
 class vtkStringArray;
 class vtkUnsignedLongLongArray;
 class vtkAnnotationLink;
+class vtkDataRepresentation;
+class vtkViewUpdater;
 
 namespace GammaRay {
 
 class vtkGraphAdapter;
 
 // TODO: QVTKOpenGLNativeWidget (v8) and QVTKWidget2 (v7)
-class VtkWidget : public QVTKWidget
+// QVTKOpenGLWidget, QVTKOpenGLWindow
+class VtkWidget : public QVTKWidget // QVTKWidget2
 {
     Q_OBJECT
 
@@ -85,7 +89,7 @@ public slots:
 
 private:
     vtkGraphAdapter *m_graphAdapter;
-
+    vtkSmartPointer<vtkViewUpdater> m_updater;
     // vtkDataObject: input of the pipeline
     // vtkGraph *m_graph = nullptr;
     // vtkAlgorithm: Layout it's input graph using a strategy

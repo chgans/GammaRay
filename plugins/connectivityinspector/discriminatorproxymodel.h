@@ -166,6 +166,12 @@ public:
     {}
     ~DiscriminatorProxyModel() override = default;
 
+    inline bool isAccepting(const T &data)
+    {
+        Q_ASSERT(m_indexes.contains(data));
+        return DiscriminatorProxyModelBase::isAccepting(m_indexes.value(data));
+    }
+
     // RecordingProxyModelBase interface
 protected:
     void addItemData(const QModelIndex &index) override
@@ -194,6 +200,7 @@ private:
 
 class FilterProxyModel : public QSortFilterProxyModel
 {
+    Q_OBJECT
 public:
     FilterProxyModel(QObject *parent = nullptr);
     ~FilterProxyModel() override;
@@ -226,6 +233,8 @@ public:
 
     bool isEnabled() const override;
 
+    const QAbstractItemModel *filteredModel() const;
+
     // DiscriminatorInterface interface
 public slots:
     void setEnabled(bool enabled) override;
@@ -237,8 +246,6 @@ public slots:
     //    void increaseConnectivity(const QModelIndex &sourceIndex);
     //    void decreaseConnectivity(const QModelIndex &sourceIndex);
     //    bool isAccepting(const QModelIndex &sourceIndex) const;
-
-    const QAbstractItemModel *filteredModel() const;
 
 protected:
     QAbstractItemModel *m_sourceModel = nullptr;
@@ -255,7 +262,8 @@ public:
     Discriminator(const QString &name, QObject *parent = nullptr)
         : DiscriminatorBase(name, parent)
     {
-        m_discriminatorProxyModel = new DiscriminatorProxyModel<T>(this);
+        p = new DiscriminatorProxyModel<T>(this);
+        m_discriminatorProxyModel = p;
         m_discriminatorServerProxyModel = new ServerProxyModel<B>(this);
         m_discriminatorServerProxyModel->setSourceModel(m_discriminatorProxyModel);
         m_filterProxyModel = new FilterProxyModel(this);
@@ -269,6 +277,8 @@ public:
                 &DiscriminatorProxyModelBase::setEnabled);
     }
 
+    inline bool isAccepting(const T &data) { return p->isAccepting(data); }
+
     void setDiscriminationRole(int role) { m_discriminatorProxyModel->setDiscriminationRole(role); }
     void setSourceModel(QAbstractItemModel *model) {
         m_discriminatorProxyModel->setSourceModel(model);
@@ -277,10 +287,12 @@ public:
 
     void initialise(Probe *probe)
     {
-        probe->registerModel(CI::filterModelId(name()), m_discriminatorServerProxyModel);
-        probe->registerModel(CI::filteredModelId(name()),
-                             m_filterServerProxyModel);
+        probe->registerModel(Connectivity::filterModelId(name()), m_discriminatorServerProxyModel);
+        probe->registerModel(Connectivity::filteredModelId(name()), m_filterServerProxyModel);
     }
+
+private:
+    DiscriminatorProxyModel<T> *p;
 };
 } // namespace GammaRay
 

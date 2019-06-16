@@ -22,6 +22,11 @@ QT_END_NAMESPACE
 
 namespace GammaRay {
 
+namespace Connectivity {
+class VertexModel;
+class ClusterModel;
+class EdgeModel;
+} // namespace Connectivity
 class Probe;
 class ConnectionModel;
 using TypeDiscriminator = Discriminator<int, QSortFilterProxyModel>;
@@ -60,6 +65,9 @@ private:
     void registerThreadDiscriminator();
     void registerClassDiscriminator();
     void registerObjectDiscriminator();
+    void registerVertexModel();
+    void registerClusterModel();
+    void registerEdgeModel();
 
 #if 0
     void increaseCountersForObject(QObject *object);
@@ -71,6 +79,9 @@ private:
     ClassDiscriminator *m_classDiscriminator;
     ObjectDiscriminator *m_objectDiscriminator;
     ThreadDiscriminator *m_threadDiscriminator;
+    Connectivity::VertexModel *m_vertexModel;
+    Connectivity::ClusterModel *m_clusterModel;
+    Connectivity::EdgeModel *m_edgeModel;
 
     void startSampling();
     void stopSampling();
@@ -91,7 +102,7 @@ private:
 
     Probe *m_probe;
     ConnectionModel *m_connectionModel;
-    bool isValidObject(QObject *sender);
+    bool filterObject(QObject *sender);
     void sampleObject(QObject *sender);
 };
 

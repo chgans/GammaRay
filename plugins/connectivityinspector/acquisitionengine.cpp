@@ -1,9 +1,12 @@
 #include "acquisitionengine.h"
 
+#include "clustermodel.h"
 #include "connectionmodel.h"
 #include "connectiontypemodel.h"
 #include "connectivityinspectorcommon.h"
 #include "discriminatorproxymodel.h"
+#include "edgemodel.h"
+#include "vertexmodel.h"
 
 #include <3rdparty/kde/krecursivefilterproxymodel.h>
 #include <core/objecttreemodel.h>
@@ -44,18 +47,22 @@ void visitModelIndex(const QAbstractItemModel *model, const QModelIndex &index, 
 } // namespace
 
 using namespace GammaRay;
-using namespace GammaRay::CI;
+using namespace GammaRay::Connectivity;
 
 AcquisitionEngine::AcquisitionEngine(Probe *probe, QObject *parent)
     : AcquisitionInterface(parent), m_timer(new QTimer(this)), m_probe(probe) {
     setBufferSize(100);
     setSamplingRate(5);
 
-    //registerTypeDiscriminator();
+    registerTypeDiscriminator();
     registerConnectionDiscriminator();
-    //registerClassDiscriminator();
+    registerClassDiscriminator();
     registerObjectDiscriminator();
-    //registerThreadDiscriminator();
+    registerThreadDiscriminator();
+
+    registerVertexModel();
+    registerClusterModel();
+    registerEdgeModel();
 
     connect(m_timer, &QTimer::timeout, this, &AcquisitionEngine::takeSample);
 
@@ -88,17 +95,11 @@ void AcquisitionEngine::resumeSampling()
     DEBUG;
 }
 
-bool AcquisitionEngine::isValidObject(QObject *object)
+bool AcquisitionEngine::filterObject(QObject *object)
 {
-    if (!m_probe->isValidObject(object) || m_probe->filterObject(object)) {
-        return false;
-    }
-    //    auto senderThread = object->thread();
-    //    if (!m_probe->isValidObject(senderThread) || m_probe->filterObject(senderThread)) {
-    //        m_connectionModel->removeSender(senderThread);
-    //        return false;
-    //    }
-    return true;
+    if (!m_probe->isValidObject(object))
+        return true;
+    return m_probe->filterObject(object);
 }
 
 void AcquisitionEngine::sampleObject(QObject *sender)
@@ -138,20 +139,101 @@ void AcquisitionEngine::sampleObject(QObject *sender)
     //    }
 }
 
+EdgeItem edgeItem(const QAbstractItemModel *model, int row)
+{
+    const auto index = model->index(row, 0);
+    auto id = model->data(index, ConnectionModel::ConnectionIdRole).value<ObjectId>().id();
+    auto label = model->data(index, Qt::DisplayRole).toString();
+    auto sender = model->data(index, ConnectionModel::SenderObjectIdRole).value<ObjectId>().id();
+    auto receiver = model->data(index, ConnectionModel::ReceiverObjectIdRole).value<ObjectId>().id();
+    return {id, label, sender, receiver, 0};
+}
+
+VertexItem vertexItem(const QAbstractItemModel *model, int row)
+{
+    const auto index = model->index(row, 0);
+    auto id = model->data(index, ObjectModel::ObjectIdRole).value<ObjectId>().id();
+    auto label = model->data(index, Qt::DisplayRole).toString();
+    return {id, label, 0};
+}
+
 void AcquisitionEngine::takeSample()
 {
     DEBUG;
     QMutexLocker locker(m_probe->objectLock());
     QElapsedTimer timer;
     timer.start();
-    const auto model = m_objectDiscriminator->filteredModel();
-    visitModelIndex(model, QModelIndex(), [this](const QModelIndex &index) {
-        auto sender = index.data(ObjectModel::ObjectRole).value<QObject *>();
-        if (isValidObject(sender))
-            sampleObject(sender);
-        //        else
-        //            m_connectionModel->removeSender(sender);
-    });
+
+    QSet<QObject *> objects;
+    QSet<QThread *> threads;
+    QHash<QPair<QObject *, QObject *>, int> conns;
+    //m_connectionModel->refresh();
+    for (int row = 0; row < m_connectionModel->rowCount(); ++row) {
+        auto sender = m_connectionModel->senderObject(row);
+        if (filterObject(sender))
+            continue;
+        auto receiver = m_connectionModel->receiverObject(row);
+        if (filterObject(receiver))
+            continue;
+        if (!m_objectDiscriminator->isAccepting(sender))
+            continue;
+        if (!m_objectDiscriminator->isAccepting(receiver))
+            continue;
+        if (!m_classDiscriminator->isAccepting(sender->metaObject()))
+            continue;
+        if (!m_classDiscriminator->isAccepting(receiver->metaObject()))
+            continue;
+        if (!m_threadDiscriminator->isAccepting(sender->thread()))
+            continue;
+        if (!m_threadDiscriminator->isAccepting(receiver->thread()))
+            continue;
+        if (sender == receiver)
+            continue;
+        if (receiver > sender)
+            std::swap(sender, receiver);
+        threads.insert(sender->thread());
+        threads.insert(receiver->thread());
+        const auto pair = qMakePair(sender, receiver);
+        if (objects.contains(sender) && objects.contains(receiver)) {
+            conns[pair]++;
+            continue;
+        }
+        conns.insert(pair, 1);
+        objects.insert(sender);
+        objects.insert(receiver);
+    }
+
+    QVector<VertexItem> vertexItems;
+    for (auto object : objects) {
+        vertexItems.append({reinterpret_cast<quint64>(object),
+                            Util::displayString(object),
+                            reinterpret_cast<quint64>(object->thread())});
+    }
+    m_vertexModel->setVertexItems(vertexItems);
+
+    QVector<ClusterItem> clusterItems;
+    for (auto thread : threads) {
+        clusterItems.append({reinterpret_cast<quint64>(thread), Util::displayString(thread)});
+    }
+    m_clusterModel->setClusterItems(clusterItems);
+
+    QVector<EdgeItem> edgeItems(conns.count());
+    auto currentEdge = edgeItems.begin();
+    auto current = conns.constKeyValueBegin();
+    auto none = conns.constKeyValueEnd();
+    quint64 id = 0;
+    while (current != none) {
+        *currentEdge = {id,
+                        QString::number(id),
+                        reinterpret_cast<quint64>((*current).first.first),
+                        reinterpret_cast<quint64>((*current).first.second),
+                        (*current).second};
+        current++;
+        currentEdge++;
+        id++;
+    }
+    m_edgeModel->setEdgeItems(edgeItems);
+
     emit samplingDone(timer.elapsed());
 }
 
@@ -165,21 +247,22 @@ void AcquisitionEngine::clearSamples() {
  */
 void AcquisitionEngine::registerTypeDiscriminator()
 {
-    auto typeDiscriminator = new TypeDiscriminator(typeFilterName(), this);
-    typeDiscriminator->setDiscriminationRole(ConnectionTypeModel::TypeRole);
-    typeDiscriminator->setSourceModel(new ConnectionTypeModel(this));
-    typeDiscriminator->initialise(m_probe);
+    m_typeDiscriminator = new TypeDiscriminator(typeFilterName(), this);
+    m_typeDiscriminator->setDiscriminationRole(ConnectionTypeModel::TypeRole);
+    m_typeDiscriminator->setSourceModel(new ConnectionTypeModel(this));
+    m_typeDiscriminator->initialise(m_probe);
 }
 
+// TOTO: need a refresh method
 void AcquisitionEngine::registerConnectionDiscriminator()
 {
-    auto connectionDiscriminator = new ConnectionDiscriminator(connectionFilterName(), this);
-    connectionDiscriminator->setDiscriminationRole(ConnectionModel::ConnectionIdRole);
-    auto input = new ConnectionModel(this);
-    connect(m_probe, &Probe::objectCreated, input, &ConnectionModel::addObject);
-    connect(m_probe, &Probe::objectDestroyed, input, &ConnectionModel::removeObject);
-    connectionDiscriminator->setSourceModel(input);
-    connectionDiscriminator->initialise(m_probe);
+    m_connectionDiscriminator = new ConnectionDiscriminator(connectionFilterName(), this);
+    m_connectionDiscriminator->setDiscriminationRole(ConnectionModel::ConnectionIdRole);
+    m_connectionModel = new ConnectionModel(this);
+    connect(m_probe, &Probe::objectCreated, m_connectionModel, &ConnectionModel::addObject);
+    connect(m_probe, &Probe::objectDestroyed, m_connectionModel, &ConnectionModel::removeObject);
+    m_connectionDiscriminator->setSourceModel(m_connectionModel);
+    m_connectionDiscriminator->initialise(m_probe);
 }
 
 void AcquisitionEngine::registerThreadDiscriminator()
@@ -187,7 +270,7 @@ void AcquisitionEngine::registerThreadDiscriminator()
     m_threadDiscriminator = new ThreadDiscriminator(threadFilterName(), this);
     m_threadDiscriminator->setDiscriminationRole(ObjectModel::ObjectRole);
     auto input = new ObjectTypeFilterProxyModel<QThread>(this);
-    input->setSourceModel(m_probe->objectListModel());
+    input->setSourceModel(m_probe->objectTreeModel());
     m_threadDiscriminator->setSourceModel(input);
     m_threadDiscriminator->initialise(m_probe);
 }
@@ -196,20 +279,36 @@ void AcquisitionEngine::registerClassDiscriminator()
 {
     m_classDiscriminator = new ClassDiscriminator(classFilterName(), this);
     m_classDiscriminator->setDiscriminationRole(QMetaObjectModel::MetaObjectRole);
-    auto input = new SingleColumnObjectProxyModel(this);
-    input->setSourceModel(m_probe->metaObjectTreeModel());
-    m_classDiscriminator->setSourceModel(input);
+    m_classDiscriminator->setSourceModel(m_probe->metaObjectTreeModel());
     m_classDiscriminator->initialise(m_probe);
 }
 
 void AcquisitionEngine::registerObjectDiscriminator()
 {
     m_objectDiscriminator = new ObjectDiscriminator(objectFilterName(), this);
-    m_objectDiscriminator->setDiscriminationRole(ObjectModel::ObjectIdRole);
+    m_objectDiscriminator->setDiscriminationRole(ObjectModel::ObjectRole);
     auto input = new SingleColumnObjectProxyModel(this);
-    input->setSourceModel(m_probe->objectListModel());
+    input->setSourceModel(m_probe->objectTreeModel());
     m_objectDiscriminator->setSourceModel(input);
     m_objectDiscriminator->initialise(m_probe);
+}
+
+void AcquisitionEngine::registerVertexModel()
+{
+    m_vertexModel = new Connectivity::VertexModel(this);
+    m_probe->registerModel(Connectivity::vertexModelId(), m_vertexModel);
+}
+
+void AcquisitionEngine::registerClusterModel()
+{
+    m_clusterModel = new Connectivity::ClusterModel(this);
+    m_probe->registerModel(Connectivity::clusterModelId(), m_clusterModel);
+}
+
+void AcquisitionEngine::registerEdgeModel()
+{
+    m_edgeModel = new Connectivity::EdgeModel(this);
+    m_probe->registerModel(Connectivity::edgeModelId(), m_edgeModel);
 }
 
 /*

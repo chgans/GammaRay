@@ -63,6 +63,24 @@ public:
     explicit ConnectionModel(QObject *parent = nullptr);
     ~ConnectionModel() override;
 
+    quint64 id(int row)
+    {
+        Q_ASSERT(row >= 0 && row < m_items.count());
+        return reinterpret_cast<quint64>(m_items.at(row).connection);
+    }
+
+    QObject *senderObject(int row)
+    {
+        Q_ASSERT(row >= 0 && row < m_items.count());
+        return m_items.at(row).sender;
+    }
+
+    QObject *receiverObject(int row)
+    {
+        Q_ASSERT(row >= 0 && row < m_items.count());
+        return m_items.at(row).receiver;
+    }
+
 public slots:
     void clear();
     void addObject(QObject *object);
