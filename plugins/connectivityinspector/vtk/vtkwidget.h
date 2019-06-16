@@ -59,6 +59,8 @@ class vtkAnnotationLink;
 
 namespace GammaRay {
 
+class vtkGraphAdapter;
+
 // TODO: QVTKOpenGLNativeWidget (v8) and QVTKWidget2 (v7)
 class VtkWidget : public QVTKWidget
 {
@@ -68,8 +70,7 @@ public:
     explicit VtkWidget(QWidget *parent = nullptr);
     virtual ~VtkWidget();
 
-    void setGraph(vtkGraph *graph);
-    void updateGraph();
+    vtkGraphAdapter *graphAdapter();
 
 signals:
     void statusChanged(const QString &text);
@@ -83,8 +84,10 @@ public slots:
     void setShowEdgeArrow(bool show);
 
 private:
+    vtkGraphAdapter *m_graphAdapter;
+
     // vtkDataObject: input of the pipeline
-    vtkGraph *m_graph = nullptr;
+    // vtkGraph *m_graph = nullptr;
     // vtkAlgorithm: Layout it's input graph using a strategy
     vtkSmartPointer<vtkGraphLayout> m_layout;
     // vtkObject
@@ -98,25 +101,18 @@ private:
     // RenderWindowInteractor
     vtkSmartPointer<QVTKInteractor> m_interactor;
     // vtkInteractorObserver
-    vtkSmartPointer<vtkInteractorStyle> m_interactor3dStyle;
-    vtkSmartPointer<vtkInteractorStyle> m_interactor2dStyle;
     vtkSmartPointer<vtkInteractorStyle> m_interactorZoomStyle;
 
     vtkSmartPointer<vtkAnnotationLink> m_annotationLink;
-    void annotationChangedEvent();
 
     // Internal state and data
     bool m_showEdgeArrow = false;
     bool m_inputHasChanged = true;
     bool m_configHasChanged = true;
     qint64 m_renderDuration = 0;
-    void renderGraph();
     void createArrowDecorator(vtkAlgorithmOutput *input);
     void updateSatus(const QString &state);
-
-    // QWidget interface
-protected:
-    void mousePressEvent(QMouseEvent *event) override;
+    void updateGraph();
 };
 } // namespace GammaRay
 

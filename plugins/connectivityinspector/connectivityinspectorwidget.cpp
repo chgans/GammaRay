@@ -123,9 +123,24 @@ ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
                      Filter(m_ui->threadFilterWidget, threadFilterName(), this));
 #endif
 
-    auto graphAdapter = new vtkGraphAdapter(this);
+    auto graphAdapter = m_ui->vtkWidget->graphAdapater();
+
+    auto vertexModel = m_filters.value(objectFilterName()).outputModel;
+    auto vertexSelectionModel = new QItemSelectionModel(vertexModel, this);
+    graphAdapter->setVertexModel(vertexModel);
+    graphAdapter->setVertexSelectionModel(vertexSelectionModel);
+
     graphAdapter->setVertexIdQuery(0, ObjectModel::ObjectIdRole);
     graphAdapter->setVertexLabelQuery(0, Qt::DisplayRole);
+
+    m_ui->vertexListView->setModel(vertexModel);
+    m_ui->vertexListView->setSelectionModel(vertexSelectionModel);
+
+    auto edgeModel = m_filters.value(connectionFilterName()).outputModel;
+    auto edgeSelectionModel = new QItemSelectionModel(edgeModel, this);
+    graphAdapter->setEdgeModel(edgeModel);
+    graphAdapter->setEdgeSelectionModel(edgeSelectionModel);
+
     graphAdapter->setEdgeIdQuery(ConnectionModel::ConnectionColumn,
                                  ConnectionModel::ConnectionIdRole);
     graphAdapter->setEdgeLabelQuery(ConnectionModel::ConnectionColumn, Qt::DisplayRole);
@@ -134,21 +149,13 @@ ConnectivityInspectorWidget::ConnectivityInspectorWidget(QWidget *parent)
     graphAdapter->setEdgeTargetIdQuery(ConnectionModel::ReceiverColumn,
                                        ConnectionModel::ReceiverObjectIdRole);
 
-    auto vertexModel = m_filters.value(objectFilterName()).outputModel;
-    m_ui->vertexListView->setModel(vertexModel);
-    graphAdapter->setVertexModel(vertexModel);
-    auto edgeModel = m_filters.value(connectionFilterName()).outputModel;
     m_ui->edgeListView->setModel(edgeModel);
-    graphAdapter->setEdgeModel(edgeModel);
-    m_ui->vtkWidget->setGraph(graphAdapter->graph());
+    m_ui->edgeListView->setSelectionModel(edgeSelectionModel);
 
-    //m_ui->gvWidget->setModel(m_connectionModel);
-    //m_ui->vtkWidget->setModel(m_connectionModel);
-
-    connect(m_interface, &AcquisitionInterface::samplingDone, this, [this, graphAdapter]() {
-        graphAdapter->setup();
-        m_ui->vtkWidget->updateGraph();
-    });
+    connect(m_interface,
+            &AcquisitionInterface::samplingDone,
+            graphAdapter,
+            &vtkGraphAdapter::recompute);
 }
 
 ConnectivityInspectorWidget::~ConnectivityInspectorWidget() = default;

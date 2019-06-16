@@ -39,6 +39,7 @@ class vtkGraph;
 namespace GammaRay {
 class VtkPanel;
 class VtkWidget;
+class vtkGraphAdapter;
 
 class VtkContainer : public QWidget {
     Q_OBJECT
@@ -47,8 +48,7 @@ public:
     explicit VtkContainer(QWidget *parent = nullptr);
     virtual ~VtkContainer();
 
-    void setGraph(vtkGraph *graph);
-    void updateGraph();
+    vtkGraphAdapter *graphAdapater();
 
 private:
     VtkWidget *m_vtkWidget;
